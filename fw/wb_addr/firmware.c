@@ -38,6 +38,7 @@ int main(int argc, char *argv[])
 		sscanf(buf, "%d %d %d %d %d %d\n", &id.vendor, &id.device,
 		         &id.subdevice, &priority, &class, &version);
 		printf("Device:\n\tVendor: %d\n\tDevice: %d\n\tSubdevice: %d\n\tPriority: %d\n\tClass: %d\n\tVersion: %d\n", id.vendor, id.device, id.subdevice, priority & 0xf, class & 0xfff, version & 0xffff);
+		wb.flags = ((priority & 0xf) << 28) | ((class & 0xfff) << 16) | (version & 0xffff);
 		fwrite((void *)&id, sizeof(struct wb_id), 1, fout);
 		num++;
 	}

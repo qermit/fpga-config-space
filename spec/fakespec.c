@@ -7,6 +7,8 @@
 
 static int fake_spec_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	/* load wishbone address map firmware */
+	/* register wishbone devices */
 	return 0;
 }
 
