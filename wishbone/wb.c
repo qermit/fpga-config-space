@@ -35,7 +35,15 @@ int wb_register_device(struct wb_device *wbdev)
 	dev_set_name(&wbdev->dev, "wb%d", devno++);
 	return device_register(&wbdev->dev);
 }
-//EXPORT_SYMBOL(wb_register_device);
+EXPORT_SYMBOL(wb_register_device);
+
+void wb_unregister_device(struct wb_device *wbdev)
+{
+	if (!wbdev)
+		return;
+	device_unregister(&wbdev->dev);
+}
+EXPORT_SYMBOL(wb_unregister_device);
 
 /*
  * Register a Wishbone driver

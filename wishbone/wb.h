@@ -33,14 +33,16 @@ struct wb_device {
 	unsigned int vendor;
 	unsigned short device;
 	unsigned short subdevice;
-	unsigned int flags; /* LSB to MSB: 4 bits priority, 12 bits class, 
+	unsigned int flags; /* MSB to LSB: 4 bits priority, 12 bits class, 
 	                       16 bits version */
 	struct wb_driver *driver;
 	struct device dev;
 };
 #define to_wb_device(dev) container_of(dev, struct wb_device, dev);
 
-//int wb_register_device(struct wb_device *wbdev); /* not public */
+int wb_register_device(struct wb_device *wbdev);
+void wb_unregister_device(struct wb_device *wbdev);
+
 int wb_register_driver(struct wb_driver *driver);
 void wb_unregister_driver(struct wb_driver *driver);
 
