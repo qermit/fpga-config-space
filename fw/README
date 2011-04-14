@@ -1,0 +1,6 @@
+copy the firmware file into /lib/firmware/NAME
+NAME is as specified in the driver
+
+For the spec driver, the firmware name is expected to be "fakespec"
+
+$ cp fw/wb_addr/firmware.bin /lib/firmware/fakespec
