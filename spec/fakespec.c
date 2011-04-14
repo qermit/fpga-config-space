@@ -18,17 +18,23 @@ struct wb_header {
 int ndev;
 struct wb_device **wbdev;
 
+int n = 0;
+
 static int fake_spec_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int i = -1;
 	int j = 0;
 	struct wb_header *header;
 	const struct firmware *wb_fw;
+	if (n)
+		return -1;
+	n = 1;
 	/* load wishbone address map firmware */
-	if (request_firmware(&wb_fw, "wb_map", &pdev->dev)) {
+	if (request_firmware(&wb_fw, "fakespec", &pdev->dev)) {
 		printk(KERN_ERR "failed to load firmware\n");
 		return -1;
 	}
+	printk(KERN_INFO "fakespec: loaded firmware\n");
 	if (wb_fw->size % 1024)
 		printk(KERN_DEBUG "not aligned to 1024 bytes. skipping extra\n");
 	ndev = wb_fw->size / 1024;
@@ -56,6 +62,9 @@ static int fake_spec_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 		j++;
 	}
 	ndev = j;
+	printk("fakespec: found %d devices\n", ndev);
+	for (i = 0; i < ndev; i++)
+		printk("fakespec: device: %d %d %d %08x\n", wbdev[i]->vendor, wbdev[i]->device, wbdev[i]->subdevice, wbdev[i]->flags);
 	return 0;
 
 nodev:
@@ -65,6 +74,7 @@ nodev:
 register_fail:
 	kfree(wbdev[j]);
 alloc_fail:
+	printk("dodo\n");
 	while (--j >= 0) {
 		wb_unregister_device(wbdev[j]);
 		kfree(wbdev[j]);
@@ -78,15 +88,19 @@ arr_alloc_fail:
 static void fake_spec_remove(struct pci_dev *pdev)
 {
 	int i;
+	printk("ndev: %d\n", ndev);
 	for (i = 0; i < ndev; i++) {
+		printk("unregistering device %d\n", i);
 		wb_unregister_device(wbdev[i]);
+		printk("done\n");
 		kfree(wbdev[i]);
 	}
 	kfree(wbdev);
+	printk("finished\n");
 }
 
 struct pci_device_id fake_spec_pci_tbl[] = {
-	{ SPEC_VENDOR, SPEC_DEVICE, PCI_ANY_ID, 
+	{ PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 
 	  PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
@@ -105,6 +119,7 @@ int fake_spec_init(void)
 
 void fake_spec_exit(void)
 {
+	pci_unregister_driver(&fake_spec_pci_driver);
 }
 
 module_init(fake_spec_init);

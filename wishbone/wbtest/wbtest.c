@@ -1,12 +1,5 @@
 #include "../wb.h"
 
-int wbtest_match(struct device *dev)
-{
-	struct wb_device *wbdev = to_wb_device(dev);
-	printk("vendor :%d\n", wbdev->vendor);
-	return 0;
-}
-
 struct wb_device_id wbtest_ids[] = {
 	{ WBONE_ANY_ID, WBONE_ANY_ID, WBONE_ANY_ID },
 	{ 0, },
@@ -34,3 +27,5 @@ void wbtest_exit(void)
 
 module_init(wbtest_init);
 module_exit(wbtest_exit);
+
+MODULE_LICENSE("GPL");
