@@ -80,12 +80,12 @@ struct wb_device_id *wb_match_device(struct wb_driver *drv, struct wb_device *de
 	struct wb_device_id *ids;
 	ids = drv->id_table;
 	if (ids) {
-		printk(KERN_ERR "fakespec: match: %d %d %d\n", ids->vendor, ids->device, ids->subdevice);
 		while (ids->vendor || ids->device || ids->subdevice) {
 			if ((ids->vendor == WBONE_ANY_ID || ids->vendor == dev->vendor) &&
-			    (ids->device == WBONE_ANY_ID || ids->device == dev->device) &&
-			    (ids->subdevice == WBONE_ANY_ID || ids->subdevice == dev->subdevice))
+			    (ids->device == (__u16)WBONE_ANY_ID || ids->device == dev->device) &&
+			    (ids->subdevice == (__u16)WBONE_ANY_ID || ids->subdevice == dev->subdevice)) {
 				return ids;
+			}
 			ids++;
 		}
 	}
@@ -100,15 +100,11 @@ static int wb_bus_match(struct device *dev, struct device_driver *drv)
 	wb_dev = to_wb_device(dev);
 	wb_drv = to_wb_driver(drv);
 
-	printk("%s\n", wb_drv->version);
-	printk("%d\n", wb_dev->vendor);
-	
 	found = wb_match_device(wb_drv, wb_dev);
 	if (found) {
 		wb_dev->driver = wb_drv;
 		return 1;
 	}
-	
 	return 0;
 }
 
