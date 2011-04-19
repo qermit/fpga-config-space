@@ -67,21 +67,24 @@ void wb_unregister_driver(struct wb_driver *driver)
 EXPORT_SYMBOL(wb_unregister_driver);
 
 /*
- * Match a single Wishbone driver and Wishbone device. An ID of WBONE_ANY_ID
- * can be used as a match-all value for any of the fields (vendor, device,
- * subdevice).
+ * Match a single Wishbone driver and Wishbone device. An ID of
+ * WBONE_ANY_ID can be used as a match-all value for any of the
+ * fields (vendor, device, subdevice).
  */
-static struct wb_device_id *wb_match_device(struct wb_driver *drv, struct wb_device *dev)
+static struct wb_device_id *wb_match_device(struct wb_driver *drv,
+						struct wb_device *dev)
 {
 	struct wb_device_id *ids;
 	ids = drv->id_table;
 	if (ids) {
 		while (ids->vendor || ids->device || ids->subdevice) {
-			if ((ids->vendor == WBONE_ANY_ID || ids->vendor == dev->vendor) &&
-			    (ids->device == (__u16)WBONE_ANY_ID || ids->device == dev->device) &&
-			    (ids->subdevice == (__u16)WBONE_ANY_ID || ids->subdevice == dev->subdevice)) {
+			if ((ids->vendor == WBONE_ANY_ID
+					|| ids->vendor == dev->vendor) &&
+			    (ids->device == (__u16)WBONE_ANY_ID
+					|| ids->device == dev->device) &&
+			    (ids->subdevice == (__u16)WBONE_ANY_ID
+					|| ids->subdevice == dev->subdevice))
 				return ids;
-			}
 			ids++;
 		}
 	}

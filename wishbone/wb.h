@@ -23,7 +23,7 @@ struct wb_driver {
 	int (*probe)(struct wb_device *);
 	int (*remove)(struct wb_device *);
 	void (*shutdown)(struct wb_device *);
-	struct dev_pm_ops ops;
+	const struct dev_pm_ops ops;
 	struct list_head list;
 	struct device_driver driver;
 };
@@ -34,8 +34,8 @@ struct wb_device {
 	unsigned int vendor;
 	unsigned short device;
 	unsigned short subdevice;
-	unsigned int flags; /* MSB to LSB: 4 bits priority, 12 bits class, 
-	                       16 bits version */
+	unsigned int flags;	/* MSB to LSB: 4 bits priority, 12 bits class,
+						16 bits version */
 	struct wb_driver *driver;
 	struct list_head list;
 	struct device dev;

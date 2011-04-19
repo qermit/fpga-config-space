@@ -25,9 +25,10 @@ int ndev;
 LIST_HEAD(spec_devices);
 static struct mutex list_lock;
 
-static int n = 0;
+static int n;
 
-static int fake_spec_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int fake_spec_probe(struct pci_dev *pdev,
+				const struct pci_device_id *ent)
 {
 	int i = -1;
 	int j = 0;
@@ -56,7 +57,7 @@ static int fake_spec_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 	/* print a warning if it is not aligned to 1KB blocks */
 	if (wb_fw->size % 1024)
 		printk(KERN_DEBUG PFX "not aligned to 1024 bytes. skipping extra\n");
-	
+
 	/* find the number of block present */
 	nblock = wb_fw->size / 1024;
 	if (!nblock) {
@@ -117,11 +118,11 @@ static void fake_spec_remove(struct pci_dev *pdev)
 	mutex_unlock(&list_lock);
 }
 
-static struct pci_device_id fake_spec_pci_tbl[] = {
-	{ PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 
-	  PCI_ANY_ID, 0, 0, 0},
-	{ 0, },
+static DEFINE_PCI_DEVICE_TABLE(fake_spec_pci_tbl) = {
+	{ PCI_DEVICE(PCI_ANY_ID, PCI_ANY_ID) },
+	{ 0, 0, 0, 0, 0, 0, 0 },
 };
+MODULE_DEVICE_TABLE(pci, fake_spec_pci_tbl);
 
 static struct pci_driver fake_spec_pci_driver = {
 	.name = "fake-spec",
@@ -132,6 +133,7 @@ static struct pci_driver fake_spec_pci_driver = {
 
 static int fake_spec_init(void)
 {
+	n = 0;
 	mutex_init(&list_lock);
 	return pci_register_driver(&fake_spec_pci_driver);
 }
