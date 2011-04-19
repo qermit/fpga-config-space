@@ -5,8 +5,10 @@
 
 #include "../wishbone/wb.h"
 
-#define SPEC_VENDOR 0xbabe
-#define SPEC_DEVICE 0xbabe
+int spec_vendor = 0xbabe;
+int spec_device = 0xbabe;
+module_param(spec_vendor, int, S_IRUGO);
+module_param(spec_device, int, S_IRUGO);
 
 struct wb_header {
 	__u32 vendor;
@@ -31,7 +33,7 @@ static int fake_spec_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 		return -1;
 	n = 1;
 	/* load wishbone address map firmware */
-	sprintf(fwname, "fakespec-%04x-%04x", SPEC_VENDOR, SPEC_DEVICE);
+	sprintf(fwname, "fakespec-%04x-%04x", spec_vendor, spec_device);
 	if (request_firmware(&wb_fw, fwname, &pdev->dev)) {
 		printk(KERN_ERR "failed to load firmware\n");
 		return -1;
@@ -126,3 +128,5 @@ void fake_spec_exit(void)
 
 module_init(fake_spec_init);
 module_exit(fake_spec_exit);
+
+MODULE_LICENSE("GPL");
