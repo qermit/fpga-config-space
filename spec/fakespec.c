@@ -26,11 +26,13 @@ static int fake_spec_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 	int j = 0;
 	struct wb_header *header;
 	const struct firmware *wb_fw;
+	char fwname[64];
 	if (n)
 		return -1;
 	n = 1;
 	/* load wishbone address map firmware */
-	if (request_firmware(&wb_fw, "fakespec", &pdev->dev)) {
+	sprintf(fwname, "fakespec-%04x-%04x", SPEC_VENDOR, SPEC_DEVICE);
+	if (request_firmware(&wb_fw, fwname, &pdev->dev)) {
 		printk(KERN_ERR "failed to load firmware\n");
 		return -1;
 	}
