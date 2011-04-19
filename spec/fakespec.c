@@ -40,7 +40,11 @@ static int fake_spec_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 		return -1;
 	n = 1;
 
-	/* load firmware with wishbone address map */
+	/*
+	 * load firmware with wishbone address map. In the real driver, we would
+	 * first load the bitstream into the fpga and then walk through the
+	 * address space.
+	 */
 	sprintf(fwname, "fakespec-%08x-%04x", spec_vendor, spec_device);
 	if (request_firmware(&wb_fw, fwname, &pdev->dev)) {
 		printk(KERN_ERR "failed to load firmware\n");
