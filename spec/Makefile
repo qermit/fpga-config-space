@@ -1,7 +1,6 @@
-obj-m += fakespec.o
+include $(PWD)/../paths.mk
 
-#KERNEL_DIR=/lib/modules/$(shell uname -r)/build
-KERNEL_DIR=/home/mvanga/dev/cern/linux/linux-torvalds
+obj-m += fakespec.o
 
 all:
 	make -C $(KERNEL_DIR) M=$(PWD) modules
