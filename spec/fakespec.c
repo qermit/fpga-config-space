@@ -46,7 +46,6 @@ static int fake_spec_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 		printk(KERN_ERR "failed to load firmware\n");
 		return -1;
 	}
-	printk(KERN_INFO "fakespec: loaded firmware\n");
 
 	/* print a warning if it is not aligned to 1KB blocks */
 	if (wb_fw->size % 1024)
