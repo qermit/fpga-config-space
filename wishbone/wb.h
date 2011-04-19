@@ -35,7 +35,7 @@ struct wb_device {
 	unsigned short device;
 	unsigned short subdevice;
 	unsigned int flags;	/* MSB to LSB: 4 bits priority, 12 bits class,
-						16 bits version */
+				16 bits version */
 	struct wb_driver *driver;
 	struct list_head list;
 	struct device dev;

@@ -190,5 +190,6 @@ module_init(wb_init)
 module_exit(wb_exit)
 
 MODULE_AUTHOR("Manohar Vanga");
-MODULE_DESCRIPTION("Virtual or Vanga bus depending on how cocky I'm feeling");
+MODULE_DESCRIPTION("Wishbone bus driver");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("Apr 2011");

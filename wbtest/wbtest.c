@@ -49,4 +49,7 @@ static void wbtest_exit(void)
 module_init(wbtest_init);
 module_exit(wbtest_exit);
 
+MODULE_AUTHOR("Manohar Vanga");
+MODULE_DESCRIPTION("Test Wishbone driver");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("Apr 2011");

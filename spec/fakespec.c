@@ -146,4 +146,7 @@ static void fake_spec_exit(void)
 module_init(fake_spec_init);
 module_exit(fake_spec_exit);
 
+MODULE_AUTHOR("Manohar Vanga <mvanga@cern.ch>");
+MODULE_DESCRIPTION("Fake Spec board driver");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("Apr 2011");
