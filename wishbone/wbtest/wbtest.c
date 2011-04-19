@@ -24,7 +24,7 @@ void wbtest_shutdown(struct wb_device *dev)
 }
 
 struct wb_driver wbtest_driver = {
-	.version = "wbtest",
+	.name = "wbtest",
 	.owner = THIS_MODULE,
 	.id_table = wbtest_ids,
 	.probe = wbtest_probe,

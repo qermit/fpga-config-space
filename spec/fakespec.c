@@ -2,6 +2,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/firmware.h>
+#include <linux/mutex.h>
 
 #include "../wishbone/wb.h"
 
@@ -18,7 +19,9 @@ struct wb_header {
 };
 
 int ndev;
-struct wb_device **wbdev;
+
+LIST_HEAD(spec_devices);
+struct mutex list_lock;
 
 int n = 0;
 
@@ -26,49 +29,57 @@ static int fake_spec_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 {
 	int i = -1;
 	int j = 0;
-	struct wb_header *header;
-	const struct firmware *wb_fw;
+	int nblock;
 	char fwname[64];
+	struct wb_header *header;
+	struct wb_device *wbdev, *next;
+	const struct firmware *wb_fw;
+
+	/* Horrible way of ensuring single probe call. Sorry for race conds */
 	if (n)
 		return -1;
 	n = 1;
-	/* load wishbone address map firmware */
-	sprintf(fwname, "fakespec-%04x-%04x", spec_vendor, spec_device);
+
+	/* load firmware with wishbone address map */
+	sprintf(fwname, "fakespec-%08x-%04x", spec_vendor, spec_device);
 	if (request_firmware(&wb_fw, fwname, &pdev->dev)) {
 		printk(KERN_ERR "failed to load firmware\n");
 		return -1;
 	}
 	printk(KERN_INFO "fakespec: loaded firmware\n");
+
+	/* print a warning if it is not aligned to 1KB blocks */
 	if (wb_fw->size % 1024)
 		printk(KERN_DEBUG "not aligned to 1024 bytes. skipping extra\n");
-	ndev = wb_fw->size / 1024;
-	if (!ndev) {
+	
+	/* find the number of block present */
+	nblock = wb_fw->size / 1024;
+	if (!nblock) {
 		printk(KERN_DEBUG "no devices in memory map\n");
 		goto nodev;
 	}
-	wbdev = kzalloc(sizeof(struct wb_device *) * ndev, GFP_KERNEL);
-	if (!wbdev)
-		goto arr_alloc_fail;
+
 	/* register wishbone devices */
-	while (++i < ndev) {
+	while (++i < nblock) {
 		header = (struct wb_header *)&wb_fw->data[i * 1024];
 		if (!header->vendor)
 			continue;
-		wbdev[j] = kzalloc(sizeof(struct wb_device), GFP_KERNEL);
-		if (!wbdev[j])
+		wbdev = kzalloc(sizeof(struct wb_device), GFP_KERNEL);
+		if (!wbdev)
 			goto alloc_fail;
-		wbdev[j]->vendor = header->vendor;
-		wbdev[j]->device = header->device;
-		wbdev[j]->subdevice = header->subdevice;
-		wbdev[j]->flags = header->flags;
-		if (wb_register_device(wbdev[j]) < 0)
+		wbdev->vendor = header->vendor;
+		wbdev->device = header->device;
+		wbdev->subdevice = header->subdevice;
+		wbdev->flags = header->flags;
+		if (wb_register_device(wbdev) < 0)
 			goto register_fail;
+		mutex_lock(&list_lock);
+		list_add(&wbdev->list, &spec_devices);
+		mutex_unlock(&list_lock);
 		j++;
 	}
 	ndev = j;
-	printk("fakespec: found %d devices\n", ndev);
-	for (i = 0; i < ndev; i++)
-		printk("fakespec: device: %d %d %d %08x\n", wbdev[i]->vendor, wbdev[i]->device, wbdev[i]->subdevice, wbdev[i]->flags);
+	printk("fakespec: found %d wishbone devices\n", ndev);
 	return 0;
 
 nodev:
@@ -76,31 +87,29 @@ nodev:
 	return 0;
 
 register_fail:
-	kfree(wbdev[j]);
-alloc_fail:
-	printk("dodo\n");
-	while (--j >= 0) {
-		wb_unregister_device(wbdev[j]);
-		kfree(wbdev[j]);
-	}
 	kfree(wbdev);
-arr_alloc_fail:
+alloc_fail:
+	mutex_lock(&list_lock);
+	list_for_each_entry_safe(wbdev, next, &spec_devices, list) {
+		list_del(&wbdev->list);
+		wb_unregister_device(wbdev);
+		kfree(wbdev);
+	}
+	mutex_unlock(&list_lock);
 	release_firmware(wb_fw);
 	return -1;
 }
 
 static void fake_spec_remove(struct pci_dev *pdev)
 {
-	int i;
-	printk("ndev: %d\n", ndev);
-	for (i = 0; i < ndev; i++) {
-		printk("unregistering device %d\n", i);
-		wb_unregister_device(wbdev[i]);
-		printk("done\n");
-		kfree(wbdev[i]);
+	struct wb_device *wbdev, *next;
+	mutex_lock(&list_lock);
+	list_for_each_entry_safe(wbdev, next, &spec_devices, list) {
+		list_del(&wbdev->list);
+		wb_unregister_device(wbdev);
+		kfree(wbdev);
 	}
-	kfree(wbdev);
-	printk("finished\n");
+	mutex_unlock(&list_lock);
 }
 
 struct pci_device_id fake_spec_pci_tbl[] = {
@@ -118,6 +127,7 @@ struct pci_driver fake_spec_pci_driver = {
 
 int fake_spec_init(void)
 {
+	mutex_init(&list_lock);
 	return pci_register_driver(&fake_spec_pci_driver);
 }
 

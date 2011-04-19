@@ -2,6 +2,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/list.h>
 
 #include "wb.h"
 
@@ -28,6 +29,7 @@ int wb_register_device(struct wb_device *wbdev)
 	wbdev->dev.parent = &wb_dev;
 	wbdev->dev.release = wb_dev_release;
 	dev_set_name(&wbdev->dev, "wb%d", devno++);
+	INIT_LIST_HEAD(&wbdev->list);
 	return device_register(&wbdev->dev);
 }
 EXPORT_SYMBOL(wb_register_device);
@@ -52,6 +54,7 @@ int wb_register_driver(struct wb_driver *driver)
 	driver->driver.bus = &wb_bus_type;
 	driver->driver.name = driver->name;
 	ret = driver_register(&driver->driver);
+	INIT_LIST_HEAD(&driver->list);
 	return ret;
 }
 EXPORT_SYMBOL(wb_register_driver);

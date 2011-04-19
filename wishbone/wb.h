@@ -4,6 +4,7 @@
 #include <linux/device.h>
 #include <linux/pm.h>
 #include <linux/types.h>
+#include <linux/list.h>
 
 #define WBONE_ANY_ID (~0)
 
@@ -23,6 +24,7 @@ struct wb_driver {
 	int (*remove)(struct wb_device *);
 	void (*shutdown)(struct wb_device *);
 	struct dev_pm_ops ops;
+	struct list_head list;
 	struct device_driver driver;
 };
 #define to_wb_driver(drv) container_of(drv, struct wb_driver, driver);
@@ -35,6 +37,7 @@ struct wb_device {
 	unsigned int flags; /* MSB to LSB: 4 bits priority, 12 bits class, 
 	                       16 bits version */
 	struct wb_driver *driver;
+	struct list_head list;
 	struct device dev;
 };
 #define to_wb_device(dev) container_of(dev, struct wb_device, dev);
