@@ -5,10 +5,31 @@ struct wb_device_id wbtest_ids[] = {
 	{ 0, },
 };
 
+int wbtest_probe(struct wb_device *dev)
+{
+	printk(KERN_INFO "wbtest: probe\n");
+	return 0;
+}
+
+int wbtest_remove(struct wb_device *dev)
+{
+	printk(KERN_INFO "wbtest: remove\n");
+	return 0;
+}
+
+void wbtest_shutdown(struct wb_device *dev)
+{
+	printk(KERN_INFO "wbtest: shutdown\n");
+	return;
+}
+
 struct wb_driver wbtest_driver = {
 	.version = "wbtest",
 	.owner = THIS_MODULE,
 	.id_table = wbtest_ids,
+	.probe = wbtest_probe,
+	.remove = wbtest_remove,
+	.shutdown = wbtest_shutdown,
 };
 
 int wbtest_init(void)

@@ -10,13 +10,6 @@
 struct device wb_dev;
 struct bus_type wb_bus_type;
 
-static ssize_t show_version(struct device_driver *driver, char *buf)
-{
-	struct wb_driver *wbdrv = to_wb_driver(driver);
-	sprintf(buf, "%s\n", wbdrv->version);
-	return strlen(buf);
-}
-
 static void wb_dev_release(struct device *dev)
 {
 	struct wb_device *wb_dev;
@@ -39,6 +32,9 @@ int wb_register_device(struct wb_device *wbdev)
 }
 EXPORT_SYMBOL(wb_register_device);
 
+/*
+ * Unregister a previously registered Wishbone device
+ */
 void wb_unregister_device(struct wb_device *wbdev)
 {
 	if (!wbdev)
@@ -53,28 +49,25 @@ EXPORT_SYMBOL(wb_unregister_device);
 int wb_register_driver(struct wb_driver *driver)
 {
 	int ret;
-   
 	driver->driver.bus = &wb_bus_type;
-	driver->driver.name = driver->version;
+	driver->driver.name = driver->name;
 	ret = driver_register(&driver->driver);
-	if (ret)
-		return ret;
-	driver->version_attr.attr.name = "version";
-//	driver->version_attr.attr.owner = driver->owner;
-	driver->version_attr.attr.mode = S_IRUGO;
-	driver->version_attr.show = show_version;
-	driver->version_attr.store = NULL;
-	return driver_create_file(&driver->driver, &driver->version_attr);
+	return ret;
 }
 EXPORT_SYMBOL(wb_register_driver);
 
+/* Unregister a Wishbone driver */
 void wb_unregister_driver(struct wb_driver *driver)
 {
-	driver_remove_file(&driver->driver, &driver->version_attr);
 	driver_unregister(&driver->driver);
 }
 EXPORT_SYMBOL(wb_unregister_driver);
 
+/*
+ * Match a single Wishbone driver and Wishbone device. An ID of WBONE_ANY_ID
+ * can be used as a match-all value for any of the fields (vendor, device,
+ * subdevice).
+ */
 struct wb_device_id *wb_match_device(struct wb_driver *drv, struct wb_device *dev)
 {
 	struct wb_device_id *ids;
@@ -102,6 +95,7 @@ static int wb_bus_match(struct device *dev, struct device_driver *drv)
 
 	found = wb_match_device(wb_drv, wb_dev);
 	if (found) {
+		/* set this so we can access it later */
 		wb_dev->driver = wb_drv;
 		return 1;
 	}

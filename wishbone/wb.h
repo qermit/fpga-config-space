@@ -16,7 +16,7 @@ struct wb_device_id {
 };
 
 struct wb_driver {
-	char *version;
+	char *name;
 	struct module *owner;
 	struct wb_device_id *id_table;
 	int (*probe)(struct wb_device *);
@@ -24,7 +24,6 @@ struct wb_driver {
 	void (*shutdown)(struct wb_device *);
 	struct dev_pm_ops ops;
 	struct device_driver driver;
-	struct driver_attribute version_attr;
 };
 #define to_wb_driver(drv) container_of(drv, struct wb_driver, driver);
 
