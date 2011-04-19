@@ -1,0 +1,4 @@
+Wishbone bus simulation in Linux. The project contains a wishbone bus 
+driver, a PCI board driver (that has the wishbone bus on it) and tools
+for generating the required firmware (for "faking" stuff like memory 
+maps).
