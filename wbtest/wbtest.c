@@ -1,4 +1,4 @@
-#include "../wb.h"
+#include <wb.h>
 
 struct wb_device_id wbtest_ids[] = {
 	{ WBONE_ANY_ID, WBONE_ANY_ID, WBONE_ANY_ID },
