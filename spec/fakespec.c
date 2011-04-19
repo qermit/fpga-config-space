@@ -6,6 +6,8 @@
 
 #include "../wishbone/wb.h"
 
+#define PFX "fakespec: "
+
 int spec_vendor = 0xbabe;
 int spec_device = 0xbabe;
 module_param(spec_vendor, int, S_IRUGO);
@@ -47,18 +49,18 @@ static int fake_spec_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 	 */
 	sprintf(fwname, "fakespec-%08x-%04x", spec_vendor, spec_device);
 	if (request_firmware(&wb_fw, fwname, &pdev->dev)) {
-		printk(KERN_ERR "failed to load firmware\n");
+		printk(KERN_ERR PFX "failed to load firmware\n");
 		return -1;
 	}
 
 	/* print a warning if it is not aligned to 1KB blocks */
 	if (wb_fw->size % 1024)
-		printk(KERN_DEBUG "not aligned to 1024 bytes. skipping extra\n");
+		printk(KERN_DEBUG PFX "not aligned to 1024 bytes. skipping extra\n");
 	
 	/* find the number of block present */
 	nblock = wb_fw->size / 1024;
 	if (!nblock) {
-		printk(KERN_DEBUG "no devices in memory map\n");
+		printk(KERN_DEBUG PFX "no devices in memory map\n");
 		goto nodev;
 	}
 
@@ -82,7 +84,7 @@ static int fake_spec_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 		j++;
 	}
 	ndev = j;
-	printk("fakespec: found %d wishbone devices\n", ndev);
+	printk(KERN_INFO PFX "found %d wishbone devices\n", ndev);
 	return 0;
 
 nodev:
