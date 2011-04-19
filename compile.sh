@@ -4,5 +4,5 @@ cd wishbone
 make
 cd ../wbtest
 make
-cd ../../spec
+cd ../spec
 make

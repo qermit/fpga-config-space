@@ -8,8 +8,8 @@
 
 #define PFX "wb: "
 
-struct device wb_dev;
-struct bus_type wb_bus_type;
+static struct device wb_dev;
+static struct bus_type wb_bus_type;
 
 static void wb_dev_release(struct device *dev)
 {
@@ -71,7 +71,7 @@ EXPORT_SYMBOL(wb_unregister_driver);
  * can be used as a match-all value for any of the fields (vendor, device,
  * subdevice).
  */
-struct wb_device_id *wb_match_device(struct wb_driver *drv, struct wb_device *dev)
+static struct wb_device_id *wb_match_device(struct wb_driver *drv, struct wb_device *dev)
 {
 	struct wb_device_id *ids;
 	ids = drv->id_table;
@@ -148,12 +148,12 @@ static int wb_bus_resume(struct device *dev)
 	return 0;
 }
 
-struct device wb_dev = {
+static struct device wb_dev = {
 	.init_name = "wb0",
 	.release = wb_dev_release,
 };
 
-struct bus_type wb_bus_type = {
+static struct bus_type wb_bus_type = {
 	.name = "wb",
 	.match = wb_bus_match,
 	.probe = wb_bus_probe,
@@ -163,7 +163,7 @@ struct bus_type wb_bus_type = {
 	.resume = wb_bus_resume,
 };
 
-int wb_init(void)
+static int wb_init(void)
 {
 	int ret;
 	ret = bus_register(&wb_bus_type);
@@ -177,7 +177,7 @@ int wb_init(void)
 	return 0;
 }
 
-void wb_exit(void)
+static void wb_exit(void)
 {
 	device_unregister(&wb_dev);
 	bus_unregister(&wb_bus_type);

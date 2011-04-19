@@ -4,5 +4,5 @@ cd wishbone
 make clean
 cd ../wbtest
 make clean
-cd ../../spec
+cd ../spec
 make clean

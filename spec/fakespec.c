@@ -23,9 +23,9 @@ struct wb_header {
 int ndev;
 
 LIST_HEAD(spec_devices);
-struct mutex list_lock;
+static struct mutex list_lock;
 
-int n = 0;
+static int n = 0;
 
 static int fake_spec_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -117,26 +117,26 @@ static void fake_spec_remove(struct pci_dev *pdev)
 	mutex_unlock(&list_lock);
 }
 
-struct pci_device_id fake_spec_pci_tbl[] = {
+static struct pci_device_id fake_spec_pci_tbl[] = {
 	{ PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 
 	  PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
 
-struct pci_driver fake_spec_pci_driver = {
+static struct pci_driver fake_spec_pci_driver = {
 	.name = "fake-spec",
 	.id_table = fake_spec_pci_tbl,
 	.probe = fake_spec_probe,
 	.remove = __devexit_p(fake_spec_remove),
 };
 
-int fake_spec_init(void)
+static int fake_spec_init(void)
 {
 	mutex_init(&list_lock);
 	return pci_register_driver(&fake_spec_pci_driver);
 }
 
-void fake_spec_exit(void)
+static void fake_spec_exit(void)
 {
 	pci_unregister_driver(&fake_spec_pci_driver);
 }
