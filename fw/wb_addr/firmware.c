@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "sdwb.h"
+#include "../../wishbone/sdwb.h"
 
 #define PRIORITY(flag) 	((flag >> 28) & 0xf)
 #define CLASS(flag)		((flag >> 16) & 0xfff)
@@ -38,7 +38,7 @@ struct sdwb_head *sdwb_create_header(uint64_t wbid_addr, uint64_t wbd_addr)
 	head = malloc(sizeof(struct sdwb_head));
 	if (!head)
 		return NULL;
-	memcpy(&head->magic, SDWB_HEAD_MAGIC, sizeof(head->magic));
+	head->magic = SDWB_HEAD_MAGIC;
 	head->wbid_address = wbid_addr;
 	head->wbd_address = wbd_addr;
 	return head;
@@ -65,7 +65,7 @@ struct sdwb_wbd *sdwb_create_device(uint8_t major, uint8_t minor,
 	dev = malloc(sizeof(struct sdwb_wbd));
 	if (!dev)
 		return NULL;
-	memcpy(&dev->wbd_magic, SDWB_WBD_MAGIC, sizeof(dev->wbd_magic));
+	dev->wbd_magic = SDWB_WBD_MAGIC;
 	dev->wbd_version = (((major & 0xFF) << 8) | ((minor) & 0xFF));
 	dev->vendor = vendor;
 	dev->device = device;

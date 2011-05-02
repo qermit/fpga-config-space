@@ -6,6 +6,8 @@
 #include <linux/types.h>
 #include <linux/list.h>
 
+#include "sdwb.h"
+
 #define WBONE_ANY_ID (~0)
 
 struct wb_device;
@@ -13,7 +15,6 @@ struct wb_device;
 struct wb_device_id {
 	__u32 vendor;		/* Vendor or WBONE_ANY_ID */
 	__u16 device;		/* Device ID or WBONE_ANY_ID */
-	__u16 subdevice;	/* Device ID or WBONE_ANY_ID */
 };
 
 struct wb_driver {
@@ -31,11 +32,14 @@ struct wb_driver {
 
 struct wb_device {
 	char *name;
+#if 0
 	unsigned int vendor;
 	unsigned short device;
 	unsigned short subdevice;
 	unsigned int flags;	/* MSB to LSB: 4 bits priority, 12 bits class,
 				16 bits version */
+#endif
+	struct sdwb_wbd wbd;
 	struct wb_driver *driver;
 	struct list_head list;
 	struct device dev;

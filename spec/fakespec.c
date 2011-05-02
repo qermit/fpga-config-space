@@ -5,6 +5,7 @@
 #include <linux/mutex.h>
 
 #include "../wishbone/wb.h"
+#include "../wishbone/sdwb.h"
 
 #define PFX "fakespec: "
 
@@ -20,7 +21,7 @@ struct wb_header {
 	__u32 flags;
 };
 
-int ndev;
+static int ndev;
 
 LIST_HEAD(spec_devices);
 static struct mutex list_lock;
@@ -30,11 +31,11 @@ static int n;
 static int fake_spec_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
-	int i = -1;
-	int j = 0;
-	int nblock;
 	char fwname[64];
-	struct wb_header *header;
+	unsigned int header_addr = 0; /* We would normally read this from the BAR */
+	struct sdwb_head *header;
+	struct sdwb_wbid *id;
+	struct sdwb_wbd *wbd;
 	struct wb_device *wbdev, *next;
 	const struct firmware *wb_fw;
 
@@ -45,8 +46,8 @@ static int fake_spec_probe(struct pci_dev *pdev,
 
 	/*
 	 * load firmware with wishbone address map. In the real driver, we would
-	 * first load the bitstream into the fpga and then walk through the
-	 * address space. For loading the bitstream, we read the bitstream ID off
+	 * first load the bitstream into the fpga.
+	 * For loading the bitstream, we read the bitstream ID off
 	 * the eeprom on the spec board.
 	 */
 	sprintf(fwname, "fakespec-%08x-%04x", spec_vendor, spec_device);
@@ -55,42 +56,31 @@ static int fake_spec_probe(struct pci_dev *pdev,
 		return -1;
 	}
 
-	/* print a warning if it is not aligned to 1KB blocks */
-	if (wb_fw->size % 1024)
-		printk(KERN_DEBUG PFX "not aligned to 1024 bytes. skipping extra\n");
-
-	/* find the number of block present */
-	nblock = wb_fw->size / 1024;
-	if (!nblock) {
-		printk(KERN_DEBUG PFX "no devices in memory map\n");
-		goto nodev;
+	header = (struct sdwb_head *)&wb_fw->data[header_addr];
+	if (header->magic != SDWB_HEAD_MAGIC) {
+		printk(KERN_ERR PFX "invalid sdwb header\n");
+		goto head_fail;
 	}
 
-	/* register wishbone devices */
-	while (++i < nblock) {
-		header = (struct wb_header *)&wb_fw->data[i * 1024];
-		if (!header->vendor)
-			continue;
+	id = (struct sdwb_wbid *)&wb_fw->data[header->wbid_address];
+	printk(KERN_INFO PFX "found sdwb wishbone ID: %d\n", id->dummy);
+
+	wbd = (struct sdwb_wbd *)&wb_fw->data[header->wbd_address];
+	while (wbd->wbd_magic == SDWB_WBD_MAGIC) {
 		wbdev = kzalloc(sizeof(struct wb_device), GFP_KERNEL);
 		if (!wbdev)
 			goto alloc_fail;
-		wbdev->vendor = header->vendor;
-		wbdev->device = header->device;
-		wbdev->subdevice = header->subdevice;
-		wbdev->flags = header->flags;
+		/* Assign stuff here */
+		memcpy(&wbdev->wbd, wbd, sizeof(struct sdwb_wbd));
 		if (wb_register_device(wbdev) < 0)
 			goto register_fail;
 		mutex_lock(&list_lock);
 		list_add(&wbdev->list, &spec_devices);
+		ndev++;
 		mutex_unlock(&list_lock);
-		j++;
+		wbd++;
 	}
-	ndev = j;
 	printk(KERN_INFO PFX "found %d wishbone devices\n", ndev);
-	return 0;
-
-nodev:
-	release_firmware(wb_fw);
 	return 0;
 
 register_fail:
@@ -103,6 +93,7 @@ alloc_fail:
 		kfree(wbdev);
 	}
 	mutex_unlock(&list_lock);
+head_fail:
 	release_firmware(wb_fw);
 	return -1;
 }
@@ -135,6 +126,7 @@ static struct pci_driver fake_spec_pci_driver = {
 static int fake_spec_init(void)
 {
 	n = 0;
+	ndev = 0;
 	mutex_init(&list_lock);
 	return pci_register_driver(&fake_spec_pci_driver);
 }

@@ -15,7 +15,7 @@ static void wb_dev_release(struct device *dev)
 {
 	struct wb_device *wb_dev;
 	wb_dev = to_wb_device(dev);
-	printk(KERN_DEBUG PFX "release %d\n", wb_dev->vendor);
+	printk(KERN_DEBUG PFX "release %llx\n", wb_dev->wbd.vendor);
 }
 
 /*
@@ -77,13 +77,11 @@ static struct wb_device_id *wb_match_device(struct wb_driver *drv,
 	struct wb_device_id *ids;
 	ids = drv->id_table;
 	if (ids) {
-		while (ids->vendor || ids->device || ids->subdevice) {
+		while (ids->vendor || ids->device) {
 			if ((ids->vendor == WBONE_ANY_ID
-					|| ids->vendor == dev->vendor) &&
+					|| ids->vendor == dev->wbd.vendor) &&
 			    (ids->device == (__u16)WBONE_ANY_ID
-					|| ids->device == dev->device) &&
-			    (ids->subdevice == (__u16)WBONE_ANY_ID
-					|| ids->subdevice == dev->subdevice))
+					|| ids->device == dev->wbd.device))
 				return ids;
 			ids++;
 		}

@@ -1,10 +1,8 @@
 #ifndef SDWB_H
 #define SDWB_H
 
-#include <stdint.h>
-
-#define SDWB_HEAD_MAGIC "SDWBHEAD"
-#define SDWB_WBD_MAGIC	"wb"
+#define SDWB_HEAD_MAGIC (('s'<<7)|('d'<<6)|('w'<<5)|('b'<<4)|('h'<<3)|('e'<<2)|('a'<<1)|'d')
+#define SDWB_WBD_MAGIC	(('w'<<8)|'b')
 
 struct sdwb_head {
 	uint64_t	unused;
