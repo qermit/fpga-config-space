@@ -9,13 +9,6 @@
 #define CLASS(flag)		((flag >> 16) & 0xfff)
 #define VERSION(flag)	(flag & 0xffff)
 
-struct wb_id {
-	uint32_t vendor;
-	uint16_t device;
-	uint16_t subdevice;
-	uint32_t flags;
-} __attribute__((aligned(1024)));
-
 void print_wbd(uint8_t major, uint8_t minor,
 				uint64_t vendor, uint32_t device,
 				uint64_t base, uint64_t size,
