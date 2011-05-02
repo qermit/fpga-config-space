@@ -46,9 +46,13 @@ static int fake_spec_probe(struct pci_dev *pdev,
 
 	/*
 	 * load firmware with wishbone address map. In the real driver, we would
-	 * first load the bitstream into the fpga.
+	 * first load the bitstream into the fpga and then read the header from
+	 * its appropriate location.
+	 *
 	 * For loading the bitstream, we read the bitstream ID off
-	 * the eeprom on the spec board.
+	 * the eeprom on the spec board? Or some other way?
+	 *
+	 * Below, we just use the PCI id to get the firmware file.
 	 */
 	sprintf(fwname, "fakespec-%08x-%04x", spec_vendor, spec_device);
 	if (request_firmware(&wb_fw, fwname, &pdev->dev)) {
