@@ -1,6 +1,6 @@
 include $(PWD)/../paths.mk
 
-obj-m += wbtest.o
+obj-m += fakeadc.o fakedac.o
 
 EXTRA_CFLAGS += -I$(PWD)/../wishbone
 
