@@ -32,13 +32,6 @@ struct wb_driver {
 
 struct wb_device {
 	char *name;
-#if 0
-	unsigned int vendor;
-	unsigned short device;
-	unsigned short subdevice;
-	unsigned int flags;	/* MSB to LSB: 4 bits priority, 12 bits class,
-				16 bits version */
-#endif
 	struct sdwb_wbd wbd;
 	struct wb_driver *driver;
 	struct list_head list;
