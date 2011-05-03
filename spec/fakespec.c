@@ -74,7 +74,6 @@ static int fake_spec_probe(struct pci_dev *pdev,
 		wbdev = kzalloc(sizeof(struct wb_device), GFP_KERNEL);
 		if (!wbdev)
 			goto alloc_fail;
-		/* Assign stuff here */
 		memcpy(&wbdev->wbd, wbd, sizeof(struct sdwb_wbd));
 		if (wb_register_device(wbdev) < 0)
 			goto register_fail;
