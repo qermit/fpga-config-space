@@ -130,12 +130,6 @@ static int wb_bus_remove(struct device *dev)
 
 static void wb_bus_shutdown(struct device *dev)
 {
-	struct wb_driver *wb_drv;
-	struct wb_device *wb_dev;
-	wb_dev = to_wb_device(dev);
-	wb_drv = wb_dev->driver;
-	if (wb_drv && wb_drv->shutdown)
-		wb_drv->shutdown(wb_dev);
 	return;
 }
 
