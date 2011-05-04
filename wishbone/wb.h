@@ -13,7 +13,7 @@
 struct wb_device;
 
 struct wb_device_id {
-	__u32 vendor;		/* Vendor or WBONE_ANY_ID */
+	__u64 vendor;		/* Vendor or WBONE_ANY_ID */
 	__u16 device;		/* Device ID or WBONE_ANY_ID */
 };
 
