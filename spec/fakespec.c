@@ -14,13 +14,6 @@ int spec_device = 0xbabe;
 module_param(spec_vendor, int, S_IRUGO);
 module_param(spec_device, int, S_IRUGO);
 
-struct wb_header {
-	__u32 vendor;
-	__u16 device;
-	__u16 subdevice;
-	__u32 flags;
-};
-
 static int ndev;
 
 LIST_HEAD(spec_devices);
