@@ -168,6 +168,14 @@ the bitstream. An example of a hex-readable date is 0x20111225 (25th December
 This field should specify an identifier for the revision control software
 used to manage the HDL code for the bitstream type. This allows for the 
 possibility of automatic checking out and loading of bitstreams.
+
+In the case of SVN repositories, the value of the revision number should
+be stored in this field. For example, if the SVN revision is 1024, the 
+stored value should be 0x00000000010000000000.
+
+In the case of Git repositories, the 160 bit (20 bytes, 0x14 bytes) value
+of the commit hash should be stored in this field.
+
 \end{description}
 
 \subsection{Device Descriptor Block}\label{device_block}
@@ -243,6 +251,12 @@ of the specification however, provides no guarantee of collisions within
 the reserved space. If you wish to use ID's from the reserved space, you
 might need to make modifications to your device in future version of this
 specification.
+
+It is recommended that the vendor ID be chosen using an established 
+hashing algorithm by feeding it uniquely identifying fields. The
+recommended fields to use are the vendor name string, a 128 bit random
+seed and a timestamp. It is recommended to use the MD5 hash of these
+fields and take the 8 least significant bytes from the resulting hash.
 
 \item[DEVICE (Offset: 0x0C)] \hfill \\
 The device ID of the Wishbone device. Together with the vendor ID, the
