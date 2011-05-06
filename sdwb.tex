@@ -28,17 +28,17 @@
 
 \maketitle
 
-This document describes the specification for the self describing wishbone
+This document describes the specification for the self describing Wishbone
 bus.
 
 \section{Introduction}
 
-It is advantageous from a software standpoint to have wishbone peripherals
+It is advantageous from a software standpoint to have Wishbone peripherals
 that can be probed automatically. This allows for a clean design of operating
 system drivers and possibly for advanced features such as hot plugging and 
 removal.
 
-This specification introduces a standard that allows the wishbone bus to be
+This specification introduces a standard that allows the Wishbone bus to be
 probed easily.
 
 \section{Specification}
@@ -62,13 +62,15 @@ bus width (eg. 2 reads on a 32 bit data bus).
 
 \subsection{Header}
 
-The wishbone header contains the locations of the device descriptor block and 
+The Wishbone header contains the locations of the device descriptor block and 
 ID block in the Wishbone address space.
 
 The header block can be placed anywhere within the Wishbone address space
 as long as there is some way for the operating system to find its location.
 It is recommended that the address of the header be placed into the configuration
-space of the parent bus. For example, a BAR in the case of PCI.
+space of the parent bus. For example, a BAR can be used in the case of PCI,
+the CR/CSR space in the case of VME and the \emph{config} space in the case
+of Etherbone.
 
 The structure of the header block is described in Table \ref{hdr_block_struct}.
 
@@ -86,7 +88,7 @@ The structure of the header block is described in Table \ref{hdr_block_struct}.
 	\end{savenotes}
 \end{center}
 
-Note that most designs use address 0 for the boot vector. Placing the wishbone
+Note that most designs use address 0 for the boot vector. Placing the Wishbone
 header at address 0 should not be done in these cases.
 
 \begin{description}
@@ -153,7 +155,7 @@ bitstream present in the FPGA. Note that different bitstreams can have the
 same type with differing versions (see below).
 
 \item[BSTREAM\_VERSION (Offset: 0x0C)] \hfill \\
-The bitstream version should hold a value that specifies the version of tje
+The bitstream version should hold a value that specifies the version of the
 bitstream present in the FPGA. This field along with the BSTREAM\_TYPE field,
 should uniquely identify a specific bitstream.
 
@@ -185,7 +187,7 @@ a structure as described in Table \ref{dev_desc_struct}.
 	0x03 & 0x01 & WBD\_VER\_MINOR & RO & - & The minor version of the descriptor format. \\ \hline
 	0x04 & 0x08 & VENDOR & RO & - & The vendor ID of the vendor of the device. \\ \hline
 	0x0C & 0x04 & DEVICE & RO & - & The device ID of the device. \\ \hline
-	0x10 & 0x08 & HDL\_BASE & RO & - & Base address (wishbone) of the device. \\ \hline
+	0x10 & 0x08 & HDL\_BASE & RO & - & Base address (Wishbone) of the device. \\ \hline
 	0x18 & 0x08 & HDL\_SIZE & RO & - & Size (in bytes) of the device address space. \\ \hline
 	0x20 & 0x04 & WBD\_FLAGS & RO & - & Device flags. \\ \hline
 	0x24 & 0x04 & HDL\_CLASS & RO & - & Bitstream class. \\ \hline
@@ -200,10 +202,10 @@ a structure as described in Table \ref{dev_desc_struct}.
 
 \begin{description}
 \item[WBD\_MAGIC (Offset: 0x00)] \hfill \\
-This is a unique value used to identify a valid wishbone device structure. If
+This is a unique value used to identify a valid Wishbone device structure. If
 an invalid magic value is found, it is assumed that there are no more devices
 to be discovered and the autodiscovery is ended. Thus, it is used as the array
-terminator for the wishbone device block.
+terminator for the Wishbone device block.
 
 The magic number in all versions of the specification can be expected to
 be 0x5742 or the ASCII string "WB" without the string terminator.
@@ -224,7 +226,7 @@ This field and WBD\_VER\_MAJOR can be coalesced into a single WBD\_VERSION
 field if needed.
 
 \item[VENDOR (Offset: 0x04)] \hfill \\
-The vendor ID of the wishbone device. The vendor space is a 64 bit space.
+The vendor ID of the Wishbone device. The vendor space is a 64 bit space.
 The space is divided into two sections; \emph{reserved} and \emph{free}.
 
 The \emph{reserved} vendor space includes all vendor values with the highest 
@@ -243,7 +245,7 @@ might need to make modifications to your device in future version of this
 specification.
 
 \item[DEVICE (Offset: 0x0C)] \hfill \\
-The device ID of the wishbone device. Together with the vendor ID, the
+The device ID of the Wishbone device. Together with the vendor ID, the
 device ID may be used to match device drivers. The format can be specified
 in any way by a vendor as the software reading this field will be
 specific to each vendor (selected based on the metadata stored in the
@@ -255,7 +257,7 @@ can be anything less than or equal to 64 bits. The software reading this
 field should know what address width to expect.
 
 This field is writable and can be filled by devices that are responsible
-for mapping wishbone devices in memory (eg. INTERCON).
+for mapping Wishbone devices in memory (eg. INTERCON).
 
 \item[HDL\_SIZE (Offset: 0x18)] \hfill \\
 This field contains the size of the address space of this device. The address width
@@ -263,13 +265,13 @@ can be anything less than or equal to 64 bits. The software reading this
 field should know what address width to expect.
 
 This field is writable and can be filled by devices that are responsible
-for mapping wishbone devices in memory (eg. INTERCON).
+for mapping Wishbone devices in memory (eg. INTERCON).
 
 \item[WBD\_FLAGS (Offset: 0x20)] \hfill \\
 Currently undefined.
 
 \item[HDL\_CLASS (Offset: 0x24)] \hfill \\
-The class of the wishbone device. The class is used to identify a device
+The class of the Wishbone device. The class is used to identify a device
 with a specific register map, so a host driver can handle all devices of
 the same class, irrespective of vendor and device numbers. This is similar
 to PCI or USB devices.
