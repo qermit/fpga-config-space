@@ -54,7 +54,7 @@ The specification has three parts:
 The following points should be noted:
 
 \begin{itemize}
-\item All values are big endian.
+\item All values are big-endian.
 \item The presence of 64 bit registers does not imply the requirement for a
 64 bit wide data bus. Multiple reads can be done while using a smaller data
 bus width (eg. 2 reads on a 32 bit data bus).
@@ -212,7 +212,7 @@ a structure as described in Table \ref{dev_desc_struct}.
 \item[WBD\_MAGIC (Offset: 0x00)] \hfill \\
 This is a unique value used to identify a valid Wishbone device structure. If
 an invalid magic value is found, it is assumed that there are no more devices
-to be discovered and the autodiscovery is ended. Thus, it is used as the array
+to be discovered and the auto-discovery is ended. Thus, it is used as the array
 terminator for the Wishbone device block.
 
 The magic number in all versions of the specification can be expected to
@@ -270,16 +270,10 @@ This field contains the base address of the Wishbone device. The address width
 can be anything less than or equal to 64 bits. The software reading this
 field should know what address width to expect.
 
-This field is writable and can be filled by devices that are responsible
-for mapping Wishbone devices in memory (eg. INTERCON).
-
 \item[HDL\_SIZE (Offset: 0x18)] \hfill \\
 This field contains the size of the address space of this device. The address width
 can be anything less than or equal to 64 bits. The software reading this
 field should know what address width to expect.
-
-This field is writable and can be filled by devices that are responsible
-for mapping Wishbone devices in memory (eg. INTERCON).
 
 \item[WBD\_FLAGS (Offset: 0x20)] \hfill \\
 Currently undefined.
