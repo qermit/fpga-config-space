@@ -1,0 +1,10 @@
+copy the firmware file into /lib/firmware/NAME
+NAME is as specified in the driver
+
+For the spec driver, the firmware name is expected to be 
+"fakespec-VENDORID-DEVICEID".
+
+Default Vendor ID (4 bytes): 0x0000babe
+Default Device ID (2 bytes): 0xbabe
+
+$ cp fw/wb_addr/firmware.bin /lib/firmware/fakespec-0000babe-babe

@@ -1,0 +1,15 @@
+To generate a Wishbone memory map, we assume that all devices
+are at 1KB addresses. This can be changed easily later.
+
+To generate the firmware file for the spec board:
+
+$ ./wb_fw wbone.def firmware.bin
+
+The wbone.def file looks like this:
+
+$ cat wbone.def 
+#Vendor Device Subdevice Priority Class Version
+      1      2         3        4     5       6
+     10     11        12       13    14      15
+
+The generated firmware file should be 4KB in size.

@@ -1,0 +1,11 @@
+Wishbone bus simulation in Linux. The project contains a wishbone bus 
+driver, a PCI board driver (that has the wishbone bus on it) and tools
+for generating the required firmware (for "faking" stuff like memory 
+maps). Included are also two fake wishbone drivers.
+
+I am currently testing this on a QEMU virtual machine (running the 
+latest git kernel). The hard disk image has been made using debootstrap.
+
+Please send any bugs/comments/criticism/flames/free-cookies to
+
+	manohar.vanga at gmail dot com
