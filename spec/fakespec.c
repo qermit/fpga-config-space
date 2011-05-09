@@ -34,7 +34,7 @@ static int fake_spec_probe(struct pci_dev *pdev,
 
 	/* Horrible way of ensuring single probe call. Sorry for race conds */
 	if (n)
-		return -1;
+		return -ENODEV;
 	n = 1;
 
 	/*
