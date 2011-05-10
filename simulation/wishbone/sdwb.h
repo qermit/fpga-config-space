@@ -1,7 +1,7 @@
 #ifndef SDWB_H
 #define SDWB_H
 
-#define SDWB_HEAD_MAGIC (('s'<<7)|('d'<<6)|('w'<<5)|('b'<<4)|('h'<<3)|('e'<<2)|('a'<<1)|'d')
+#define SDWB_HEAD_MAGIC (('S'<<7)|('D'<<6)|('W'<<5)|('B'<<4)|('h'<<3)|('e'<<2)|('a'<<1)|'d')
 #define SDWB_WBD_MAGIC	(('w'<<8)|'b')
 
 struct sdwb_head {
