@@ -35,8 +35,7 @@ bus.
 
 It is advantageous from a software standpoint to have Wishbone peripherals
 that can be probed automatically. This allows for a clean design of operating
-system drivers and possibly for advanced features such as hot plugging and 
-removal.
+system drivers.
 
 This specification introduces a standard that allows the Wishbone bus to be
 probed easily.
@@ -54,9 +53,10 @@ The specification has three parts:
 The following points should be noted:
 
 \begin{itemize}
-\item All values are big-endian.
+\item All values are big-endian. This has been chosen as it facilitates easy
+human readability of the values.
 \item The presence of 64 bit registers does not imply the requirement for a
-64 bit wide data bus. Multiple reads can be done while using a smaller data
+64 bit wide data bus. Multiple reads can be done using a smaller data
 bus width (eg. 2 reads on a 32 bit data bus).
 \end{itemize}
 
@@ -87,9 +87,6 @@ The structure of the header block is described in Table \ref{hdr_block_struct}.
 	\end{table}
 	\end{savenotes}
 \end{center}
-
-Note that most designs use address 0 for the boot vector. Placing the Wishbone
-header at address 0 should not be done in these cases.
 
 \begin{description}
 \item[WBHDR\_MAGIC (Offset: 0x08)] \hfill \\
@@ -193,9 +190,9 @@ a structure as described in Table \ref{dev_desc_struct}.
 	0x00 & 0x02 & WBD\_MAGIC & RO & - & Magic number used to identify a valid device descriptor. \\ \hline
 	0x02 & 0x01 & WBD\_VER\_MAJOR & RO & - & The major version of the descriptor format. \\ \hline
 	0x03 & 0x01 & WBD\_VER\_MINOR & RO & - & The minor version of the descriptor format. \\ \hline
-	0x04 & 0x08 & VENDOR & RO & - & The vendor ID of the vendor of the device. \\ \hline
-	0x0C & 0x04 & DEVICE & RO & - & The device ID of the device. \\ \hline
-	0x10 & 0x08 & HDL\_BASE & RO & - & Base address (Wishbone) of the device. \\ \hline
+	0x04 & 0x08 & VENDOR & RO & - & The vendor ID of the vendor of the Wishbone device. \\ \hline
+	0x0C & 0x04 & DEVICE & RO & - & The device ID of the Wishbone device. \\ \hline
+	0x10 & 0x08 & HDL\_BASE & RO & - & Base address (Wishbone) of the Wishbone device. \\ \hline
 	0x18 & 0x08 & HDL\_SIZE & RO & - & Size (in bytes) of the device address space. \\ \hline
 	0x20 & 0x04 & WBD\_FLAGS & RO & - & Device flags. \\ \hline
 	0x24 & 0x04 & HDL\_CLASS & RO & - & Bitstream class. \\ \hline
@@ -285,8 +282,8 @@ the same class, irrespective of vendor and device numbers. This is similar
 to PCI or USB devices.
 
 \item[HDL\_VERSION (Offset: 0x28)] \hfill \\
-This field specifies the version of the device. The format can be specified
-in any way by a vendor as the software reading this field will be
+This field specifies the version of the Wishbone device. The format can be
+specified in any way by a vendor as the software reading this field will be
 specific to each vendor (selected based on the metadata stored in the
 parent board) and is expected to know how to decode this field.
 
