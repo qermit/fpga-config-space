@@ -128,40 +128,32 @@ The structure of the ID block is described in Table \ref{id_block_struct}.
 	\caption{Wishbone ID block structure}\label{id_block_struct}\centering
 	\begin{tabular}{| l | c | c | c | c | p{5cm} |} \hline
 	Offset & Size (in bytes) & Name & Access & Value & Description \\ \hline
-	0x00 & 0x08 & PCB\_ID & RO & - & The PCB ID of the parent board. \\ \hline
-	0x08 & 0x08 & BSTREAM\_TYPE & RO & - & The bitstream type identifier. \\ \hline
-	0x0C & 0x04 & BSTREAM\_VERSION & RO & - & The version of the specific bitstream. \\ \hline
-	0x10 & 0x04 & BSTREAM\_DATE & RO & - & The synthesis date of the bitstream. \\ \hline
-	0x14 & 0x14 & BSTREAM\_RELEASE & RO & - & The SVN revision number or the SHA-1 hash of the Git release. \\ \hline
+	0x00 & 0x08 & BSTREAM\_TYPE & RO & - & The bitstream type identifier. \\ \hline
+	0x08 & 0x04 & BSTREAM\_VERSION & RO & - & The version of the specific bitstream. \\ \hline
+	0x0C & 0x04 & BSTREAM\_DATE & RO & - & The synthesis date of the bitstream. \\ \hline
+	0x10 & 0x14 & BSTREAM\_RELEASE & RO & - & The SVN revision number or the SHA-1 hash of the Git release. \\ \hline
 	\end{tabular}
 	\end{table}
 	\end{savenotes}
 \end{center}
 
 \begin{description}
-\item[PCB\_ID (Offset: 0x00)] \hfill \\
-The PCB ID should be a value that specifies the ID of a specific board within
-a class of those boards. The format can be specified in any way by a vendor
-as the software reading this field will be specific to each vendor (selected
-based on the metadata stored in the parent board) and is expected to know how to decode
-this field.
-
-\item[BSTREAM\_TYPE (Offset: 0x08)] \hfill \\
+\item[BSTREAM\_TYPE (Offset: 0x00)] \hfill \\
 The bitstream type should hold a value that uniquely identifies the type of 
 bitstream present in the FPGA. Note that different bitstreams can have the
 same type with differing versions (see below).
 
-\item[BSTREAM\_VERSION (Offset: 0x0C)] \hfill \\
+\item[BSTREAM\_VERSION (Offset: 0x08)] \hfill \\
 The bitstream version should hold a value that specifies the version of the
 bitstream present in the FPGA. This field along with the BSTREAM\_TYPE field,
 should uniquely identify a specific bitstream.
 
-\item[BSTREAM\_DATE (Offset: 0x10)] \hfill \\
+\item[BSTREAM\_DATE (Offset: 0x0C)] \hfill \\
 The bitstream date should be set to the hex-readable date of synthesis of
 the bitstream. An example of a hex-readable date is 0x20111225 (25th December
 2011).
 
-\item[BSTREAM\_RELEASE (Offset: 0x14)] \hfill \\
+\item[BSTREAM\_RELEASE (Offset: 0x10)] \hfill \\
 This field should specify an identifier for the revision control software
 used to manage the HDL code for the bitstream type. This allows for the 
 possibility of automatic checking out and loading of bitstreams.
