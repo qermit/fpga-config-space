@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="744.09448819"
+   height="1052.3622047"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.48.1 r9760"
+   sodipodi:docname="wbmap.eps">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="1.979899"
+     inkscape:cx="396.89193"
+     inkscape:cy="531.72868"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1920"
+     inkscape:window-height="1143"
+     inkscape:window-x="0"
+     inkscape:window-y="26"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="fill:none;stroke:#000000"
+       id="rect2987"
+       width="144.28572"
+       height="484.28571"
+       x="295.71429"
+       y="242.36218" />
+    <rect
+       style="color:#000000;fill:none;stroke:#000000;stroke-width:0.86101615;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect2989"
+       width="144.32367"
+       height="37.110104"
+       x="295.61966"
+       y="667.08173" />
+    <rect
+       style="fill:none;stroke:#000000;stroke-width:1.10454953"
+       id="rect2989-0-8"
+       width="126.42857"
+       height="69.715981"
+       x="481.92856"
+       y="424.21765" />
+    <rect
+       style="fill:none;stroke:#000000;stroke-width:1.10454953"
+       id="rect2989-0-8-0"
+       width="126.42857"
+       height="69.715981"
+       x="481.89288"
+       y="354.93277" />
+    <rect
+       style="fill:none;stroke:#000000;stroke-width:1.10454953"
+       id="rect2989-0-8-0-4"
+       width="126.42857"
+       height="69.715981"
+       x="481.96429"
+       y="284.96848" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.06843019px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 295.25563,679.50504 145.13906,0"
+       id="path3098-0"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.06843019px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 294.96734,691.50504 145.13907,0"
+       id="path3098-4"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="454.86618"
+       y="688.22949"
+       id="text3125"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3127"
+         x="454.86618"
+         y="688.22949"
+         style="font-size:8px;font-weight:bold;-inkscape-font-specification:Sans Bold">SDWB HEADER</tspan></text>
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot3129"
+       style="font-size:8px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"><flowRegion
+         id="flowRegion3131"><rect
+           id="rect3133"
+           width="72.73098"
+           height="8.0812206"
+           x="493.71207"
+           y="290.95969" /></flowRegion><flowPara
+         id="flowPara3135">MAGIC</flowPara></flowRoot>    <text
+       xml:space="preserve"
+       style="font-size:8px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="338.00522"
+       y="676.51556"
+       id="text3137"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3139"
+         x="338.00522"
+         y="676.51556">WBHDR_MAGIC</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:8px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="340.78311"
+       y="687.87976"
+       id="text3141"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3143"
+         x="340.78311"
+         y="687.87976">WBIDB_ADDR</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:8px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="340.02551"
+       y="700.25415"
+       id="text3145"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3147"
+         x="340.02551"
+         y="700.25415">WBDDB_ADDR</tspan></text>
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot3149"
+       style="font-size:8px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       transform="translate(-131.86402,-59.061637)"><flowRegion
+         id="flowRegion3151"><rect
+           id="rect3153"
+           width="94.449265"
+           height="31.31473"
+           x="476.28693"
+           y="630.11841" /></flowRegion><flowPara
+         id="flowPara3155"
+         style="font-weight:bold;-inkscape-font-specification:Sans Bold">ID BLOCK</flowPara></flowRoot>    <text
+       xml:space="preserve"
+       style="font-size:8px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="301.88205"
+       y="391.52448"
+       id="text3197"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3199"
+         x="301.88205"
+         y="391.52448"
+         style="font-weight:bold;-inkscape-font-specification:Sans Bold">DEVICE DESCRIPTOR BLOCK</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:8px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="494.39734"
+       y="317.5899"
+       id="text3201"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         x="494.39734"
+         y="317.5899"
+         id="tspan3205">WISHBONE DESCRIPTOR</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:8px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="520.71429"
+       y="465.93359"
+       id="text3209"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3211"
+         x="520.71429"
+         y="465.93359">(DEVICE 1)</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:8px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="494.42078"
+       y="455.56"
+       id="text3201-3"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         x="494.42078"
+         y="455.56"
+         id="tspan3205-4">WISHBONE DESCRIPTOR</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:8px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="494.42273"
+       y="385.58661"
+       id="text3201-2"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         x="494.42273"
+         y="385.58661"
+         id="tspan3205-2">WISHBONE DESCRIPTOR</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:8px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="520.7403"
+       y="395.93121"
+       id="text3209-9"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3211-8"
+         x="520.7403"
+         y="395.93121">(DEVICE 2)</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:8px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="520.70508"
+       y="327.79858"
+       id="text3209-5"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3211-2"
+         x="520.70508"
+         y="327.79858">(DEVICE 3)</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 442.58929,667.09432 8.92857,0 -0.0893,0 0,37.14286 -8.92857,0"
+       id="path3297"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.06843019px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 296.14475,353.6479 145.13907,0"
+       id="path3098-0-0"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.06843019px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 295.0019,419.6479 145.13906,0"
+       id="path3098-0-7"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.06843019px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 295.00189,554.6479 145.13907,0"
+       id="path3098-0-0-7"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.06843019px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 295.85904,600.6479 145.13906,0"
+       id="path3098-0-7-6"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 442.85714,418.79075 38.07252,75.29587"
+       id="path3347"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 442.85714,353.79075 38.57759,-68.27556"
+       id="path3349"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 295.71429,684.50504 c 0,0 -31.42858,-0.40068 -31.42858,-42.85714 0,-32.14285 31.42857,-40.71429 31.42857,-40.71429 l -4.99999,7.14286"
+       id="path3351"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cscc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 295.53571,600.66576 -7.85714,-2.14286"
+       id="path3353"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 295.30358,698.66575 c 0,0 -26.15199,1.03422 -43.53752,-41.1694 -10.34979,-25.12426 -5.03392,-97.98743 -5.03392,-113.8306 0,-14.45112 3.38926,-51.03017 14.19692,-75.91089 13.23121,-30.46011 34.37451,-48.37482 34.37451,-48.37482 l -2.85713,7.85714"
+       id="path3351-5"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cssscc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 295.53571,419.59433 -8.125,0.80357"
+       id="path3373"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       style="font-size:8px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="317.27554"
+       y="234.14308"
+       id="text3375"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3377"
+         x="317.27554"
+         y="234.14308">Wishbone Address Space</tspan></text>
+  </g>
+</svg>

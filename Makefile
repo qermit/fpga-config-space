@@ -7,4 +7,4 @@ all:
 	evince $(FILE).pdf
 
 clean:
-	rm -rf *.aux *.dvi *.log *.pdf
+	rm -rf *.aux *.dvi *.log *.pdf *.toc
