@@ -187,9 +187,9 @@ a structure as described in Table \ref{dev_desc_struct}.
 	0x10 & 0x08 & HDL\_BASE & RO & - & Base address (Wishbone) of the Wishbone device. \\ \hline
 	0x18 & 0x08 & HDL\_SIZE & RO & - & Size (in bytes) of the device address space. \\ \hline
 	0x20 & 0x04 & WBD\_FLAGS & RO & - & Device flags. \\ \hline
-	0x24 & 0x04 & HDL\_CLASS & RO & - & Bitstream class. \\ \hline
-	0x28 & 0x04 & HDL\_VERSION & RO & - & Bitstream version. \\ \hline
-	0x2C & 0x04 & HDL\_DATE & RO & - & Bitstream date. \\ \hline
+	0x24 & 0x04 & HDL\_CLASS & RO & - & HDL class. \\ \hline
+	0x28 & 0x04 & HDL\_VERSION & RO & - & HDL version. \\ \hline
+	0x2C & 0x04 & HDL\_DATE & RO & - & HDL generation date. \\ \hline
 	0x30 & 0x10 & VENDOR\_NAME & RO & - & Vendor name (ASCII string) \\ \hline
 	0x40 & 0x10 & DEVICE\_NAME & RO & - & Device name (ASCII string) \\ \hline
 	\end{tabular}
@@ -280,9 +280,9 @@ specific to each vendor (selected based on the metadata stored in the
 parent board) and is expected to know how to decode this field.
 
 \item[HDL\_DATE (Offset: 0x2C)] \hfill \\
-The bitstream date should be set to the hex-readable date of synthesis of
-the bitstream. An example of a hex-readable date is 0x20111225 (25th December
-2011).
+The HDL date should be set to the hex-readable date of synthesis of
+the Wishbone device. An example of a hex-readable date is 0x20111225 (25th
+December 2011).
 
 \item[VENDOR\_NAME (Offset: 0x30)] \hfill \\
 The ASCII string representation of the vendor name. The string should be
