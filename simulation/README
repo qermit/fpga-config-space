@@ -9,3 +9,16 @@ latest git kernel). The hard disk image has been made using debootstrap.
 Please send any bugs/comments/criticism/flames/free-cookies to
 
 	manohar.vanga at gmail dot com
+
+
+   Compiling
+   ---------
+
+You should just "make". The only external dependency is the kernel
+to build against. You can set it in the LINUX environment variable:
+
+	export LINUX=/opt/stuff/kernels/wb-kernel-source
+
+The default is  $(HOME)/linux-for-wbonesim  so you can just make a symlink
+to the real place and forget about it.
+
