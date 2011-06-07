@@ -32,11 +32,7 @@ static struct wb_driver fakeadc_driver = {
 
 static int fakeadc_init(void)
 {
-	int ret;
-	ret = wb_register_driver(&fakeadc_driver);
-	if (ret < 0)
-		return ret;
-	return 0;
+	return wb_register_driver(&fakeadc_driver);
 }
 
 static void fakeadc_exit(void)

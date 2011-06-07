@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "../../wishbone/sdwb.h"
+#include "../../sdwb.h"
 
 #define PRIORITY(flag) 	((flag >> 28) & 0xf)
 #define CLASS(flag)		((flag >> 16) & 0xfff)
@@ -28,22 +28,28 @@ void print_wbd(uint8_t major, uint8_t minor,
 struct sdwb_head *sdwb_create_header(uint64_t wbid_addr, uint64_t wbd_addr)
 {
 	struct sdwb_head *head;
+
 	head = malloc(sizeof(struct sdwb_head));
 	if (!head)
 		return NULL;
+	
 	head->magic = SDWB_HEAD_MAGIC;
 	head->wbid_address = wbid_addr;
 	head->wbd_address = wbd_addr;
+
 	return head;
 }
 
 struct sdwb_wbid *sdwb_create_id()
 {
 	struct sdwb_wbid *id;
+
 	id = malloc(sizeof(struct sdwb_wbid));
 	if (!id)
 		return NULL;
-	id->dummy = 0;
+	
+	id->bstream_type = rand();
+
 	return id;
 }
 
@@ -55,9 +61,11 @@ struct sdwb_wbd *sdwb_create_device(uint8_t major, uint8_t minor,
 						char *vname, char *dname)
 {
 	struct sdwb_wbd *dev;
+
 	dev = malloc(sizeof(struct sdwb_wbd));
 	if (!dev)
 		return NULL;
+
 	dev->wbd_magic = SDWB_WBD_MAGIC;
 	dev->wbd_version = (((major & 0xFF) << 8) | ((minor) & 0xFF));
 	dev->vendor = vendor;
@@ -72,11 +80,14 @@ struct sdwb_wbd *sdwb_create_device(uint8_t major, uint8_t minor,
 	strncpy(dev->device_name, dname, 16);
 	dev->vendor_name[15] = '\0';
 	dev->device_name[15] = '\0';
+
 	return dev;
 }
 
 int main(int argc, char *argv[])
 {
+	int i;
+	char c;
 	struct sdwb_head *header;
 	struct sdwb_wbid *id;
 
@@ -132,12 +143,14 @@ int main(int argc, char *argv[])
 		printf("size: %d\n", size);
 		num++;
 	}
-	int i = 4*1024*1024 - size;
+
+	i = 4*1024*1024 - size;
 	printf("fill: %d\n", i);
-	char c = 0;
+	c = 0;
 	while (--i >= 0)
 		fwrite(&c, 1, 1, fout);
 	fclose(fin);
 	fclose(fout);
+
 	return 0;
 }

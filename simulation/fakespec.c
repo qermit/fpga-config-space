@@ -60,7 +60,7 @@ static int fake_spec_probe(struct pci_dev *pdev,
 	}
 
 	id = (struct sdwb_wbid *)&wb_fw->data[header->wbid_address];
-	printk(KERN_INFO PFX "found sdwb wishbone ID: %d\n", id->dummy);
+	printk(KERN_INFO PFX "found sdwb wishbone ID: %lld\n", id->bstream_type);
 
 	wbd = (struct sdwb_wbd *)&wb_fw->data[header->wbd_address];
 	while (wbd->wbd_magic == SDWB_WBD_MAGIC) {
@@ -81,6 +81,7 @@ static int fake_spec_probe(struct pci_dev *pdev,
 
 register_fail:
 	kfree(wbdev);
+
 alloc_fail:
 	mutex_lock(&list_lock);
 	list_for_each_entry_safe(wbdev, next, &spec_devices, list) {
@@ -89,6 +90,7 @@ alloc_fail:
 		kfree(wbdev);
 	}
 	mutex_unlock(&list_lock);
+
 head_fail:
 	release_firmware(wb_fw);
 	return -1;
@@ -97,6 +99,7 @@ head_fail:
 static void fake_spec_remove(struct pci_dev *pdev)
 {
 	struct wb_device *wbdev, *next;
+
 	mutex_lock(&list_lock);
 	list_for_each_entry_safe(wbdev, next, &spec_devices, list) {
 		list_del(&wbdev->list);

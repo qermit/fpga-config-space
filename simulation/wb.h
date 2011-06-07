@@ -1,5 +1,5 @@
-#ifndef LINUX_BUS_VBUS_H
-#define LINUX_BUS_VBUS_H
+#ifndef _LINUX_DRIVERS_WISHBONE_WB_H
+#define _LINUX_DRIVERS_WISHBONE_WB_H
 
 #include <linux/device.h>
 #include <linux/pm.h>
@@ -8,13 +8,14 @@
 
 #include "sdwb.h"
 
-#define WBONE_ANY_ID (~0)
+#define WB_ANY_VENDOR ((uint64_t)(~0))
+#define WB_ANY_DEVICE ((uint32_t)(~0))
 
 struct wb_device;
 
 struct wb_device_id {
-	__u64 vendor;		/* Vendor or WBONE_ANY_ID */
-	__u16 device;		/* Device ID or WBONE_ANY_ID */
+	uint64_t vendor;	/* Vendor or WB_ANY_VENDOR */
+	uint32_t device;	/* Device ID or WB_ANY_DEVICE */
 };
 
 /*
@@ -22,10 +23,9 @@ struct wb_device_id {
  *
  * @name     : Name of the driver
  * @owner    : The owning module, normally THIS_MODULE
- * @id_table : List of Wishbone ID's this driver supports
+ * @id_table : Zero-terminated table of Wishbone ID's this driver supports
  * @probe    : Probe function called on detection of a matching device
  * @remove   : Remove function called on removal of matched device
- * @ops      : Power management ops (not implemented yet)
  * @list     : List for all wishbone drivers
  * @driver   : Internal Linux driver structure
  */
@@ -35,7 +35,6 @@ struct wb_driver {
 	struct wb_device_id *id_table;
 	int (*probe)(struct wb_device *);
 	int (*remove)(struct wb_device *);
-	const struct dev_pm_ops ops;
 	struct list_head list;
 	struct device_driver driver;
 };
@@ -45,7 +44,7 @@ struct wb_driver {
  * @name   : Name of the device
  * @wbd    : The wishbone descriptor read from wishbone address space
  * @driver : The driver managing this device
- * @list   : List structure
+ * @list   : List of Wishbone devices (per driver)
  * @dev    : Internal Linux device structure
  */
 struct wb_device {
