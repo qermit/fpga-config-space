@@ -5,4 +5,3 @@ wb_fw: firmware.o
 
 clean:
 	rm -rf wb_fw *.o
-	

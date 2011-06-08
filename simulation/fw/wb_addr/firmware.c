@@ -18,10 +18,10 @@ void print_wbd(uint8_t major, uint8_t minor,
 {
 		printf("Wishbone Device:\n");
 		printf("\tMajor: %d, Minor: %d\n", major, minor);
-		printf("\tVendor: %lld, Device: %d\n", vendor, device);
-		printf("\tBase: %llx, Size: %llx\n", base, size);
-		printf("\tFlags: %x, Class: %x\n", flags, class);
-		printf("\tVers: %d, Date: %x\n", version, date);
+		printf("\tVendor: 0x%llx, Device: 0x%x\n", vendor, device);
+		printf("\tBase: 0x%llx, Size: 0x%llx\n", base, size);
+		printf("\tFlags: 0x%x, Class: 0x%x\n", flags, class);
+		printf("\tVers: %d, Date: 0x%x\n", version, date);
 		printf("\tVName: %s\n\tDName: %s\n", vname, dname);
 }
 
@@ -113,11 +113,8 @@ int main(int argc, char *argv[])
 	int size = 0;
 	fwrite(header, sizeof(struct sdwb_head), 1, fout);
 	size += sizeof(struct sdwb_head);
-	printf("size: %d\n", size);
 	fwrite(id, sizeof(struct sdwb_wbid), 1, fout);
 	size += sizeof(struct sdwb_wbid);
-	printf("size: %d\n", size);
-	printf("struct: %d\n", sizeof(struct sdwb_wbd));
 	int num = 0;
 	while (fgets(buf, 128, fin) != NULL) {
 		if (strlen(buf) == 0)
@@ -138,14 +135,12 @@ int main(int argc, char *argv[])
 		struct sdwb_wbd *dev;
 		dev = sdwb_create_device(major, minor, vendor, device, base, sz, flags, class, version, date, vname, dname);
 		fwrite(dev, sizeof(struct sdwb_wbd), 1, fout);
-		printf("size: %d\n", size);
 		size += sizeof(struct sdwb_wbd);
-		printf("size: %d\n", size);
 		num++;
 	}
 
 	i = 4*1024*1024 - size;
-	printf("fill: %d\n", i);
+	printf("fill: 0x%x bytes\n", i);
 	c = 0;
 	while (--i >= 0)
 		fwrite(&c, 1, 1, fout);
