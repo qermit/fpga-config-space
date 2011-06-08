@@ -15,6 +15,7 @@ struct wb_device;
 
 struct wb_device_id {
 	uint64_t vendor;	/* Vendor or WB_ANY_VENDOR */
+	uint32_t reserved;	/* Reserved for alignment */
 	uint32_t device;	/* Device ID or WB_ANY_DEVICE */
 };
 

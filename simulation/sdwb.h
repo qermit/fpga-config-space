@@ -67,11 +67,11 @@ struct sdwb_wbid {
  * device_name  : Device name in ASCII (for debugging)
  */
 struct sdwb_wbd {
-	uint16_t wbd_magic;
-	uint16_t wbd_version;
-
 	uint64_t vendor;
 	uint32_t device;
+
+	uint16_t wbd_magic;
+	uint16_t wbd_version;
 
 	uint64_t hdl_base;
 	uint64_t hdl_size;
