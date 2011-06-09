@@ -11,12 +11,14 @@
 #define WB_ANY_VENDOR ((uint64_t)(~0))
 #define WB_ANY_DEVICE ((uint32_t)(~0))
 
+#define WB_DEVICE_ID_MASK (0xffffffff)
+
 struct wb_device;
 
 struct wb_device_id {
 	uint64_t vendor;	/* Vendor or WB_ANY_VENDOR */
-	uint32_t reserved;	/* Reserved for alignment */
-	uint32_t device;	/* Device ID or WB_ANY_DEVICE */
+	uint64_t device;	/* Device ID or WB_ANY_DEVICE. This is only 32
+				   bits but is extended for alignment */
 };
 
 /*

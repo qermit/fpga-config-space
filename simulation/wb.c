@@ -82,16 +82,17 @@ static struct wb_device_id *wb_match_device(struct wb_driver *drv,
 						struct wb_device *dev)
 {
 	struct wb_device_id *ids;
+	uint32_t device = 0;
 
 	ids = drv->id_table;
 	if (!ids)
 		return NULL;
 
-	while (ids->vendor || ids->device) {
+	while (ids->vendor || (device = (ids->device & WB_DEVICE_ID_MASK))) {
 		if ((ids->vendor == WB_ANY_VENDOR ||
-				ids->vendor == dev->wbd.vendor) &&
-		    (ids->device == WB_ANY_DEVICE ||
-				ids->device == dev->wbd.device))
+				ids->vendor == dev->wbd.vendor) && 
+			(device == WB_ANY_DEVICE ||
+				device == dev->wbd.device))
 			return ids;
 		ids++;
 	}
