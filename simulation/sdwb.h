@@ -20,8 +20,8 @@
  */
 struct sdwb_head {
 	uint64_t magic;
-	uint64_t wbid_address;
-	uint64_t wbd_address;
+	uint64_t wbidb_address;
+	uint64_t wbddb_address;
 };
 
 /*
@@ -37,7 +37,7 @@ struct sdwb_wbid {
 	uint64_t bstream_type;
 	uint32_t bstream_version;
 	uint32_t bstream_date;
-	uint8_t bstream_release[20];
+	uint8_t bstream_release[16];
 };
 
 /*
@@ -57,7 +57,6 @@ struct sdwb_wbid {
  * @hdl_size    : Size of the HDL block in Wishbone memory
  *
  * @wbd_flags   : Flags pertaining to the wishbone device
- *                (FIXME rename  to hdl_?)
  *
  * @hdl_class   : Class of HDL block
  * @hdl_version : Version of HDL block

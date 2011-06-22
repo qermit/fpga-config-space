@@ -59,10 +59,10 @@ static int fake_spec_probe(struct pci_dev *pdev,
 		goto head_fail;
 	}
 
-	id = (struct sdwb_wbid *)&wb_fw->data[header->wbid_address];
+	id = (struct sdwb_wbid *)&wb_fw->data[header->wbidb_address];
 	printk(KERN_INFO PFX "found sdwb wishbone ID: %lld\n", id->bstream_type);
 
-	wbd = (struct sdwb_wbd *)&wb_fw->data[header->wbd_address];
+	wbd = (struct sdwb_wbd *)&wb_fw->data[header->wbddb_address];
 	while (wbd->wbd_magic == SDWB_WBD_MAGIC) {
 		wbdev = kzalloc(sizeof(struct wb_device), GFP_KERNEL);
 		if (!wbdev)
