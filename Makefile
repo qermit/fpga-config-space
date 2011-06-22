@@ -1,10 +1,11 @@
 FILE=sdwb
 
-all:
+all: $(FILE).pdf
+
+$(FILE).pdf: $(FILE).tex
 	latex $(FILE).tex
 	latex $(FILE).tex
 	dvipdfm $(FILE).dvi
-	evince $(FILE).pdf
 
 clean:
 	rm -rf *.aux *.dvi *.log *.pdf *.toc *.lot *.lof
