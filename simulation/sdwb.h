@@ -20,8 +20,8 @@
  */
 struct sdwb_head {
 	uint64_t magic;
-	uint64_t wbidb_address;
-	uint64_t wbddb_address;
+	uint64_t wbid_address;
+	uint64_t wbd_address;
 };
 
 /*
