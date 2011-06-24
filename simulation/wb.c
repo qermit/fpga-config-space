@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/list.h>
+#include <linux/atomic.h>
 
 #include <linux/wishbone.h>
 
@@ -24,13 +25,14 @@ static void wb_dev_release(struct device *dev)
  */
 int wb_register_device(struct wb_device *wbdev)
 {
-	/* TODO: race condition with devno possible */
-	static unsigned int devno = 1;
+	static atomic_t global_wb_devno = ATOMIC_INIT(0);
+	int devno;
 
+	devno = atomic_inc_return(&global_wb_devno);
 	wbdev->dev.bus = &wb_bus_type;
 	wbdev->dev.parent = &wb_dev;
 	wbdev->dev.release = wb_dev_release;
-	dev_set_name(&wbdev->dev, "wb%d", devno++);
+	dev_set_name(&wbdev->dev, "wb%d", devno);
 	INIT_LIST_HEAD(&wbdev->list);
 
 	return device_register(&wbdev->dev);
