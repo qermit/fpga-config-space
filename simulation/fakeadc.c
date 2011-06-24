@@ -10,13 +10,13 @@ static struct wb_device_id fakeadc_ids[] = {
 
 static int fakeadc_probe(struct wb_device *dev)
 {
-	printk(KERN_INFO KBUILD_MODNAME ": found a fake ADC device!\n");
+	printk(KERN_INFO KBUILD_MODNAME ": %s\n", __func__);
 	return 0;
 }
 
 static int fakeadc_remove(struct wb_device *dev)
 {
-	printk(KERN_INFO KBUILD_MODNAME ": removed a fake ADC device!\n");
+	printk(KERN_INFO KBUILD_MODNAME ": %s\n", __func__);
 	return 0;
 }
 

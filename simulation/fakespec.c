@@ -47,18 +47,20 @@ static int fake_spec_probe(struct pci_dev *pdev,
 	 */
 	sprintf(fwname, "fakespec-%08x-%04x", spec_vendor, spec_device);
 	if (request_firmware(&wb_fw, fwname, &pdev->dev)) {
-		printk(KERN_ERR KBUILD_MODNAME ": failed to load firmware\n");
+		printk(KERN_ERR KBUILD_MODNAME ": failed to load "
+		       "firmware \"%s\"\n", fwname);
 		return -1;
 	}
 
 	header = (struct sdwb_head *)&wb_fw->data[header_addr];
 	if (header->magic != SDWB_HEAD_MAGIC) {
-		printk(KERN_ERR KBUILD_MODNAME ": invalid sdwb header\n");
+		printk(KERN_ERR KBUILD_MODNAME ": invalid sdwb header at %p "
+		       "(magic %llx)\n", header, header->magic);
 		goto head_fail;
 	}
 
 	id = (struct sdwb_wbid *)&wb_fw->data[header->wbid_address];
-	printk(KERN_INFO KBUILD_MODNAME ": found sdwb ID: %lld\n",
+	printk(KERN_INFO KBUILD_MODNAME ": found sdwb bistream: 0x%llx\n",
 	       id->bstream_type);
 
 	wbd = (struct sdwb_wbd *)&wb_fw->data[header->wbd_address];

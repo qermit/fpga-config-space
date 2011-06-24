@@ -16,8 +16,8 @@ static void wb_dev_release(struct device *dev)
 
 	wb_dev = to_wb_device(dev);
 
-	printk(KERN_DEBUG KBUILD_MODNAME ": release %llx\n",
-	       wb_dev->wbd.vendor);
+	printk(KERN_DEBUG KBUILD_MODNAME ": release %016llx:%08lx\n",
+	       wb_dev->wbd.vendor, (unsigned long)wb_dev->wbd.device);
 }
 
 /*

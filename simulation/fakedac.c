@@ -10,13 +10,13 @@ static struct wb_device_id fakedac_ids[] = {
 
 static int fakedac_probe(struct wb_device *dev)
 {
-	printk(KERN_INFO KBUILD_MODNAME ": found a fake DAC device!\n");
+	printk(KERN_INFO KBUILD_MODNAME ": %s\n", __func__);
 	return 0;
 }
 
 static int fakedac_remove(struct wb_device *dev)
 {
-	printk(KERN_INFO KBUILD_MODNAME ": removed a fake DAC device!\n");
+	printk(KERN_INFO KBUILD_MODNAME ": %s\n", __func__);
 	return 0;
 }
 
