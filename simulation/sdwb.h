@@ -9,7 +9,7 @@
 #define SDWB_HEAD_MAGIC 0x5344574248656164LL
 
 /* 'WB' (big endian, 16 bits). Used in SDWB device descriptors */
-#define SDWB_WBD_MAGIC 0x5742 
+#define SDWB_WBD_MAGIC 0x5742
 
 /*
  * SDWB - Header structure

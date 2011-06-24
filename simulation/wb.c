@@ -45,7 +45,7 @@ void wb_unregister_device(struct wb_device *wbdev)
 {
 	if (!wbdev)
 		return;
-	
+
 	device_unregister(&wbdev->dev);
 }
 EXPORT_SYMBOL(wb_unregister_device);
@@ -90,7 +90,7 @@ static struct wb_device_id *wb_match_device(struct wb_driver *drv,
 
 	while (ids->vendor || (device = (ids->device & WB_DEVICE_ID_MASK))) {
 		if ((ids->vendor == WB_ANY_VENDOR ||
-				ids->vendor == dev->wbd.vendor) && 
+				ids->vendor == dev->wbd.vendor) &&
 			(device == WB_ANY_DEVICE ||
 				device == dev->wbd.device))
 			return ids;
@@ -163,11 +163,11 @@ static int wb_init(void)
 	ret = bus_register(&wb_bus_type);
 	if (ret)
 		goto bus_reg_fail;
-	
+
 	ret = device_register(&wb_dev);
 	if (ret)
 		goto device_reg_fail;
-	
+
 	return 0;
 
 device_reg_fail:

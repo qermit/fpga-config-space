@@ -25,7 +25,7 @@ static int fake_spec_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
 	char fwname[64];
-	unsigned int header_addr = 0; /* We would normally read this from the BAR */
+	unsigned int header_addr = 0; /* Normally read from the BAR */
 	struct sdwb_head *header;
 	struct sdwb_wbid *id;
 	struct sdwb_wbd *wbd;
@@ -38,9 +38,9 @@ static int fake_spec_probe(struct pci_dev *pdev,
 	n = 1;
 
 	/*
-	 * load firmware with wishbone address map. In the real driver, we would
-	 * first load the bitstream into the fpga and then read the header from
-	 * its appropriate location.
+	 * load firmware with wishbone address map. In the real driver,
+	 * we would first load the bitstream into the fpga and then read
+	 * the header from its appropriate location.
 	 *
 	 * For loading the bitstream, we read the bitstream ID off
 	 * the eeprom on the spec board? Or some other way?
@@ -59,10 +59,10 @@ static int fake_spec_probe(struct pci_dev *pdev,
 		goto head_fail;
 	}
 
-	id = (struct sdwb_wbid *)&wb_fw->data[header->wbidb_address];
-	printk(KERN_INFO PFX "found sdwb wishbone ID: %lld\n", id->bstream_type);
+	id = (struct sdwb_wbid *)&wb_fw->data[header->wbid_address];
+	printk(KERN_INFO PFX "found sdwb ID: %lld\n", id->bstream_type);
 
-	wbd = (struct sdwb_wbd *)&wb_fw->data[header->wbddb_address];
+	wbd = (struct sdwb_wbd *)&wb_fw->data[header->wbd_address];
 	while (wbd->wbd_magic == SDWB_WBD_MAGIC) {
 		wbdev = kzalloc(sizeof(struct wb_device), GFP_KERNEL);
 		if (!wbdev)
