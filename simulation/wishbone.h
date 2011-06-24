@@ -1,5 +1,5 @@
-#ifndef _LINUX_DRIVERS_WISHBONE_WB_H
-#define _LINUX_DRIVERS_WISHBONE_WB_H
+#ifndef _LINUX_WISHBONE_H
+#define _LINUX_WISHBONE_H
 
 #include <linux/device.h>
 #include <linux/pm.h>
@@ -65,4 +65,5 @@ void wb_unregister_device(struct wb_device *wbdev);
 int wb_register_driver(struct wb_driver *driver);
 void wb_unregister_driver(struct wb_driver *driver);
 
-#endif
+#endif /* _LINUX_WISHBONE_H */
+

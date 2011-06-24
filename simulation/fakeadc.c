@@ -1,4 +1,4 @@
-#include "wb.h"
+#include "wishbone.h"
 
 #define PFX "fakeadc: "
 
