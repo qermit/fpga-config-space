@@ -6,8 +6,6 @@
 
 #include <linux/wishbone.h>
 
-#define PFX "wb: "
-
 static struct device wb_dev;
 static struct bus_type wb_bus_type;
 
@@ -17,7 +15,8 @@ static void wb_dev_release(struct device *dev)
 
 	wb_dev = to_wb_device(dev);
 
-	printk(KERN_DEBUG PFX "release %llx\n", wb_dev->wbd.vendor);
+	printk(KERN_DEBUG KBUILD_MODNAME ": release %llx\n",
+	       wb_dev->wbd.vendor);
 }
 
 /*

@@ -1,7 +1,5 @@
 #include <linux/wishbone.h>
 
-#define PFX "fakedac: "
-
 #define WB_CERN_VENDOR 	0x0
 #define WB_DAC_DEVICE	0x2
 
@@ -12,13 +10,13 @@ static struct wb_device_id fakedac_ids[] = {
 
 static int fakedac_probe(struct wb_device *dev)
 {
-	printk(KERN_INFO PFX "found a fake DAC device!\n");
+	printk(KERN_INFO KBUILD_MODNAME ": found a fake DAC device!\n");
 	return 0;
 }
 
 static int fakedac_remove(struct wb_device *dev)
 {
-	printk(KERN_INFO PFX "removed a fake DAC device!\n");
+	printk(KERN_INFO KBUILD_MODNAME ": removed a fake DAC device!\n");
 	return 0;
 }
 
