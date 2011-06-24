@@ -3,6 +3,10 @@
 
 LINUX ?= $(HOME)/linux-for-wbonesim
 
+# temporarily, use local <linux/wishbone.h>
+export WISHBONE_DIR ?= $(shell /bin/pwd)
+EXTRA_CFLAGS := -I$(WISHBONE_DIR)/include
+
 obj-m = wb.o fakedac.o fakeadc.o fakespec.o 
 
 all:

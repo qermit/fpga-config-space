@@ -4,8 +4,8 @@
 #include <linux/firmware.h>
 #include <linux/mutex.h>
 
-#include "wishbone.h"
-#include "sdwb.h"
+#include <linux/wishbone.h>
+#include <linux/sdwb.h>
 
 #define PFX "fakespec: "
 

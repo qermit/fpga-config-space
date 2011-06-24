@@ -4,7 +4,7 @@
 #include <linux/device.h>
 #include <linux/list.h>
 
-#include "wishbone.h"
+#include <linux/wishbone.h>
 
 #define PFX "wb: "
 

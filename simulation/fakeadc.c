@@ -1,4 +1,4 @@
-#include "wishbone.h"
+#include <linux/wishbone.h>
 
 #define PFX "fakeadc: "
 
