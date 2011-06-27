@@ -94,7 +94,7 @@ The structure of the header block is described in Table \ref{hdr_block_struct}.
 	\caption{Wishbone header block structure}\label{hdr_block_struct}\centering
 	\begin{tabular}{| c | c | c | c | c | p{5cm} |} \hline
 	Offset & Size (in bytes) & Name & Access & Value & Description \\ \hline
-	0x00 & 0x08 & MAGIC & RO & 0x5344574248656164 & Magic number used to ensure that there is a valid header present. \\ \hline
+	0x00 & 0x08 & MAGIC & RO & 0x5344574248454144LL & Magic number used to ensure that there is a valid header present. \\ \hline
 	0x08 & 0x08 & WBIDB\_ADDR & RO & - & Address of the Wishbone ID block. See section \ref{id_block} for more information. \\ \hline
 	0x10 & 0x08 & WBDDB\_ADDR & RO & - & Address of the Wishbone device descriptor block. See section \ref{device_block} for more information. \\ \hline
 	\end{tabular}
@@ -109,7 +109,7 @@ the header contains valid data. If the magic number does not match the
 expected value, the software should abort immediately.
 
 The magic number in the current version of the specification is expected to
-be 0x5344574248656164 or the ASCII string "SDWBhead" without the string
+be 0x5344574248454144 or the ASCII string "SDWBHEAD" without the string
 terminator.
 
 \item[WBIDB\_ADDR (Offset: 0x08)] \hfill \\

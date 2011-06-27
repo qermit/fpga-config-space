@@ -5,8 +5,8 @@
 
 /* SDWB magic numbers */
 
-/* 'SDWBhead' (big endian). Used in SDWB Header */
-#define SDWB_HEAD_MAGIC 0x5344574248656164LL
+/* 'SDWBHEAD' (big endian). Used in SDWB Header */
+#define SDWB_HEAD_MAGIC 0x5344574248454144LL
 
 /* 'WB' (big endian, 16 bits). Used in SDWB device descriptors */
 #define SDWB_WBD_MAGIC 0x5742
