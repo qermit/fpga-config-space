@@ -1,5 +1,5 @@
 /*
- * Fake SPEC board Wishbone driver
+ * Fake Wishbone bus driver
  *
  * Author: Manohar Vanga <manohar.vanga@cern.ch>
  * Copyright (C) 2011 CERN
@@ -38,10 +38,7 @@ static int ndev;
 LIST_HEAD(spec_devices);
 static struct mutex list_lock;
 
-static int n;
-
-static int fake_spec_probe(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static int fake_wbbus_probe(struct device *dev)
 {
 	char fwname[64];
 	unsigned int header_addr = 0; /* Normally read from the BAR */
@@ -51,10 +48,7 @@ static int fake_spec_probe(struct pci_dev *pdev,
 	struct wb_device *wbdev, *next;
 	const struct firmware *wb_fw;
 
-	/* Horrible way of ensuring single probe call. Sorry for race conds */
-	if (n)
-		return -ENODEV;
-	n = 1;
+	mutex_init(&list_lock);
 
 	/*
 	 * load firmware with wishbone address map. In the real driver,
@@ -67,7 +61,7 @@ static int fake_spec_probe(struct pci_dev *pdev,
 	 * Below, we just use the PCI id to get the firmware file.
 	 */
 	sprintf(fwname, "fakespec-%08x-%04x", spec_vendor, spec_device);
-	if (request_firmware(&wb_fw, fwname, &pdev->dev)) {
+	if (request_firmware(&wb_fw, fwname, dev)) {
 		printk(KERN_ERR KBUILD_MODNAME ": failed to load "
 		       "firmware \"%s\"\n", fwname);
 		return -1;
@@ -118,7 +112,7 @@ head_fail:
 	return -1;
 }
 
-static void fake_spec_remove(struct pci_dev *pdev)
+static void fake_wbbus_release(struct device *dev)
 {
 	struct wb_device *wbdev, *next;
 
@@ -131,34 +125,29 @@ static void fake_spec_remove(struct pci_dev *pdev)
 	mutex_unlock(&list_lock);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(fake_spec_pci_tbl) = {
-	{ PCI_DEVICE(PCI_ANY_ID, PCI_ANY_ID) },
-	{ 0, 0, 0, 0, 0, 0, 0 },
-};
-MODULE_DEVICE_TABLE(pci, fake_spec_pci_tbl);
-
-static struct pci_driver fake_spec_pci_driver = {
-	.name = "fake-spec",
-	.id_table = fake_spec_pci_tbl,
-	.probe = fake_spec_probe,
-	.remove = __devexit_p(fake_spec_remove),
+static struct device fake_wbbus_device = {
+	.init_name = "fake-wbbus0",
+	.release = fake_wbbus_release,
 };
 
-static int fake_spec_init(void)
+static int __init fake_wb_bus_init(void)
 {
-	n = 0;
-	ndev = 0;
-	mutex_init(&list_lock);
-	return pci_register_driver(&fake_spec_pci_driver);
+	if (device_register(&fake_wbbus_device) < 0) {
+		printk(KERN_ERR KBUILD_MODNAME "failed to register fake"
+					"Wishbone bus\n");
+		return -1;
+	}
+	fake_wbbus_probe(&fake_wbbus_device);
+	return 0;
 }
 
-static void fake_spec_exit(void)
+static void __exit fake_wb_bus_exit(void)
 {
-	pci_unregister_driver(&fake_spec_pci_driver);
+	device_unregister(&fake_wbbus_device);
 }
 
-module_init(fake_spec_init);
-module_exit(fake_spec_exit);
+module_init(fake_wb_bus_init);
+module_exit(fake_wb_bus_exit);
 
 MODULE_AUTHOR("Manohar Vanga <mvanga@cern.ch>");
 MODULE_DESCRIPTION("Fake Spec board driver");
