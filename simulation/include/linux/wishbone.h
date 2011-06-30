@@ -66,14 +66,12 @@ struct wb_driver {
 #define to_wb_driver(drv) container_of(drv, struct wb_driver, driver);
 
 /*
- * @name   : Name of the device
  * @wbd    : The wishbone descriptor read from wishbone address space
  * @driver : The driver managing this device
  * @list   : List of Wishbone devices (per driver)
  * @dev    : Internal Linux device structure
  */
 struct wb_device {
-	char *name;
 	struct sdwb_wbd wbd;
 	struct wb_driver *driver;
 	struct list_head list;
