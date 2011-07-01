@@ -1,0 +1,173 @@
+Writing Wishbone Device Drivers
+===============================
+
+Written by Manohar Vanga <mvanga@cern.ch>
+Last revised: June 30, 2011
+
+1. Introduction
+---------------
+
+The Wishbone Bus is an open source hardware computer bus intended to let
+the parts of an integrated circuit communicate with each other. The aim
+is to allow the connection of differing cores to each other inside of a
+chip. The Wishbone Bus is used by many designs in the OpenCores project.
+
+These are normally implemented as HDL (Hardware description language) and
+instantiated within a field-programmable gate array (FPGA).
+
+
+2. Wishbone Autoprobing
+-----------------------
+
+The Linux Wishbone driver requires that designs follow the guidelines
+provided in the Self Describing Wishbone Bus specification document [1].
+
+The above document specifies a standard for allowing the auto-detection
+of Wishbone peripherals on a Wishbone bus. It does this by requiring
+developers to provide additional metadata about the peripherals so drivers
+can enumerate the bus and individually control peripherals.
+
+The various structures required are defined in 'include/linux/sdwb.h'.
+As a quick introduction, there are three main blocks that need to be
+present (within the integrated circuit) to allow for autoprobing:
+
+    1. Wishbone Header Block: This contains the addresses of the next two
+                blocks. The address of this block needs to be provided to
+                the driver in some way (eg. stored in parent bus memory).
+
+    2. Wishbone ID Block: This block contains versioning and identification
+                information regarding the bitstream (the synthesized or
+                instantiated HDL code residing in an FPGA).
+
+    3. Device Descriptor Block: This block contains descriptors for each
+                Wishbone peripheral connected to the bus.
+
+More detailed information can be found in the specification document.
+
+
+3. Registering Wishbone Devices
+-------------------------------
+
+In order to have Wishbone drivers be matched with their corresponding
+devices, the devices need to first be registered. This should normally
+be done by the driver of the parent device (eg. bridge controller).
+
+A wishbone device can be registered by calling 'wb_register_device()':
+
+    int wb_register_device(struct wb_device *wbdev);
+
+This function returns 0 on success and a negative value on failure. The
+function takes a single argument that is the pointer to a Wishbone device
+structure. The structure looks like the following (taken from
+'include/linux/wishbone.h'):
+
+    struct wb_device {
+            struct sdwb_wbd wbd;
+            struct wb_driver *driver;
+            struct list_head list;
+            struct device dev;
+    };
+
+The only field that needs to be filled before registering is the 'wbd'
+field of type 'struct sdwb_wbd'. The structure of 'struct sdwb_wbd' looks
+like the following (taken from 'include/linux/sdwb.h'):
+
+    struct sdwb_wbd {
+            uint64_t vendor;
+            uint32_t device;
+
+            uint16_t wbd_magic;
+            uint16_t wbd_version;
+
+            uint64_t hdl_base;
+            uint64_t hdl_size;
+
+            uint32_t wbd_flags;
+            uint32_t hdl_class;
+            uint32_t hdl_version;
+            uint32_t hdl_date;
+
+            char vendor_name[16];
+            char device_name[16];
+    };
+
+All of these fields can be determined from the device descriptor found
+on the device (as specified in the specification document in [1]).
+
+Similarly, a previously registered Wishbone device can be removed by
+calling 'wb_unregister_device()':
+
+    void wb_unregister_device(struct wb_device *wbdev);
+
+The structure passed should be the same one used when registering the
+device.
+
+An example of registering Wishbone devices can be seen in the file
+'fake_wb_bus.c' in the 'fake_wbbus_probe' function.
+
+Note on Registering Devices: As soon as a device is registered with the
+        Wishbone bus, the device is matched up with its corresponding
+        driver. This matching is done using the 'vendor' and 'device'
+        fields of the Wishbone device descriptor. More information on
+        vendor and device IDs can be found in [1].
+
+4. Wishbone Device Drivers
+--------------------------
+
+Wishbone device drivers can be registered using the 'wb_register_driver()'
+function.
+
+    int wb_register_driver(struct wb_driver *driver)
+
+The function returns 0 on success and a negative value on failure. It
+expects a 'struct wb_driver *' as an argument. An example of registering
+a driver can be found in the 'fakedac.c' driver:
+
+    static struct wb_driver fakedac_driver = {
+            .name = "fakedac",
+            .owner = THIS_MODULE,
+            .id_table = fakedac_ids,
+            .probe = fakedac_probe,
+            .remove = fakedac_remove,
+    };
+
+The driver is then registered in the module's init function as:
+
+    static int fakedac_init(void)
+    {
+            return wb_register_driver(&fakedac_driver);
+    }
+
+4.1 Wishbone ID Table
+---------------------
+
+The ID table is similar to the PCI bind table and allows the Wishbone
+core driver to match devices with their respective drivers.
+
+When a Wishbone device is registered by any driver (probably after
+reading the auto-discovery metadata from the device), the device is
+matched with a corresponding driver. This is done based on three fields;
+ie. vendor ID, device ID and class.
+
+A Wishbone ID table for a Wishbone device driver specifies which ID's
+are handled by the driver.
+
+The example in 'fakedac.c' has the following ID table:
+
+    #define WB_DAC_VENDOR  0x0
+    #define WB_DAC_DEVICE   0x2
+
+    static struct wb_device_id fakedac_ids[] = {
+            { WB_DAC_VENDOR, WB_DAC_DEVICE},
+            { 0, },
+    };
+
+This is then set in the 'struct wb_driver' structure as shown in the
+beginning of Section 4.
+
+References
+----------
+
+[1]
+Self-Describing Wishbone Bus Specification document
+[link here]
