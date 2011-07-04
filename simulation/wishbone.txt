@@ -2,7 +2,7 @@ Writing Wishbone Device Drivers
 ===============================
 
 Written by Manohar Vanga <mvanga@cern.ch>
-Last revised: June 30, 2011
+Last revised: July 4, 2011
 
 1. Introduction
 ---------------
@@ -162,12 +162,12 @@ The example in 'fakedac.c' has the following ID table:
             { 0, },
     };
 
-This is then set in the 'struct wb_driver' structure as shown in the
-beginning of Section 4.
+This is then set in the 'struct wb_driver' structure to the field
+'id_table' as shown in the beginning of Section 4.
 
 References
 ----------
 
 [1]
-Self-Describing Wishbone Bus Specification document
+Self-Describing Wishbone Bus Specification [PDF]
 [link here]

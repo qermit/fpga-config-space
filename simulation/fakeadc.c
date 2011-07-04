@@ -26,7 +26,7 @@
 #define WB_ADC_DEVICE	0x1
 
 static struct wb_device_id fakeadc_ids[] = {
-	{ WB_ADC_VENDOR, WB_ADC_DEVICE},
+	{ WB_ADC_VENDOR, WB_ADC_DEVICE, WB_NO_CLASS},
 	{ 0, },
 };
 

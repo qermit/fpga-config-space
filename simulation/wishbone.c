@@ -111,11 +111,13 @@ static struct wb_device_id *wb_match_device(struct wb_driver *drv,
 	if (!ids)
 		return NULL;
 
-	while (ids->vendor || (device = (ids->device & WB_DEVICE_ID_MASK))) {
-		if ((ids->vendor == WB_ANY_VENDOR ||
-				ids->vendor == dev->wbd.vendor) &&
+	while (ids->vendor || (device = ids->device)) {
+		if ((ids->dev_class != WB_NO_CLASS &&
+			ids->dev_class == dev->wbd.hdl_class) ||
+			((ids->vendor == WB_ANY_VENDOR ||
+			ids->vendor == dev->wbd.vendor) &&
 			(device == WB_ANY_DEVICE ||
-				device == dev->wbd.device))
+			device == dev->wbd.device)))
 			return ids;
 		ids++;
 	}
