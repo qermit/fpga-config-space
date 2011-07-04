@@ -22,11 +22,11 @@
 
 #include <linux/wishbone.h>
 
-#define WB_CERN_VENDOR 	0x0
+#define WB_ADC_VENDOR 	0x0
 #define WB_ADC_DEVICE	0x1
 
 static struct wb_device_id fakeadc_ids[] = {
-	{ WB_CERN_VENDOR, WB_ADC_DEVICE},
+	{ WB_ADC_VENDOR, WB_ADC_DEVICE},
 	{ 0, },
 };
 
