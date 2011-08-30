@@ -59,7 +59,7 @@ struct wb_driver {
 	struct wb_device_id *id_table;
 	int (*probe)(struct wb_device *);
 	int (*remove)(struct wb_device *);
-	struct list_head list;
+//	struct list_head list;
 	struct device_driver driver;
 };
 #define to_wb_driver(drv) container_of(drv, struct wb_driver, driver);
@@ -67,7 +67,7 @@ struct wb_driver {
 /*
  * @wbd    : The wishbone descriptor read from wishbone address space
  * @driver : The driver managing this device
- * @list   : List of Wishbone devices (per driver)
+ * @list   : List of Wishbone devices (per bus)
  * @dev    : Internal Linux device structure
  */
 struct wb_device {
@@ -75,14 +75,61 @@ struct wb_device {
 	struct wb_driver *driver;
 	struct list_head list;
 	struct device dev;
+	struct wb_bus *bus;
 };
 #define to_wb_device(dev) container_of(dev, struct wb_device, dev);
+
+struct wb_ops {
+	int (*read8)(uint64_t, uint8_t *);
+	int (*read16)(uint64_t, uint16_t *);
+	int (*read32)(uint64_t, uint32_t *);
+	int (*read64)(uint64_t, uint64_t *);
+
+	int (*write8)(uint64_t, uint8_t);
+	int (*write16)(uint64_t, uint16_t);
+	int (*write32)(uint64_t, uint32_t);
+	int (*write64)(uint64_t, uint64_t);
+
+	int (*memcpy_from_wb) (uint64_t addr, size_t len, size_t *retlen,
+		uint8_t *buf);
+	int (*memcpy_to_wb) (uint64_t addr, size_t len, size_t *retlen,
+		const uint8_t *buf);
+};
+
+struct wb_bus {
+	char *name;
+	struct module *owner;
+	uint64_t sdwb_header_base;
+	struct wb_ops *ops;
+	struct list_head devices;
+	struct mutex dev_lock;
+	int ndev;
+};
+
+int wb_register_driver(struct wb_driver *driver);
+void wb_unregister_driver(struct wb_driver *driver);
+
+int wb_register_bus(struct wb_bus *bus);
+void wb_unregister_bus(struct wb_bus *bus);
 
 int wb_register_device(struct wb_device *wbdev);
 void wb_unregister_device(struct wb_device *wbdev);
 
-int wb_register_driver(struct wb_driver *driver);
-void wb_unregister_driver(struct wb_driver *driver);
+/* Wishbone I/O operations */
+int wb_read8(struct wb_bus *, uint64_t, uint8_t *);
+int wb_read16(struct wb_bus *, uint64_t, uint16_t *);
+int wb_read32(struct wb_bus *, uint64_t, uint32_t *);
+int wb_read64(struct wb_bus *, uint64_t, uint64_t *);
+
+int wb_write8(struct wb_bus *, uint64_t, uint8_t);
+int wb_write16(struct wb_bus *, uint64_t, uint16_t);
+int wb_write32(struct wb_bus *, uint64_t, uint32_t);
+int wb_write64(struct wb_bus *, uint64_t, uint64_t);
+
+int memcpy_from_wb(struct wb_bus *, uint64_t addr, size_t len,
+	uint8_t *buf);
+int memcpy_to_wb(struct wb_bus *, uint64_t addr, size_t len,
+	const uint8_t *buf);
 
 #endif /* _LINUX_WISHBONE_H */
 
