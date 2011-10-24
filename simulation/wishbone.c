@@ -25,10 +25,11 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/atomic.h>
 #include <linux/slab.h>
 
 #include <linux/wishbone.h>
+
+#include <asm/atomic.h>		/* before 2.6.37 no <linux/atomic.h> */
 
 static struct device wb_dev;
 static struct bus_type wb_bus_type;
