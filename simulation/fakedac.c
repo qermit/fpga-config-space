@@ -22,7 +22,7 @@
 
 #include <linux/wishbone.h>
 
-#define WB_DAC_VENDOR 	0x0
+#define WB_DAC_VENDOR	0x0
 #define WB_DAC_DEVICE	0x2
 
 static struct wb_device_id fakedac_ids[] = {

@@ -8,7 +8,7 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -104,7 +104,7 @@ int memcpy_from_wb(struct wb_bus *bus, uint64_t addr, size_t len,
 	}
 	return -EIO;
 }
-	
+
 int memcpy_to_wb(struct wb_bus *bus, uint64_t addr, size_t len,
 	const uint8_t *buf)
 {
@@ -249,7 +249,7 @@ int wb_register_bus(struct wb_bus *bus)
 
 	printk(KERN_INFO KBUILD_MODNAME ": found sdwb bistream: 0x%llx\n",
 		wbid.bstream_type);
-	
+
 	ret = memcpy_from_wb(bus, head.wbd_address, sizeof(struct sdwb_wbd),
 		(uint8_t *)&wbd);
 	if (ret < 0) {
@@ -258,7 +258,7 @@ int wb_register_bus(struct wb_bus *bus)
 	}
 
 	while (wbd.wbd_magic == SDWB_WBD_MAGIC) {
-		wbdev = (struct wb_device *)kzalloc(sizeof(struct wb_device),
+		wbdev = kzalloc(sizeof(struct wb_device),
 			GFP_KERNEL);
 		if (!wbdev) {
 			ret = -ENOMEM;

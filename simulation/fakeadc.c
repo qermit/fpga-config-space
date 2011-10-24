@@ -8,7 +8,7 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,7 +22,7 @@
 
 #include <linux/wishbone.h>
 
-#define WB_ADC_VENDOR 	0x0
+#define WB_ADC_VENDOR	0x0
 #define WB_ADC_DEVICE	0x1
 
 static struct wb_device_id fakeadc_ids[] = {

@@ -8,7 +8,7 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,9 +27,9 @@
 
 #include <linux/sdwb.h>
 
-#define PRIORITY(flag) 	((flag >> 28) & 0xf)
+#define PRIORITY(flag)		((flag >> 28) & 0xf)
 #define CLASS(flag)		((flag >> 16) & 0xfff)
-#define VERSION(flag)	(flag & 0xffff)
+#define VERSION(flag)		(flag & 0xffff)
 
 void print_wbd(uint8_t major, uint8_t minor,
 				uint64_t vendor, uint32_t device,
@@ -54,7 +54,7 @@ struct sdwb_head *sdwb_create_header(uint64_t wbid_addr, uint64_t wbd_addr)
 	head = malloc(sizeof(struct sdwb_head));
 	if (!head)
 		return NULL;
-	
+
 	head->magic = SDWB_HEAD_MAGIC;
 	head->wbid_address = wbid_addr;
 	head->wbd_address = wbd_addr;
@@ -69,18 +69,18 @@ struct sdwb_wbid *sdwb_create_id()
 	id = malloc(sizeof(struct sdwb_wbid));
 	if (!id)
 		return NULL;
-	
+
 	id->bstream_type = rand();
 
 	return id;
 }
 
 struct sdwb_wbd *sdwb_create_device(uint8_t major, uint8_t minor,
-						uint64_t vendor, uint32_t device,
-						uint64_t base, uint64_t size,
-						uint32_t flags, uint32_t class,
-						uint32_t version, uint32_t date,
-						char *vname, char *dname)
+				    uint64_t vendor, uint32_t device,
+				    uint64_t base, uint64_t size,
+				    uint32_t flags, uint32_t class,
+				    uint32_t version, uint32_t date,
+				    char *vname, char *dname)
 {
 	struct sdwb_wbd *dev;
 
@@ -120,8 +120,10 @@ int main(int argc, char *argv[])
 	FILE *fin, *fout;
 	char buf[128];
 
-	/* Header placed at address 0 and ID immediately after it. followed by devices */
-	header = sdwb_create_header(sizeof(struct sdwb_head), sizeof(struct sdwb_head) + sizeof(struct sdwb_wbid));
+	/* Header at address 0 and ID immediately after it. Then, devices */
+	header = sdwb_create_header(sizeof(struct sdwb_head),
+				    sizeof(struct sdwb_head)
+				    + sizeof(struct sdwb_wbid));
 	id = sdwb_create_id();
 
 	fin = fopen(argv[1], "r");
@@ -149,16 +151,20 @@ int main(int argc, char *argv[])
 		uint32_t major, minor, vendor, base, sz;
 		uint32_t device, flags, class, version, date;
 		char vname[16], dname[16];
-		sscanf(buf, "%d %d %x %d %x %x %x %x %d %x\n", &major, &minor, &vendor, &device,
-						&base, &sz, &flags, &class, &version, &date);
+		sscanf(buf, "%d %d %x %d %x %x %x %x %d %x\n",
+		       &major, &minor, &vendor, &device,
+		       &base, &sz, &flags, &class, &version, &date);
 		fgets(buf, 128, fin);
 		sscanf(buf, "%s\n", vname);
 		fgets(buf, 128, fin);
 		sscanf(buf, "%s\n", dname);
 
-		print_wbd(major, minor, vendor, device, base, sz, flags, class, version, date, vname, dname);
+		print_wbd(major, minor, vendor, device, base, sz,
+			  flags, class, version, date, vname, dname);
 		struct sdwb_wbd *dev;
-		dev = sdwb_create_device(major, minor, vendor, device, base, sz, flags, class, version, date, vname, dname);
+		dev = sdwb_create_device(major, minor, vendor, device,
+					 base, sz, flags, class, version,
+					 date, vname, dname);
 		fwrite(dev, sizeof(struct sdwb_wbd), 1, fout);
 		size += sizeof(struct sdwb_wbd);
 		num++;
