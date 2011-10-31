@@ -125,10 +125,13 @@ int main(int argc, char *argv[])
 	id = sdwb_create_id();
 
 	fin = fopen(argv[1], "r");
-	if (!fin)
+	if (!fin) {
+		printf("Unable to open wishbone device specification file: %s\n", argv[1]);
 		return 1;
+	}
 	fout = fopen(argv[2], "w");
 	if (!fout) {
+		printf("Unable to open output firmware file for writing: %s\b", argv[2]);
 		fclose(fin);
 		return 1;
 	}
@@ -168,6 +171,8 @@ int main(int argc, char *argv[])
 		fwrite(&c, 1, 1, fout);
 	fclose(fin);
 	fclose(fout);
+
+	printf("Successfully generated firmware file: %s\n", argv[2]);
 
 	return 0;
 }

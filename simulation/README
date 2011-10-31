@@ -8,7 +8,7 @@ latest git kernel). The hard disk image has been made using debootstrap.
 
 Please send any bugs/comments/criticism/flames/free-cookies to
 
-	manohar.vanga at gmail dot com
+	manohar dot vanga at cern dot ch
 
 
    Compiling
@@ -22,3 +22,50 @@ to build against. You can set it in the LINUX environment variable:
 The default is  $(HOME)/linux-for-wbonesim  so you can just make a symlink
 to the real place and forget about it.
 
+    Running
+    -------
+
+Install the wishbone.ko module:
+
+	insmod wishbone.ko
+
+Install the fake wishbone device drivers:
+
+	insmod fakeadc.ko
+	insmod fakedac.ko
+
+Install the fake Wishbone bus driver:
+
+	insmod fake_wb_bus.ko
+
+You can additionally specify the device and vendor to use for loading the
+firmware file. The firmware file name is formatted as fakespec-VVVVVVVV-DDDD,
+where V is vendor and D is device. The default device and vendor have been
+set in the fake bus to 0xbabe, so the default firmware file is:
+
+	firmware-0000babe-babe
+
+To change, use the spec_vendor and spec_device module parameters of the fake_wb_bus
+driver. Remember to name the firmware to load accordingly.
+
+Generating Firmware
+===================
+
+To generate a Wishbone memory map, we can use the wb_addrgen tool found
+in the simulation/fw/ directory.
+
+To generate a firmware file (the wishbone memory space):
+
+$ ./wb_addrgen wbone.def firmware.bin
+
+The wbone.def file specifies the devices that should be attached
+to the Wishbone bus. The format for specifying devices can be seen
+in the example wbone.def file at simulation/fw/wbone.def.
+
+Installing Firmware
+===================
+
+The generated firmware file should be 4KB in size. Copy the firmware
+file into /lib/firmware/NAME where NAME is as specified above.
+
+	$ cp firmware.bin /lib/firmware/firmware-0000babe-babe
