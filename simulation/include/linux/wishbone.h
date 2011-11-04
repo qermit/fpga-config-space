@@ -50,7 +50,6 @@ struct wb_device_id {
  * @id_table : Zero-terminated table of Wishbone ID's this driver supports
  * @probe    : Probe function called on detection of a matching device
  * @remove   : Remove function called on removal of matched device
- * @list     : List for all wishbone drivers
  * @driver   : Internal Linux driver structure
  */
 struct wb_driver {
@@ -59,7 +58,6 @@ struct wb_driver {
 	struct wb_device_id *id_table;
 	int (*probe)(struct wb_device *);
 	int (*remove)(struct wb_device *);
-//	struct list_head list;
 	struct device_driver driver;
 };
 #define to_wb_driver(drv) container_of(drv, struct wb_driver, driver);
