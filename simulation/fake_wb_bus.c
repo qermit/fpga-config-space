@@ -133,10 +133,13 @@ static struct device fake_wbbus_device = {
 
 static int __init fake_wb_bus_init(void)
 {
-	if (device_register(&fake_wbbus_device) < 0) {
+	int ret;
+
+	ret = device_register(&fake_wbbus_device);
+	if (ret) {
 		pr_err(KBUILD_MODNAME "failed to register fake"
 					"Wishbone bus\n");
-		return -1;
+		return ret;
 	}
 	fake_wbbus_probe(&fake_wbbus_device);
 	return 0;
