@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include <linux/sdwb.h>
 
@@ -112,13 +113,16 @@ int main(int argc, char *argv[])
 	char c;
 	struct sdwb_head *header;
 	struct sdwb_wbid *id;
-
-	if (argc != 3) {
-		printf("usage: %s <device-list-file> <fw-file>\n", argv[0]);
-		return 1;
-	}
 	FILE *fin, *fout;
 	char buf[128];
+	int size = 0;
+	int num = 0;
+
+	if (argc != 3) {
+		fprintf(stderr, "Usage: %s <device-list-file> <fw-file>\n",
+			argv[0]);
+		return 1;
+	}
 
 	/* Header at address 0 and ID immediately after it. Then, devices */
 	header = sdwb_create_header(sizeof(struct sdwb_head),
@@ -128,21 +132,20 @@ int main(int argc, char *argv[])
 
 	fin = fopen(argv[1], "r");
 	if (!fin) {
-		printf("Unable to open wishbone device specification file: %s\n", argv[1]);
+		fprintf(stderr, "%s: %s: %s\n", argv[0], argv[1],
+			strerror(errno));
 		return 1;
 	}
 	fout = fopen(argv[2], "w");
 	if (!fout) {
-		printf("Unable to open output firmware file for writing: %s\b", argv[2]);
-		fclose(fin);
+		fprintf(stderr, "%s: %s: %s\n", argv[0], argv[2],
+			strerror(errno));
 		return 1;
 	}
-	int size = 0;
 	fwrite(header, sizeof(struct sdwb_head), 1, fout);
 	size += sizeof(struct sdwb_head);
 	fwrite(id, sizeof(struct sdwb_wbid), 1, fout);
 	size += sizeof(struct sdwb_wbid);
-	int num = 0;
 	while (fgets(buf, 128, fin) != NULL) {
 		if (strlen(buf) == 0)
 			continue;
