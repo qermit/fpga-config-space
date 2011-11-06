@@ -63,20 +63,20 @@ static int fake_wbbus_probe(struct device *dev)
 	 */
 	sprintf(fwname, "fakespec-%08x-%04x", spec_vendor, spec_device);
 	if (request_firmware(&wb_fw, fwname, dev)) {
-		printk(KERN_ERR KBUILD_MODNAME ": failed to load "
+		pr_err(KBUILD_MODNAME ": failed to load "
 		       "firmware \"%s\"\n", fwname);
 		return -1;
 	}
 
 	header = (struct sdwb_head *)&wb_fw->data[header_addr];
 	if (header->magic != SDWB_HEAD_MAGIC) {
-		printk(KERN_ERR KBUILD_MODNAME ": invalid sdwb header at %p "
+		pr_err(KBUILD_MODNAME ": invalid sdwb header at %p "
 		       "(magic %llx)\n", header, header->magic);
 		goto head_fail;
 	}
 
 	id = (struct sdwb_wbid *)&wb_fw->data[header->wbid_address];
-	printk(KERN_INFO KBUILD_MODNAME ": found sdwb bistream: 0x%llx\n",
+	pr_info(KBUILD_MODNAME ": found sdwb bistream: 0x%llx\n",
 	       id->bstream_type);
 
 	wbd = (struct sdwb_wbd *)&wb_fw->data[header->wbd_address];
@@ -93,7 +93,7 @@ static int fake_wbbus_probe(struct device *dev)
 		mutex_unlock(&list_lock);
 		wbd++;
 	}
-	printk(KERN_INFO KBUILD_MODNAME ": found %d wishbone devices\n", ndev);
+	pr_info(KBUILD_MODNAME ": found %d wishbone devices\n", ndev);
 	return 0;
 
 register_fail:
@@ -134,7 +134,7 @@ static struct device fake_wbbus_device = {
 static int __init fake_wb_bus_init(void)
 {
 	if (device_register(&fake_wbbus_device) < 0) {
-		printk(KERN_ERR KBUILD_MODNAME "failed to register fake"
+		pr_err(KBUILD_MODNAME "failed to register fake"
 					"Wishbone bus\n");
 		return -1;
 	}
