@@ -143,6 +143,8 @@ static void wb_dev_release(struct device *dev)
 
 	pr_info(KBUILD_MODNAME ": release %016llx:%08lx\n",
 	       wb_dev->wbd.vendor, (unsigned long)wb_dev->wbd.device);
+
+	kfree(wb_dev);
 }
 
 /*
