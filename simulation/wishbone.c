@@ -33,8 +33,8 @@
 
 static void wb_dev_release(struct device *);
 static int wb_bus_match(struct device *, struct device_driver *);
-static int wb_bus_probe(struct device *);
-static int wb_bus_remove(struct device *);
+static int wb_drv_probe(struct device *);
+static int wb_drv_remove(struct device *);
 
 static struct device wb_dev_zero = {
 	.init_name = "wb0",
@@ -44,8 +44,8 @@ static struct device wb_dev_zero = {
 static struct bus_type wb_bus_type = {
 	.name = "wb",
 	.match = wb_bus_match,
-	.probe = wb_bus_probe,
-	.remove = wb_bus_remove,
+	.probe = wb_drv_probe,
+	.remove = wb_drv_remove,
 };
 
 
@@ -357,7 +357,7 @@ static int wb_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
-static int wb_bus_probe(struct device *dev)
+static int wb_drv_probe(struct device *dev)
 {
 	struct wb_driver *wb_drv;
 	struct wb_device *wb_dev;
@@ -370,7 +370,7 @@ static int wb_bus_probe(struct device *dev)
 	return 0;
 }
 
-static int wb_bus_remove(struct device *dev)
+static int wb_drv_remove(struct device *dev)
 {
 	struct wb_driver *wb_drv;
 	struct wb_device *wb_dev;
