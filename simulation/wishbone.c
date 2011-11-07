@@ -36,7 +36,7 @@ static int wb_bus_match(struct device *, struct device_driver *);
 static int wb_bus_probe(struct device *);
 static int wb_bus_remove(struct device *);
 
-static struct device wb_dev = {
+static struct device wb_dev_zero = {
 	.init_name = "wb0",
 	.release = wb_dev_release,
 };
@@ -160,7 +160,7 @@ int wb_register_device(struct wb_device *wbdev)
 
 	devno = atomic_inc_return(&global_wb_devno);
 	wbdev->dev.bus = &wb_bus_type;
-	wbdev->dev.parent = &wb_dev;
+	wbdev->dev.parent = &wb_dev_zero;
 	wbdev->dev.release = wb_dev_release;
 	dev_set_name(&wbdev->dev, "wb%d", devno);
 	INIT_LIST_HEAD(&wbdev->list);
@@ -410,7 +410,7 @@ static int wb_init(void)
 	if (ret)
 		goto bus_reg_fail;
 
-	ret = device_register(&wb_dev);
+	ret = device_register(&wb_dev_zero);
 	if (ret)
 		goto device_reg_fail;
 
@@ -425,7 +425,7 @@ bus_reg_fail:
 
 static void wb_exit(void)
 {
-	device_unregister(&wb_dev);
+	device_unregister(&wb_dev_zero);
 	bus_unregister(&wb_bus_type);
 }
 
