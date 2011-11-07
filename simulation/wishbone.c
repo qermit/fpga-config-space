@@ -188,7 +188,6 @@ int wb_register_driver(struct wb_driver *driver)
 	driver->driver.bus = &wb_bus_type;
 	driver->driver.name = driver->name;
 	ret = driver_register(&driver->driver);
-//	INIT_LIST_HEAD(&driver->list);
 
 	return ret;
 }
