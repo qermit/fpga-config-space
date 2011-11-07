@@ -1,9 +1,9 @@
 CFLAGS += -I../include
 
-all: wb_addrgen
+all: wb_cfggen
 
-wb_addrgen: wb_addrgen.o
-	gcc wb_addrgen.o -o wb_addrgen
+wb_cfggen: wb_cfggen.o
+	gcc wb_cfggen.o -o wb_cfggen
 
 clean:
-	rm -rf wb_addrgen *.o
+	rm -rf wb_cfggen *.o

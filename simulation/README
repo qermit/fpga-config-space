@@ -51,12 +51,12 @@ driver. Remember to name the firmware to load accordingly.
 Generating Firmware
 ===================
 
-To generate a Wishbone memory map, we can use the wb_addrgen tool found
+To generate a Wishbone memory map, we can use the wb_cfggen tool found
 in the simulation/fw/ directory.
 
 To generate a firmware file (the wishbone memory space):
 
-$ ./wb_addrgen wbone.list firmware.bin
+$ ./wb_cfggen wbone.list firmware.bin
 
 The wbone.def file specifies the devices that should be attached
 to the Wishbone bus. The format for specifying devices can be seen
