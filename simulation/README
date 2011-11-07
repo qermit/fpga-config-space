@@ -56,7 +56,7 @@ in the simulation/fw/ directory.
 
 To generate a firmware file (the wishbone memory space):
 
-$ ./wb_cfggen wbone.list firmware.bin
+$ ./wb_cfggen blocks.list firmware.bin
 
 The wbone.def file specifies the devices that should be attached
 to the Wishbone bus. The format for specifying devices can be seen
