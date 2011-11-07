@@ -65,7 +65,7 @@ in the example wbone.def file at simulation/fw/wbone.def.
 Installing Firmware
 ===================
 
-The generated firmware file should be 4KB in size. Copy the firmware
+The generated firmware file should be 4MB in size. Copy the firmware
 file into /lib/firmware/NAME where NAME is as specified above.
 
 	$ cp firmware.bin /lib/firmware/firmware-0000babe-babe
