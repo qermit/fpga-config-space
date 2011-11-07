@@ -147,13 +147,15 @@ int main(int argc, char *argv[])
 	fwrite(id, sizeof(struct sdwb_wbid), 1, fout);
 	size += sizeof(struct sdwb_wbid);
 	while (fgets(buf, 128, fin) != NULL) {
+		uint32_t major, minor, vendor, base, sz;
+		uint32_t device, flags, class, version, date;
+		char vname[16], dname[16];
+		struct sdwb_wbd *dev;
+
 		if (strlen(buf) == 0)
 			continue;
 		if (buf[0] == '#' || buf[0] == '\n')
 			continue;
-		uint32_t major, minor, vendor, base, sz;
-		uint32_t device, flags, class, version, date;
-		char vname[16], dname[16];
 		sscanf(buf, "%d %d %x %d %x %x %x %x %d %x\n",
 		       &major, &minor, &vendor, &device,
 		       &base, &sz, &flags, &class, &version, &date);
@@ -164,7 +166,6 @@ int main(int argc, char *argv[])
 
 		print_wbd(major, minor, vendor, device, base, sz,
 			  flags, class, version, date, vname, dname);
-		struct sdwb_wbd *dev;
 		dev = sdwb_create_device(major, minor, vendor, device,
 					 base, sz, flags, class, version,
 					 date, vname, dname);
