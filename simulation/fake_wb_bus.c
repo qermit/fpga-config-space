@@ -35,6 +35,7 @@ module_param(spec_vendor, int, S_IRUGO);
 module_param(spec_device, int, S_IRUGO);
 
 static int ndev;
+const struct firmware *wb_fw;
 
 LIST_HEAD(spec_devices);
 static struct mutex list_lock;
@@ -47,7 +48,6 @@ static int fake_wbbus_probe(struct device *dev)
 	struct sdwb_wbid *id;
 	struct sdwb_wbd *wbd;
 	struct wb_device *wbdev, *next;
-	const struct firmware *wb_fw;
 
 	/*
 	 * load firmware with wishbone address map. In the real driver,
@@ -92,7 +92,6 @@ static int fake_wbbus_probe(struct device *dev)
 		mutex_unlock(&list_lock);
 		wbd++;
 	}
-	release_firmware(wb_fw);
 	pr_info(KBUILD_MODNAME ": found %d wishbone devices\n", ndev);
 	return 0;
 
@@ -115,6 +114,7 @@ static void fake_wbbus_release(struct device *dev)
 {
 	struct wb_device *wbdev, *next;
 
+	release_firmware(wb_fw);
 	mutex_lock(&list_lock);
 	list_for_each_entry_safe(wbdev, next, &spec_devices, list) {
 		list_del(&wbdev->list);
