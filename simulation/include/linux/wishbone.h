@@ -34,6 +34,26 @@
 #define WB_ANY_DEVICE ((uint32_t)(~0))
 #define WB_NO_CLASS ((uint32_t)(~0))
 
+/* Wishbone I/O operations */
+#define wb_readb(bus, addr) bus->ops->read8(addr)
+#define wb_readw(bus, addr) bus->ops->read16(addr)
+#define wb_readl(bus, addr) bus->ops->read32(addr)
+#define wb_readll(bus, addr) bus->ops->read64(addr)
+
+#define wb_writeb(bus, addr, val) bus->ops->write8(addr, val)
+#define wb_writew(bus, addr, val) bus->ops->write16(addr, val)
+#define wb_writel(bus, addr, val) bus->ops->write32(addr, val)
+#define wb_writell(bus, addr, val) bus->ops->write64(addr, val)
+
+#define memcpy_from_wb(bus, addr, buf, len) \
+	bus->ops->memcpy_from_wb(addr, buf, len)
+
+#define memcpy_to_wb(bus, addr, buf, len) \
+	bus->ops->memcpy_to_wb(addr, buf, len)
+
+#define wb_read_cfg(bus, addr, buf, len) \
+	bus->ops->read_cfg(addr, buf, len)
+
 struct wb_device;
 
 struct wb_device_id {
@@ -81,20 +101,20 @@ struct wb_device {
 #define to_wb_device(dev) container_of(dev, struct wb_device, dev);
 
 struct wb_ops {
-	int (*read8)(uint64_t, uint8_t *);
-	int (*read16)(uint64_t, uint16_t *);
-	int (*read32)(uint64_t, uint32_t *);
-	int (*read64)(uint64_t, uint64_t *);
+	uint8_t (*read8)(uint64_t);
+	uint16_t (*read16)(uint64_t);
+	uint32_t (*read32)(uint64_t);
+	uint64_t (*read64)(uint64_t);
 
-	int (*write8)(uint64_t, uint8_t);
-	int (*write16)(uint64_t, uint16_t);
-	int (*write32)(uint64_t, uint32_t);
-	int (*write64)(uint64_t, uint64_t);
+	void (*write8)(uint64_t, uint8_t);
+	void (*write16)(uint64_t, uint16_t);
+	void (*write32)(uint64_t, uint32_t);
+	void (*write64)(uint64_t, uint64_t);
 
-	int (*memcpy_from_wb) (uint64_t addr, size_t len, size_t *retlen,
-		uint8_t *buf);
-	int (*memcpy_to_wb) (uint64_t addr, size_t len, size_t *retlen,
-		const uint8_t *buf);
+	void * (*memcpy_from_wb) (uint64_t addr, void *buf, size_t len);
+	void * (*memcpy_to_wb) (uint64_t addr, const void *buf, size_t len);
+
+	void * (*read_cfg)(uint64_t addr, void *buf, size_t len);
 };
 
 struct wb_bus {
@@ -115,22 +135,6 @@ void wb_unregister_bus(struct wb_bus *bus);
 
 int wb_register_device(struct wb_device *wbdev);
 void wb_unregister_device(struct wb_device *wbdev);
-
-/* Wishbone I/O operations */
-int wb_read8(struct wb_bus *, uint64_t, uint8_t *);
-int wb_read16(struct wb_bus *, uint64_t, uint16_t *);
-int wb_read32(struct wb_bus *, uint64_t, uint32_t *);
-int wb_read64(struct wb_bus *, uint64_t, uint64_t *);
-
-int wb_write8(struct wb_bus *, uint64_t, uint8_t);
-int wb_write16(struct wb_bus *, uint64_t, uint16_t);
-int wb_write32(struct wb_bus *, uint64_t, uint32_t);
-int wb_write64(struct wb_bus *, uint64_t, uint64_t);
-
-int memcpy_from_wb(struct wb_bus *, uint64_t addr, size_t len,
-	uint8_t *buf);
-int memcpy_to_wb(struct wb_bus *, uint64_t addr, size_t len,
-	const uint8_t *buf);
 
 #endif /* _LINUX_WISHBONE_H */
 

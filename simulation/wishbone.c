@@ -48,93 +48,6 @@ static struct bus_type wb_bus_type = {
 	.remove = wb_drv_remove,
 };
 
-
-int wb_read8(struct wb_bus *bus, uint64_t addr, uint8_t *val)
-{
-	if (bus && bus->ops->read8)
-		return bus->ops->read8(addr, val);
-	return -EIO;
-}
-
-int wb_read16(struct wb_bus *bus, uint64_t addr, uint16_t *val)
-{
-	if (bus && bus->ops->read16)
-		return bus->ops->read16(addr, val);
-	return -EIO;
-}
-
-int wb_read32(struct wb_bus *bus, uint64_t addr, uint32_t *val)
-{
-	if (bus && bus->ops->read32)
-		return bus->ops->read32(addr, val);
-	return -EIO;
-}
-
-int wb_read64(struct wb_bus *bus, uint64_t addr, uint64_t *val)
-{
-	if (bus && bus->ops->read64)
-		return bus->ops->read64(addr, val);
-	return -EIO;
-}
-
-int wb_write8(struct wb_bus *bus, uint64_t addr, uint8_t val)
-{
-	if (bus && bus->ops->write8)
-		return bus->ops->write8(addr, val);
-	return -EIO;
-}
-
-int wb_write16(struct wb_bus *bus, uint64_t addr, uint16_t val)
-{
-	if (bus && bus->ops->write16)
-		return bus->ops->write16(addr, val);
-	return -EIO;
-}
-
-int wb_write32(struct wb_bus *bus, uint64_t addr, uint32_t val)
-{
-	if (bus && bus->ops->write32)
-		return bus->ops->write32(addr, val);
-	return -EIO;
-}
-
-int wb_write64(struct wb_bus *bus, uint64_t addr, uint64_t val)
-{
-	if (bus && bus->ops->write64)
-		return bus->ops->write64(addr, val);
-	return -EIO;
-}
-
-int memcpy_from_wb(struct wb_bus *bus, uint64_t addr, size_t len,
-	uint8_t *buf)
-{
-	int ret;
-	int retlen;
-
-	if (bus && bus->ops->memcpy_from_wb) {
-		ret = bus->ops->memcpy_from_wb(addr, len, &retlen, buf);
-		if (retlen != len)
-			ret = -EIO;
-		return ret;
-	}
-	return -EIO;
-}
-
-int memcpy_to_wb(struct wb_bus *bus, uint64_t addr, size_t len,
-	const uint8_t *buf)
-{
-	int ret;
-	int retlen;
-
-	if (bus && bus->ops->memcpy_to_wb) {
-		ret = bus->ops->memcpy_to_wb(addr, len, &retlen, buf);
-		if (retlen != len)
-			ret = -EIO;
-		return ret;
-	}
-	return -EIO;
-}
-
 static void wb_dev_release(struct device *dev)
 {
 	struct wb_device *wb_dev;
@@ -221,13 +134,8 @@ int wb_register_bus(struct wb_bus *bus)
 	 * Wishbone devices' 'bus' field to this bus.
 	 */
 
-	ret = memcpy_from_wb(bus, bus->sdwb_header_base,
-		sizeof(struct sdwb_head), (uint8_t *)&head);
-	if (ret < 0) {
-		pr_err(KBUILD_MODNAME ": SDWB header read failed\n");
-		return ret;
-	}
-
+	memcpy_from_wb(bus, bus->sdwb_header_base, (void *)&head,
+		sizeof(struct sdwb_head));
 	/* verify our header using the magic field */
 	if (head.magic != SDWB_HEAD_MAGIC) {
 		pr_err(KBUILD_MODNAME ": invalid sdwb header at %llx "
@@ -235,22 +143,13 @@ int wb_register_bus(struct wb_bus *bus)
 		return -EFAULT;
 	}
 
-	ret = memcpy_from_wb(bus, head.wbid_address, sizeof(struct sdwb_wbid),
-		(uint8_t *)&wbid);
-	if (ret < 0) {
-		pr_err(KBUILD_MODNAME ": SDWB ID read failed\n");
-		return ret;
-	}
-
+	memcpy_from_wb(bus, head.wbid_address, (void *)&wbid,
+		sizeof(struct sdwb_wbid));
 	pr_info(KBUILD_MODNAME ": found sdwb bistream: 0x%llx\n",
 		wbid.bstream_type);
 
-	ret = memcpy_from_wb(bus, head.wbd_address, sizeof(struct sdwb_wbd),
-		(uint8_t *)&wbd);
-	if (ret < 0) {
-		pr_err(KBUILD_MODNAME ": SDWB dev read failed\n");
-		return ret;
-	}
+	memcpy_from_wb(bus, head.wbd_address, (void *)&wbd,
+		sizeof(struct sdwb_wbd));
 
 	while (wbd.wbd_magic == SDWB_WBD_MAGIC) {
 		wbdev = kzalloc(sizeof(struct wb_device),
@@ -270,11 +169,9 @@ int wb_register_bus(struct wb_bus *bus)
 		list_add(&wbdev->list, &bus->devices);
 		bus->ndev++;
 		mutex_unlock(&bus->dev_lock);
-		ret = memcpy_from_wb(bus,
+		memcpy_from_wb(bus,
 			head.wbd_address + sizeof(struct sdwb_wbd) * i,
-			sizeof(struct sdwb_wbd), (uint8_t *)&wbd);
-		if (ret < 0)
-			goto err_wbdev_read;
+			(void *)&wbd, sizeof(struct sdwb_wbd));
 	}
 
 	pr_info(KBUILD_MODNAME
@@ -283,7 +180,6 @@ int wb_register_bus(struct wb_bus *bus)
 
 	return 0;
 
-err_wbdev_read:
 err_wbdev_register:
 	kfree(wbdev);
 err_wbdev_alloc:
