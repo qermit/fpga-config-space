@@ -67,6 +67,7 @@ struct wb_driver {
  * @driver : The driver managing this device
  * @list   : List of Wishbone devices (per bus)
  * @dev    : Internal Linux device structure
+ * @bus    : The bus the device is on
  */
 struct wb_device {
 	struct sdwb_wbd wbd;
