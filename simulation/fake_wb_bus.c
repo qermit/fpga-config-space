@@ -57,9 +57,10 @@ static int fake_wbbus_probe(struct device *dev)
 	 * the header from its appropriate location.
 	 *
 	 * For loading the bitstream, we read the bitstream ID off
-	 * the eeprom on the spec board? Or some other way?
+	 * an eeprom on the board or some similar way.
 	 *
-	 * Below, we just use the PCI id to get the firmware file.
+	 * Below, we just use the PCI bus and slot number to get the firmware
+	 * file.
 	 */
 	sprintf(fwname, "fakespec-%04x-%04x", spec_vendor, spec_device);
 	if (request_firmware(&wb_fw, fwname, dev)) {
