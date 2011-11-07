@@ -214,22 +214,6 @@ int wb_register_bus(struct wb_bus *bus)
 	struct wb_device *wbdev;
 	struct wb_device *next;
 
-	if (!bus)
-		return -ENODEV;
-
-	if (!bus->ops) {
-		pr_err(KBUILD_MODNAME ": no wb_ops specified\n");
-		return -EFAULT;
-	}
-
-	if (!bus->ops->read8 || !bus->ops->read16 || !bus->ops->read32 ||
-		!bus->ops->read64 || !bus->ops->write8 || !bus->ops->write16 ||
-		!bus->ops->write32 || !bus->ops->write64 ||
-		!bus->ops->memcpy_from_wb || !bus->ops->memcpy_to_wb) {
-		pr_err(KBUILD_MODNAME ": all ops are required\n");
-		return -EFAULT;
-	}
-
 	INIT_LIST_HEAD(&bus->devices);
 
 	/*
