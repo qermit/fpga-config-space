@@ -68,6 +68,7 @@ struct wb_driver {
  * @list   : List of Wishbone devices (per bus)
  * @dev    : Internal Linux device structure
  * @bus    : The bus the device is on
+ * @priv   : Private data pointer for use by drivers
  */
 struct wb_device {
 	struct sdwb_wbd wbd;
@@ -75,6 +76,7 @@ struct wb_device {
 	struct list_head list;
 	struct device dev;
 	struct wb_bus *bus;
+	void *priv;
 };
 #define to_wb_device(dev) container_of(dev, struct wb_device, dev);
 
