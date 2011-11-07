@@ -43,7 +43,7 @@ firmware file. The firmware file name is formatted as fakespec-VVVVVVVV-DDDD,
 where V is vendor and D is device. The default device and vendor have been
 set in the fake bus to 0xbabe, so the default firmware file is:
 
-	firmware-0000babe-babe
+	firmware-babe-babe
 
 To change, use the spec_vendor and spec_device module parameters of the fake_wb_bus
 driver. Remember to name the firmware to load accordingly.
@@ -68,4 +68,4 @@ Installing Firmware
 The generated firmware file should be 4MB in size. Copy the firmware
 file into /lib/firmware/NAME where NAME is as specified above.
 
-	$ cp firmware.bin /lib/firmware/firmware-0000babe-babe
+	$ cp firmware.bin /lib/firmware/firmware-babe-babe

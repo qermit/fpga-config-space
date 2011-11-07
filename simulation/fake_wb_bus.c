@@ -61,7 +61,7 @@ static int fake_wbbus_probe(struct device *dev)
 	 *
 	 * Below, we just use the PCI id to get the firmware file.
 	 */
-	sprintf(fwname, "fakespec-%08x-%04x", spec_vendor, spec_device);
+	sprintf(fwname, "fakespec-%04x-%04x", spec_vendor, spec_device);
 	if (request_firmware(&wb_fw, fwname, dev)) {
 		pr_err(KBUILD_MODNAME ": failed to load "
 		       "firmware \"%s\"\n", fwname);
