@@ -84,7 +84,7 @@ static int fake_wbbus_probe(struct device *dev)
 	while (wbd->wbd_magic == SDWB_WBD_MAGIC) {
 		wbdev = kzalloc(sizeof(struct wb_device), GFP_KERNEL);
 		if (!wbdev)
-			goto alloc_fail;
+			goto register_fail;
 		memcpy(&wbdev->wbd, wbd, sizeof(struct sdwb_wbd));
 		if (wb_register_device(wbdev) < 0)
 			goto register_fail;
@@ -100,8 +100,6 @@ static int fake_wbbus_probe(struct device *dev)
 
 register_fail:
 	kfree(wbdev);
-
-alloc_fail:
 	mutex_lock(&list_lock);
 	list_for_each_entry_safe(wbdev, next, &spec_devices, list) {
 		list_del(&wbdev->list);
