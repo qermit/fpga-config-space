@@ -57,6 +57,8 @@ struct sdwb_head *sdwb_create_header(uint64_t wbid_addr, uint64_t wbd_addr)
 	if (!head)
 		return NULL;
 
+	memset(head, 0, sizeof(struct sdwb_head));
+
 	head->magic = SDWB_HEAD_MAGIC;
 	head->wbid_address = wbid_addr;
 	head->wbd_address = wbd_addr;

@@ -42,6 +42,7 @@ struct sdwb_head {
 	uint64_t magic;
 	uint64_t wbid_address;
 	uint64_t wbd_address;
+	uint64_t reserved;
 };
 
 /*
