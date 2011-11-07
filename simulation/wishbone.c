@@ -348,12 +348,13 @@ static int wb_bus_match(struct device *dev, struct device_driver *drv)
 	wb_drv = to_wb_driver(drv);
 
 	found = wb_match_device(wb_drv, wb_dev);
-	if (found) {
-		/* set this so we can access it later */
-		wb_dev->driver = wb_drv;
-		return 1;
-	}
-	return 0;
+	if (!found)
+		return 0;
+
+	/* set this so we can access it later */
+	wb_dev->driver = wb_drv;
+
+	return 1;
 }
 
 static int wb_bus_probe(struct device *dev)
