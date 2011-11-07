@@ -93,6 +93,7 @@ static int fake_wbbus_probe(struct device *dev)
 		mutex_unlock(&list_lock);
 		wbd++;
 	}
+	release_firmware(wb_fw);
 	pr_info(KBUILD_MODNAME ": found %d wishbone devices\n", ndev);
 	return 0;
 
