@@ -49,8 +49,6 @@ static int fake_wbbus_probe(struct device *dev)
 	struct wb_device *wbdev, *next;
 	const struct firmware *wb_fw;
 
-	mutex_init(&list_lock);
-
 	/*
 	 * load firmware with wishbone address map. In the real driver,
 	 * we would first load the bitstream into the fpga and then read
@@ -134,6 +132,8 @@ static struct device fake_wbbus_device = {
 static int __init fake_wb_bus_init(void)
 {
 	int ret;
+
+	mutex_init(&list_lock);
 
 	ret = device_register(&fake_wbbus_device);
 	if (ret) {
