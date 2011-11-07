@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <endian.h>
 
 #include <linux/sdwb.h>
 
@@ -71,7 +72,7 @@ struct sdwb_wbid *sdwb_create_id()
 	if (!id)
 		return NULL;
 
-	id->bstream_type = rand();
+	id->bstream_type = htobe64(0xdeadbeefdeadbeef);
 
 	return id;
 }
