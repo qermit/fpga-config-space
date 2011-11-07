@@ -8,7 +8,7 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -25,10 +25,11 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/atomic.h>
 #include <linux/slab.h>
 
 #include <linux/wishbone.h>
+
+#include <asm/atomic.h>		/* before 2.6.37 no <linux/atomic.h> */
 
 static struct device wb_dev;
 static struct bus_type wb_bus_type;
@@ -103,7 +104,7 @@ int memcpy_from_wb(struct wb_bus *bus, uint64_t addr, size_t len,
 	}
 	return -EIO;
 }
-	
+
 int memcpy_to_wb(struct wb_bus *bus, uint64_t addr, size_t len,
 	const uint8_t *buf)
 {
@@ -125,7 +126,7 @@ static void wb_dev_release(struct device *dev)
 
 	wb_dev = to_wb_device(dev);
 
-	printk(KERN_DEBUG KBUILD_MODNAME ": release %016llx:%08lx\n",
+	pr_info(KBUILD_MODNAME ": release %016llx:%08lx\n",
 	       wb_dev->wbd.vendor, (unsigned long)wb_dev->wbd.device);
 }
 
@@ -138,7 +139,7 @@ int wb_register_device(struct wb_device *wbdev)
 	int devno;
 
 	if (!wbdev || !wbdev->bus) {
-		printk(KERN_ERR KBUILD_MODNAME ": bus not set\n");
+		pr_err(KBUILD_MODNAME ": bus not set\n");
 		return -EFAULT;
 	}
 
@@ -206,7 +207,7 @@ int wb_register_bus(struct wb_bus *bus)
 		return -ENODEV;
 
 	if (!bus->ops) {
-		printk(KERN_ERR KBUILD_MODNAME ": no wb_ops specified\n");
+		pr_err(KBUILD_MODNAME ": no wb_ops specified\n");
 		return -EFAULT;
 	}
 
@@ -214,7 +215,7 @@ int wb_register_bus(struct wb_bus *bus)
 		!bus->ops->read64 || !bus->ops->write8 || !bus->ops->write16 ||
 		!bus->ops->write32 || !bus->ops->write64 ||
 		!bus->ops->memcpy_from_wb || !bus->ops->memcpy_to_wb) {
-		printk(KERN_ERR KBUILD_MODNAME ": all ops are required\n");
+		pr_err(KBUILD_MODNAME ": all ops are required\n");
 		return -EFAULT;
 	}
 
@@ -228,13 +229,13 @@ int wb_register_bus(struct wb_bus *bus)
 	ret = memcpy_from_wb(bus, bus->sdwb_header_base,
 		sizeof(struct sdwb_head), (uint8_t *)&head);
 	if (ret < 0) {
-		printk(KERN_ERR KBUILD_MODNAME ": SDWB header read failed\n");
+		pr_err(KBUILD_MODNAME ": SDWB header read failed\n");
 		return ret;
 	}
 
 	/* verify our header using the magic field */
 	if (head.magic != SDWB_HEAD_MAGIC) {
-		printk(KERN_ERR KBUILD_MODNAME ": invalid sdwb header at %llx "
+		pr_err(KBUILD_MODNAME ": invalid sdwb header at %llx "
 			"(magic %llx)\n", bus->sdwb_header_base, head.magic);
 		return -EFAULT;
 	}
@@ -242,22 +243,22 @@ int wb_register_bus(struct wb_bus *bus)
 	ret = memcpy_from_wb(bus, head.wbid_address, sizeof(struct sdwb_wbid),
 		(uint8_t *)&wbid);
 	if (ret < 0) {
-		printk(KERN_ERR KBUILD_MODNAME ": SDWB ID read failed\n");
+		pr_err(KBUILD_MODNAME ": SDWB ID read failed\n");
 		return ret;
 	}
 
-	printk(KERN_INFO KBUILD_MODNAME ": found sdwb bistream: 0x%llx\n",
+	pr_info(KBUILD_MODNAME ": found sdwb bistream: 0x%llx\n",
 		wbid.bstream_type);
-	
+
 	ret = memcpy_from_wb(bus, head.wbd_address, sizeof(struct sdwb_wbd),
 		(uint8_t *)&wbd);
 	if (ret < 0) {
-		printk(KERN_ERR KBUILD_MODNAME ": SDWB dev read failed\n");
+		pr_err(KBUILD_MODNAME ": SDWB dev read failed\n");
 		return ret;
 	}
 
 	while (wbd.wbd_magic == SDWB_WBD_MAGIC) {
-		wbdev = (struct wb_device *)kzalloc(sizeof(struct wb_device),
+		wbdev = kzalloc(sizeof(struct wb_device),
 			GFP_KERNEL);
 		if (!wbdev) {
 			ret = -ENOMEM;
@@ -281,7 +282,7 @@ int wb_register_bus(struct wb_bus *bus)
 			goto err_wbdev_read;
 	}
 
-	printk(KERN_INFO KBUILD_MODNAME
+	pr_info(KBUILD_MODNAME
 		": found %d wishbone devices on wishbone bus %s\n",
 		bus->ndev, bus->name);
 
