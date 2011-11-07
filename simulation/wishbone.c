@@ -155,11 +155,6 @@ int wb_register_device(struct wb_device *wbdev)
 	static atomic_t global_wb_devno = ATOMIC_INIT(0);
 	int devno;
 
-	if (!wbdev || !wbdev->bus) {
-		pr_err(KBUILD_MODNAME ": bus not set\n");
-		return -EFAULT;
-	}
-
 	devno = atomic_inc_return(&global_wb_devno);
 	wbdev->dev.bus = &wb_bus_type;
 	wbdev->dev.parent = &wb_dev_zero;
