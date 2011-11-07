@@ -31,8 +31,23 @@
 
 #include <asm/atomic.h>		/* before 2.6.37 no <linux/atomic.h> */
 
-static struct device wb_dev;
-static struct bus_type wb_bus_type;
+static void wb_dev_release(struct device *);
+static int wb_bus_match(struct device *, struct device_driver *);
+static int wb_bus_probe(struct device *);
+static int wb_bus_remove(struct device *);
+
+static struct device wb_dev = {
+	.init_name = "wb0",
+	.release = wb_dev_release,
+};
+
+static struct bus_type wb_bus_type = {
+	.name = "wb",
+	.match = wb_bus_match,
+	.probe = wb_bus_probe,
+	.remove = wb_bus_remove,
+};
+
 
 int wb_read8(struct wb_bus *bus, uint64_t addr, uint8_t *val)
 {
@@ -386,18 +401,6 @@ static int wb_bus_remove(struct device *dev)
 
 	return 0;
 }
-
-static struct device wb_dev = {
-	.init_name = "wb0",
-	.release = wb_dev_release,
-};
-
-static struct bus_type wb_bus_type = {
-	.name = "wb",
-	.match = wb_bus_match,
-	.probe = wb_bus_probe,
-	.remove = wb_bus_remove,
-};
 
 static int wb_init(void)
 {
