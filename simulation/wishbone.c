@@ -113,6 +113,27 @@ void wb_unregister_driver(struct wb_driver *driver)
 }
 EXPORT_SYMBOL(wb_unregister_driver);
 
+static struct wb_device *wb_get_next_device(struct wb_bus *bus, uint64_t wb_ptr)
+{
+	struct sdwb_wbd wbd;
+	struct wb_device *wbdev;
+
+	memcpy_from_wb(bus, wb_ptr, (void *)&wbd,
+		sizeof(struct sdwb_wbd));
+
+        if (wbd.wbd_magic != SDWB_WBD_MAGIC)
+		return NULL;
+
+	wbdev = kzalloc(sizeof(struct wb_device), GFP_KERNEL);
+	if (!wbdev)
+		return NULL;
+
+	memcpy(&wbdev->wbd, &wbd, sizeof(struct sdwb_wbd));
+	wbdev->bus = bus;
+
+	return wbdev;
+}
+
 /*
  * Register a Wishbone bus. All devices on the bus will automatically
  * be scanned and registered based on the SDWB specification
@@ -120,14 +141,14 @@ EXPORT_SYMBOL(wb_unregister_driver);
 int wb_register_bus(struct wb_bus *bus)
 {
 	int ret;
-	int i = 0;
+	uint64_t wbd_ptr;
 	struct sdwb_head head;
 	struct sdwb_wbid wbid;
-	struct sdwb_wbd wbd;
 	struct wb_device *wbdev;
 	struct wb_device *next;
 
 	INIT_LIST_HEAD(&bus->devices);
+	mutex_init(&bus->dev_lock);
 
 	/*
 	 * Scan wb memory and register devices here. Remember to set the
@@ -148,30 +169,18 @@ int wb_register_bus(struct wb_bus *bus)
 	pr_info(KBUILD_MODNAME ": found sdwb bistream: 0x%llx\n",
 		wbid.bstream_type);
 
-	memcpy_from_wb(bus, head.wbd_address, (void *)&wbd,
-		sizeof(struct sdwb_wbd));
+	wbd_ptr = head.wbd_address;
 
-	while (wbd.wbd_magic == SDWB_WBD_MAGIC) {
-		wbdev = kzalloc(sizeof(struct wb_device),
-			GFP_KERNEL);
-		if (!wbdev) {
-			ret = -ENOMEM;
-			goto err_wbdev_alloc;
-		}
-		mutex_init(&bus->dev_lock);
-		memcpy(&wbdev->wbd, &wbd, sizeof(struct sdwb_wbd));
-		wbdev->bus = bus;
+	while ((wbdev = wb_get_next_device(bus, wbd_ptr))) {
 		if (wb_register_device(wbdev) < 0) {
-			ret = -EFAULT;
+			ret = -ENODEV;
 			goto err_wbdev_register;
 		}
-		mutex_lock(&bus->dev_lock);
+
 		list_add(&wbdev->list, &bus->devices);
 		bus->ndev++;
-		mutex_unlock(&bus->dev_lock);
-		memcpy_from_wb(bus,
-			head.wbd_address + sizeof(struct sdwb_wbd) * i,
-			(void *)&wbd, sizeof(struct sdwb_wbd));
+
+		wbd_ptr += sizeof(struct sdwb_wbd);
 	}
 
 	pr_info(KBUILD_MODNAME
@@ -182,15 +191,12 @@ int wb_register_bus(struct wb_bus *bus)
 
 err_wbdev_register:
 	kfree(wbdev);
-err_wbdev_alloc:
-	mutex_lock(&bus->dev_lock);
 	list_for_each_entry_safe(wbdev, next, &bus->devices, list) {
 		list_del(&wbdev->list);
 		wb_unregister_device(wbdev);
 		kfree(wbdev);
 	}
 	bus->ndev = 0;
-	mutex_unlock(&bus->dev_lock);
 
 	return ret;
 }
