@@ -21,6 +21,8 @@
  */
 
 #include <linux/wishbone.h>
+#include <linux/module.h>
+#include <linux/init.h>
 
 #define WB_ADC_VENDOR	0x0
 #define WB_ADC_DEVICE	0x1

@@ -21,6 +21,8 @@
  */
 
 #include <linux/wishbone.h>
+#include <linux/module.h>
+#include <linux/init.h>
 
 #define WB_DAC_VENDOR	0x0
 #define WB_DAC_DEVICE	0x2
