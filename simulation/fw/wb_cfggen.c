@@ -74,7 +74,7 @@ struct sdwb_wbid *sdwb_create_id()
 	if (!id)
 		return NULL;
 
-	id->bstream_type = htobe64(0xdeadbeefdeadbeef);
+	id->bstream_type = htonll(0xdeadbeefdeadbeefLL);
 
 	return id;
 }

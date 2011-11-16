@@ -23,13 +23,39 @@
 #ifndef _SDWB_H
 #define _SDWB_H
 
-/* SDWB magic numbers */
+/*
+ * SDWB magic numbers. They are all big-endian. We use be**_to_cpu in
+ * kernel space, and network order in user space. Please note that
+ * we define the internal values as constants, but help users by
+ * also defining the host-order values (without leading underscores)
+ */
+#define __SDWB_HEAD_MAGIC	0x5344574248454144LL	/* "SDWBHEAD" */
+#define __SDWB_WBD_MAGIC	    0x5742		/* "WB" */
 
-/* 'SDWBHEAD' (big endian). Used in SDWB Header */
-#define SDWB_HEAD_MAGIC 0x5344574248454144LL
+#define SDWB_HEAD_MAGIC	ntohll(__SDWB_HEAD_MAGIC)
+#define SDWB_WBD_MAGIC	ntohs(__SDWB_WBD_MAGIC)
 
-/* 'WB' (big endian, 16 bits). Used in SDWB device descriptors */
-#define SDWB_WBD_MAGIC 0x5742
+/* The following comes from arch/um/drivers/cow.h -- factorazing anyone? */
+#if !defined(ntohll) && defined(__KERNEL__)
+#  include <asm/byteorder.h>
+#  define ntohll(x)  be64_to_cpu(x)
+#  define htonll(x)  cpu_to_be64(x)
+#elif !defined(ntohll) && !defined(__KERNEL__)
+#  include <endian.h>
+#  include <netinet/in.h>
+#  if defined(__BYTE_ORDER)
+#    if __BYTE_ORDER == __BIG_ENDIAN
+#      define ntohll(x) (x)
+#      define htonll(x) (x)
+#    else
+#      define ntohll(x)  __bswap_64(x)
+#      define htonll(x)  __bswap_64(x)
+#    endif
+#  else
+#     error "Could not determine byte order: __BYTE_ORDER undefined"
+#  endif
+#endif /* __KERNEL__ */
+
 
 /*
  * SDWB - Header structure
