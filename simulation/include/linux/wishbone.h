@@ -105,15 +105,12 @@ struct wb_ops {
 	uint16_t (*read16)(uint64_t);
 	uint32_t (*read32)(uint64_t);
 	uint64_t (*read64)(uint64_t);
-
 	void (*write8)(uint64_t, uint8_t);
 	void (*write16)(uint64_t, uint16_t);
 	void (*write32)(uint64_t, uint32_t);
 	void (*write64)(uint64_t, uint64_t);
-
 	void * (*memcpy_from_wb) (uint64_t addr, void *buf, size_t len);
 	void * (*memcpy_to_wb) (uint64_t addr, const void *buf, size_t len);
-
 	void * (*read_cfg)(uint64_t addr, void *buf, size_t len);
 };
 
