@@ -121,7 +121,7 @@ void wb_unregister_driver(struct wb_driver *driver)
 }
 EXPORT_SYMBOL(wb_unregister_driver);
 
-static struct wb_device *wb_get_next_device(struct wb_bus *bus, uint64_t wb_ptr)
+static struct wb_device *wb_get_next_device(struct wb_bus *bus, wb_addr_t wb_ptr)
 {
 	struct sdwb_wbd wbd;
 	struct wb_device *wbdev;
@@ -145,7 +145,7 @@ static struct wb_device *wb_get_next_device(struct wb_bus *bus, uint64_t wb_ptr)
 int wb_scan_bus(struct wb_bus *bus)
 {
 	int ret;
-	uint64_t wbd_ptr;
+	wb_addr_t wbd_ptr;
 	struct sdwb_head head;
 	struct sdwb_wbid wbid;
 	struct wb_device *wbdev;

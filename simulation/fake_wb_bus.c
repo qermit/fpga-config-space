@@ -34,28 +34,38 @@ int spec_device = 0xbabe;
 module_param(spec_vendor, int, S_IRUGO);
 module_param(spec_device, int, S_IRUGO);
 
-static int ndev;
 const struct firmware *wb_fw;
 
 LIST_HEAD(spec_devices);
 static struct mutex list_lock;
 
+void *fake_read_cfg(wb_addr_t addr, void *buf, size_t len)
+{
+	if (wb_fw->size < addr + len)
+		return NULL;
+	memcpy(buf, &wb_fw[addr], len);
+	return buf;
+}
+
+struct wb_ops fake_wb_ops = {
+	.read_cfg = fake_read_cfg,
+};
+
+struct wb_bus fake_wb_bus = {
+	.name = "fake_wb_bus",
+	.owner = THIS_MODULE,
+	.ops = &fake_wb_ops,
+	.sdwb_header_base = 0,
+};
+
 static int fake_wbbus_probe(struct device *dev)
 {
 	char fwname[64];
-	unsigned int header_addr = 0; /* Normally read from the BAR */
-	struct sdwb_head *header;
-	struct sdwb_wbid *id;
-	struct sdwb_wbd *wbd;
-	struct wb_device *wbdev, *next;
 
 	/*
 	 * load firmware with wishbone address map. In the real driver,
 	 * we would first load the bitstream into the fpga and then read
 	 * the header from its appropriate location.
-	 *
-	 * For loading the bitstream, we read the bitstream ID off
-	 * an eeprom on the board or some similar way.
 	 *
 	 * Below, we just use the PCI bus and slot number to get the firmware
 	 * file.
@@ -67,61 +77,21 @@ static int fake_wbbus_probe(struct device *dev)
 		return -1;
 	}
 
-	header = (struct sdwb_head *)&wb_fw->data[header_addr];
-	if (header->magic != SDWB_HEAD_MAGIC) {
-		pr_err(KBUILD_MODNAME ": invalid sdwb header at %p "
-		       "(magic %llx)\n", header, header->magic);
-		goto head_fail;
+	if (wb_register_bus(&fake_wb_bus) < 0) {
+		goto bus_register_fail;
 	}
 
-	id = (struct sdwb_wbid *)&wb_fw->data[header->wbid_address];
-	pr_info(KBUILD_MODNAME ": found sdwb bistream: 0x%llx\n",
-	       id->bstream_type);
-
-	wbd = (struct sdwb_wbd *)&wb_fw->data[header->wbd_address];
-	while (wbd->wbd_magic == SDWB_WBD_MAGIC) {
-		wbdev = kzalloc(sizeof(struct wb_device), GFP_KERNEL);
-		if (!wbdev)
-			goto register_fail;
-		memcpy(&wbdev->wbd, wbd, sizeof(struct sdwb_wbd));
-		if (wb_register_device(wbdev) < 0)
-			goto register_fail;
-		mutex_lock(&list_lock);
-		list_add(&wbdev->list, &spec_devices);
-		ndev++;
-		mutex_unlock(&list_lock);
-		wbd++;
-	}
-	pr_info(KBUILD_MODNAME ": found %d wishbone devices\n", ndev);
 	return 0;
 
-register_fail:
-	kfree(wbdev);
-	mutex_lock(&list_lock);
-	list_for_each_entry_safe(wbdev, next, &spec_devices, list) {
-		list_del(&wbdev->list);
-		wb_unregister_device(wbdev);
-		kfree(wbdev);
-	}
-	mutex_unlock(&list_lock);
-
-head_fail:
+bus_register_fail:
 	release_firmware(wb_fw);
-	return -1;
+	return -ENODEV;
 }
 
 static void fake_wbbus_release(struct device *dev)
 {
-	struct wb_device *wbdev, *next;
-
+	wb_unregister_bus(&fake_wb_bus);
 	release_firmware(wb_fw);
-	mutex_lock(&list_lock);
-	list_for_each_entry_safe(wbdev, next, &spec_devices, list) {
-		list_del(&wbdev->list);
-		wb_unregister_device(wbdev);
-		kfree(wbdev);
-	}
-	mutex_unlock(&list_lock);
 }
 
 static struct device fake_wbbus_device = {

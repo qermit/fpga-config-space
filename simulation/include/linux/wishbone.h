@@ -54,6 +54,8 @@
 #define wb_read_cfg(bus, addr, buf, len) \
 	bus->ops->read_cfg(addr, buf, len)
 
+typedef uint64_t wb_addr_t;
+
 struct wb_device;
 
 struct wb_device_id {
@@ -101,17 +103,17 @@ struct wb_device {
 #define to_wb_device(dev) container_of(dev, struct wb_device, dev);
 
 struct wb_ops {
-	uint8_t (*read8)(uint64_t);
-	uint16_t (*read16)(uint64_t);
-	uint32_t (*read32)(uint64_t);
-	uint64_t (*read64)(uint64_t);
-	void (*write8)(uint64_t, uint8_t);
-	void (*write16)(uint64_t, uint16_t);
-	void (*write32)(uint64_t, uint32_t);
-	void (*write64)(uint64_t, uint64_t);
-	void * (*memcpy_from_wb) (uint64_t addr, void *buf, size_t len);
-	void * (*memcpy_to_wb) (uint64_t addr, const void *buf, size_t len);
-	void * (*read_cfg)(uint64_t addr, void *buf, size_t len);
+	uint8_t (*read8)(wb_addr_t);
+	uint16_t (*read16)(wb_addr_t);
+	uint32_t (*read32)(wb_addr_t);
+	uint64_t (*read64)(wb_addr_t);
+	void (*write8)(wb_addr_t, uint8_t);
+	void (*write16)(wb_addr_t, uint16_t);
+	void (*write32)(wb_addr_t, uint32_t);
+	void (*write64)(wb_addr_t, uint64_t);
+	void * (*memcpy_from_wb) (wb_addr_t addr, void *buf, size_t len);
+	void * (*memcpy_to_wb) (wb_addr_t addr, const void *buf, size_t len);
+	void * (*read_cfg)(wb_addr_t addr, void *buf, size_t len);
 };
 
 struct wb_bus {
@@ -119,7 +121,7 @@ struct wb_bus {
 	char *name;
 	struct module *owner;
 	struct device dev;
-	uint64_t sdwb_header_base;
+	wb_addr_t sdwb_header_base;
 	struct wb_ops *ops;
 	struct list_head devices;
 	struct mutex dev_lock;
@@ -132,9 +134,6 @@ void wb_unregister_driver(struct wb_driver *driver);
 
 int wb_register_bus(struct wb_bus *bus);
 void wb_unregister_bus(struct wb_bus *bus);
-
-int wb_register_device(struct wb_device *wbdev);
-void wb_unregister_device(struct wb_device *wbdev);
 
 #endif /* _LINUX_WISHBONE_H */
 
