@@ -43,7 +43,7 @@ void *fake_read_cfg(wb_addr_t addr, void *buf, size_t len)
 {
 	if (wb_fw->size < addr + len)
 		return NULL;
-	memcpy(buf, &wb_fw[addr], len);
+	memcpy(buf, &wb_fw->data[addr], len);
 	return buf;
 }
 
@@ -90,8 +90,6 @@ bus_register_fail:
 
 static void fake_wbbus_release(struct device *dev)
 {
-	wb_unregister_bus(&fake_wb_bus);
-	release_firmware(wb_fw);
 }
 
 static struct device fake_wbbus_device = {
@@ -111,12 +109,17 @@ static int __init fake_wb_bus_init(void)
 					"Wishbone bus\n");
 		return ret;
 	}
-	fake_wbbus_probe(&fake_wbbus_device);
+	if ((ret = fake_wbbus_probe(&fake_wbbus_device)) < 0) {
+		device_unregister(&fake_wbbus_device);
+		return ret;
+	}
 	return 0;
 }
 
 static void __exit fake_wb_bus_exit(void)
 {
+	wb_unregister_bus(&fake_wb_bus);
+	release_firmware(wb_fw);
 	device_unregister(&fake_wbbus_device);
 }
 

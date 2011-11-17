@@ -126,7 +126,7 @@ static struct wb_device *wb_get_next_device(struct wb_bus *bus, wb_addr_t wb_ptr
 	struct sdwb_wbd wbd;
 	struct wb_device *wbdev;
 
-	memcpy_from_wb(bus, wb_ptr, (void *)&wbd,
+	wb_read_cfg(bus, wb_ptr, (void *)&wbd,
 		sizeof(struct sdwb_wbd));
 
         if (wbd.wbd_magic != SDWB_WBD_MAGIC)
@@ -151,7 +151,7 @@ int wb_scan_bus(struct wb_bus *bus)
 	struct wb_device *wbdev;
 	struct wb_device *next;
 
-	memcpy_from_wb(bus, bus->sdwb_header_base, (void *)&head,
+	wb_read_cfg(bus, bus->sdwb_header_base, (void *)&head,
 		sizeof(struct sdwb_head));
 
 	/* verify our header using the magic field */
@@ -161,7 +161,7 @@ int wb_scan_bus(struct wb_bus *bus)
 		return -ENODEV;
 	}
 
-	memcpy_from_wb(bus, head.wbid_address, (void *)&wbid,
+	wb_read_cfg(bus, head.wbid_address, (void *)&wbid,
 		sizeof(struct sdwb_wbid));
 	pr_info(KBUILD_MODNAME ": found sdwb bistream: 0x%llx\n",
 		wbid.bstream_type);
