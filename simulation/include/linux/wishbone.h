@@ -115,14 +115,17 @@ struct wb_ops {
 };
 
 struct wb_bus {
+	int num;
 	char *name;
 	struct module *owner;
+	struct device dev;
 	uint64_t sdwb_header_base;
 	struct wb_ops *ops;
 	struct list_head devices;
 	struct mutex dev_lock;
 	int ndev;
 };
+#define to_wb_bus(dev) container_of(dev, struct wb_bus, dev);
 
 int wb_register_driver(struct wb_driver *driver);
 void wb_unregister_driver(struct wb_driver *driver);

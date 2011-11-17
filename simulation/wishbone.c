@@ -60,6 +60,13 @@ static void wb_dev_release(struct device *dev)
 	kfree(wb_dev);
 }
 
+static void wb_bus_release(struct device *dev)
+{
+	struct wb_bus *wb_bus = to_wb_bus(dev);
+
+	pr_info(KBUILD_MODNAME ": release bus %s\n", wb_bus->name);
+}
+
 /*
  * Register a Wishbone peripheral on the bus.
  */
@@ -70,9 +77,10 @@ int wb_register_device(struct wb_device *wbdev)
 
 	devno = atomic_inc_return(&global_wb_devno);
 	wbdev->dev.bus = &wb_bus_type;
-	wbdev->dev.parent = &wb_dev_zero;
+	wbdev->dev.parent = &wbdev->bus->dev;
 	wbdev->dev.release = wb_dev_release;
-	dev_set_name(&wbdev->dev, "wb%d", devno);
+	dev_set_name(&wbdev->dev, "wb%d-%s-%s", devno, wbdev->wbd.vendor_name,
+		wbdev->wbd.device_name);
 	INIT_LIST_HEAD(&wbdev->list);
 
 	return device_register(&wbdev->dev);
@@ -134,11 +142,7 @@ static struct wb_device *wb_get_next_device(struct wb_bus *bus, uint64_t wb_ptr)
 	return wbdev;
 }
 
-/*
- * Register a Wishbone bus. All devices on the bus will automatically
- * be scanned and registered based on the SDWB specification
- */
-int wb_register_bus(struct wb_bus *bus)
+int wb_scan_bus(struct wb_bus *bus)
 {
 	int ret;
 	uint64_t wbd_ptr;
@@ -147,21 +151,14 @@ int wb_register_bus(struct wb_bus *bus)
 	struct wb_device *wbdev;
 	struct wb_device *next;
 
-	INIT_LIST_HEAD(&bus->devices);
-	mutex_init(&bus->dev_lock);
-
-	/*
-	 * Scan wb memory and register devices here. Remember to set the
-	 * Wishbone devices' 'bus' field to this bus.
-	 */
-
 	memcpy_from_wb(bus, bus->sdwb_header_base, (void *)&head,
 		sizeof(struct sdwb_head));
+
 	/* verify our header using the magic field */
 	if (head.magic != SDWB_HEAD_MAGIC) {
 		pr_err(KBUILD_MODNAME ": invalid sdwb header at %llx "
 			"(magic %llx)\n", bus->sdwb_header_base, head.magic);
-		return -EFAULT;
+		return -ENODEV;
 	}
 
 	memcpy_from_wb(bus, head.wbid_address, (void *)&wbid,
@@ -186,7 +183,7 @@ int wb_register_bus(struct wb_bus *bus)
 	pr_info(KBUILD_MODNAME
 		": found %d wishbone devices on wishbone bus %s\n",
 		bus->ndev, bus->name);
-
+	
 	return 0;
 
 err_wbdev_register:
@@ -200,6 +197,40 @@ err_wbdev_register:
 
 	return ret;
 }
+
+/*
+ * Register a Wishbone bus. All devices on the bus will automatically
+ * be scanned and registered based on the SDWB specification
+ */
+int wb_register_bus(struct wb_bus *bus)
+{
+	static atomic_t global_wbbus_devno = ATOMIC_INIT(0);
+	int devno;
+
+	INIT_LIST_HEAD(&bus->devices);
+	mutex_init(&bus->dev_lock);
+
+	devno = atomic_inc_return(&global_wbbus_devno);
+	bus->num = devno;
+	bus->dev.bus = &wb_bus_type;
+	bus->dev.parent = &wb_dev_zero;
+	bus->dev.release = wb_bus_release;
+	dev_set_name(&bus->dev, "wb-bus%d-%s", devno, bus->name);
+
+	if (device_register(&bus->dev) < 0) {
+		pr_err(KBUILD_MODNAME ": failed to register bus device %d\n",
+			devno);
+		return -ENODEV;
+	}
+
+	if (wb_scan_bus(bus) < 0) {
+		pr_err(KBUILD_MODNAME ": failed to scan bus %s\n", bus->name);
+		device_unregister(&bus->dev);
+		return -EFAULT;
+	}
+
+	return 0;
+}
 EXPORT_SYMBOL(wb_register_bus);
 
 /*
@@ -208,6 +239,15 @@ EXPORT_SYMBOL(wb_register_bus);
  */
 void wb_unregister_bus(struct wb_bus *bus)
 {
+	struct wb_device *wbdev;
+	struct wb_device *next;
+
+	list_for_each_entry_safe(wbdev, next, &bus->devices, list) {
+		list_del(&wbdev->list);
+		wb_unregister_device(wbdev);
+		kfree(wbdev);
+	}
+	device_unregister(&bus->dev);
 }
 EXPORT_SYMBOL(wb_unregister_bus);
 
