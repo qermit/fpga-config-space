@@ -60,6 +60,7 @@ struct wb_bus fake_wb_bus = {
 
 static int fake_wbbus_probe(struct device *dev)
 {
+	int ret;
 	char fwname[64];
 
 	/*
@@ -71,13 +72,13 @@ static int fake_wbbus_probe(struct device *dev)
 	 * file.
 	 */
 	sprintf(fwname, "fakespec-%04x-%04x", spec_vendor, spec_device);
-	if (request_firmware(&wb_fw, fwname, dev)) {
+	if ((ret = request_firmware(&wb_fw, fwname, dev)) != 0) {
 		pr_err(KBUILD_MODNAME ": failed to load "
 		       "firmware \"%s\"\n", fwname);
-		return -1;
+		return ret;
 	}
 
-	if (wb_register_bus(&fake_wb_bus) < 0) {
+	if ((ret = wb_register_bus(&fake_wb_bus)) < 0) {
 		goto bus_register_fail;
 	}
 
@@ -85,7 +86,7 @@ static int fake_wbbus_probe(struct device *dev)
 
 bus_register_fail:
 	release_firmware(wb_fw);
-	return -ENODEV;
+	return ret;
 }
 
 static void fake_wbbus_release(struct device *dev)
