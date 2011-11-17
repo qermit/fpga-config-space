@@ -30,7 +30,7 @@
  * also defining the host-order values (without leading underscores)
  */
 #define __SDWB_HEAD_MAGIC	0x5344574248454144LL	/* "SDWBHEAD" */
-#define __SDWB_WBD_MAGIC	    0x5742		/* "WB" */
+#define __SDWB_WBD_MAGIC	0x5742			/* "WB" */
 
 #define SDWB_HEAD_MAGIC	ntohll(__SDWB_HEAD_MAGIC)
 #define SDWB_WBD_MAGIC	ntohs(__SDWB_WBD_MAGIC)
