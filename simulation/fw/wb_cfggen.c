@@ -60,8 +60,8 @@ struct sdwb_head *sdwb_create_header(uint64_t wbid_addr, uint64_t wbd_addr)
 	memset(head, 0, sizeof(struct sdwb_head));
 
 	head->magic = SDWB_HEAD_MAGIC;
-	head->wbid_address = wbid_addr;
-	head->wbd_address = wbd_addr;
+	head->wbid_address = htonll(wbid_addr);
+	head->wbd_address = htonll(wbd_addr);
 
 	return head;
 }
@@ -93,15 +93,15 @@ struct sdwb_wbd *sdwb_create_device(uint8_t major, uint8_t minor,
 		return NULL;
 
 	dev->wbd_magic = SDWB_WBD_MAGIC;
-	dev->wbd_version = (((major & 0xFF) << 8) | ((minor) & 0xFF));
-	dev->vendor = vendor;
-	dev->device = device;
-	dev->hdl_base = base;
-	dev->hdl_size = size;
-	dev->wbd_flags = flags;
-	dev->hdl_class = class;
-	dev->hdl_version = version;
-	dev->hdl_date = date;
+	dev->wbd_version = htonl((((major & 0xFF) << 8) | ((minor) & 0xFF)));
+	dev->vendor = htonll(vendor);
+	dev->device = htonl(device);
+	dev->hdl_base = htonll(base);
+	dev->hdl_size = htonll(size);
+	dev->wbd_flags = htonl(flags);
+	dev->hdl_class = htonl(class);
+	dev->hdl_version = htonl(version);
+	dev->hdl_date = htonl(date);
 	strncpy(dev->vendor_name, vname, 16);
 	strncpy(dev->device_name, dname, 16);
 	dev->vendor_name[15] = '\0';
