@@ -9,10 +9,10 @@
 # Major Minor Vendor Device Base         Size   Flags Class Version Date
   1     0     0      1      0x10000000   0x1000 0     0     1       0x20111225
 CERN
-fake-adc
+fakeadc
 
 # Device 2
 # Major Minor Vendor Device Base         Size   Flags Class Version Date
   1     0     0      2      0x20000000   0x1000 0     0     3       0x20120101
 CERN
-fake-dac
+fakedac
