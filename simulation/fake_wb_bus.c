@@ -106,7 +106,7 @@ static int __init fake_wb_bus_init(void)
 
 	ret = device_register(&fake_wbbus_device);
 	if (ret) {
-		pr_err(KBUILD_MODNAME "failed to register fake"
+		pr_err(KBUILD_MODNAME ": failed to register fake"
 					"Wishbone bus\n");
 		return ret;
 	}
