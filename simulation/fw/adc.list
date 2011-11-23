@@ -1,0 +1,38 @@
+# DEVICE SPECIFICATION FORMAT
+# ===========================
+
+# Major Minor Vendor Device Base Size Flags Class Version Date
+# VName
+# DName
+
+# 0x00000 : dmaconf
+
+# 0x10000 : spi_master
+# 0x70000
+
+# 0x20000 : 1wire_master
+# 0xA0000
+
+# 0x30000 : csr
+
+# 0x40000 : utc_core
+
+# 0x50000 : int_con
+
+# 0x60000 : i2c_master
+# 0x80000
+
+# 0x90000 : adc_core
+
+
+# Device 1
+# Major Minor Vendor Device Base         Size   Flags Class Version Date
+  1     0     0      1      0x20000      0x1000 0     0     1       0x20111225
+CERN
+1wire_master
+
+# Device 2
+# Major Minor Vendor Device Base         Size   Flags Class Version Date
+  1     0     0      1      0xa0000      0x1000 0     0     1       0x20111225
+CERN
+1wire_master
