@@ -147,6 +147,12 @@ static struct wb_device *wb_get_next_device(struct wb_bus *bus, wb_addr_t wb_ptr
 
 	wbd.hdl_base = be64_to_cpu(wbd.hdl_base);
 	wbd.hdl_size = be64_to_cpu(wbd.hdl_size);
+	wbd.vendor = be64_to_cpu(wbd.vendor);
+	wbd.device = be32_to_cpu(wbd.device);
+	wbd.wbd_flags = be32_to_cpu(wbd.wbd_flags);
+	wbd.hdl_class = be32_to_cpu(wbd.hdl_class);
+	wbd.hdl_version = be32_to_cpu(wbd.hdl_version);
+	wbd.hdl_date = be32_to_cpu(wbd.hdl_date);
 
 	wbdev = kzalloc(sizeof(struct wb_device), GFP_KERNEL);
 	if (!wbdev)

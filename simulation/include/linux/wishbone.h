@@ -132,6 +132,17 @@ struct wb_bus {
 };
 #define to_wb_bus(dev) container_of(dev, struct wb_bus, dev);
 
+/* Return per-wishbone-driver-specific data */
+static inline void wb_set_drvdata(struct wb_device *wbdev, void *data)
+{
+	dev_set_drvdata(&wbdev->dev, data);
+}
+
+static inline void *wb_get_drvdata(struct wb_device *wbdev)
+{
+	return dev_get_drvdata(&wbdev->dev);
+}
+
 int wb_register_driver(struct wb_driver *driver);
 void wb_unregister_driver(struct wb_driver *driver);
 
