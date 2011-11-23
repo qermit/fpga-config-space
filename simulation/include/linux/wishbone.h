@@ -35,24 +35,24 @@
 #define WB_NO_CLASS ((uint32_t)(~0))
 
 /* Wishbone I/O operations */
-#define wb_readb(bus, addr) bus->ops->read8(addr)
-#define wb_readw(bus, addr) bus->ops->read16(addr)
-#define wb_readl(bus, addr) bus->ops->read32(addr)
-#define wb_readll(bus, addr) bus->ops->read64(addr)
+#define wb_readb(bus, addr) bus->ops->read8(bus, addr)
+#define wb_readw(bus, addr) bus->ops->read16(bus, addr)
+#define wb_readl(bus, addr) bus->ops->read32(bus, addr)
+#define wb_readll(bus, addr) bus->ops->read64(bus, addr)
 
-#define wb_writeb(bus, addr, val) bus->ops->write8(addr, val)
-#define wb_writew(bus, addr, val) bus->ops->write16(addr, val)
-#define wb_writel(bus, addr, val) bus->ops->write32(addr, val)
-#define wb_writell(bus, addr, val) bus->ops->write64(addr, val)
+#define wb_writeb(bus, addr, val) bus->ops->write8(bus, addr, val)
+#define wb_writew(bus, addr, val) bus->ops->write16(bus, addr, val)
+#define wb_writel(bus, addr, val) bus->ops->write32(bus, addr, val)
+#define wb_writell(bus, addr, val) bus->ops->write64(bus, addr, val)
 
 #define memcpy_from_wb(bus, addr, buf, len) \
-	bus->ops->memcpy_from_wb(addr, buf, len)
+	bus->ops->memcpy_from_wb(bus, addr, buf, len)
 
 #define memcpy_to_wb(bus, addr, buf, len) \
-	bus->ops->memcpy_to_wb(addr, buf, len)
+	bus->ops->memcpy_to_wb(bus, addr, buf, len)
 
 #define wb_read_cfg(bus, addr, buf, len) \
-	bus->ops->read_cfg(addr, buf, len)
+	bus->ops->read_cfg(bus, addr, buf, len)
 
 typedef uint64_t wb_addr_t;
 
@@ -103,17 +103,20 @@ struct wb_device {
 #define to_wb_device(dev) container_of(dev, struct wb_device, dev);
 
 struct wb_ops {
-	uint8_t (*read8)(wb_addr_t);
-	uint16_t (*read16)(wb_addr_t);
-	uint32_t (*read32)(wb_addr_t);
-	uint64_t (*read64)(wb_addr_t);
-	void (*write8)(wb_addr_t, uint8_t);
-	void (*write16)(wb_addr_t, uint16_t);
-	void (*write32)(wb_addr_t, uint32_t);
-	void (*write64)(wb_addr_t, uint64_t);
-	void * (*memcpy_from_wb) (wb_addr_t addr, void *buf, size_t len);
-	void * (*memcpy_to_wb) (wb_addr_t addr, const void *buf, size_t len);
-	void * (*read_cfg)(wb_addr_t addr, void *buf, size_t len);
+	uint8_t (*read8)(struct wb_bus *, wb_addr_t);
+	uint16_t (*read16)(struct wb_bus *, wb_addr_t);
+	uint32_t (*read32)(struct wb_bus *, wb_addr_t);
+	uint64_t (*read64)(struct wb_bus *, wb_addr_t);
+	void (*write8)(struct wb_bus *, wb_addr_t, uint8_t);
+	void (*write16)(struct wb_bus *, wb_addr_t, uint16_t);
+	void (*write32)(struct wb_bus *, wb_addr_t, uint32_t);
+	void (*write64)(struct wb_bus *, wb_addr_t, uint64_t);
+	void * (*memcpy_from_wb) (struct wb_bus *, wb_addr_t addr, void *buf,
+		size_t len);
+	void * (*memcpy_to_wb) (struct wb_bus *, wb_addr_t addr,
+		const void *buf, size_t len);
+	void * (*read_cfg)(struct wb_bus *, wb_addr_t addr, void *buf,
+		size_t len);
 };
 
 struct wb_bus {

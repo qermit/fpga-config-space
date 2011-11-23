@@ -36,9 +36,17 @@ static int wb_bus_match(struct device *, struct device_driver *);
 static int wb_drv_probe(struct device *);
 static int wb_drv_remove(struct device *);
 
+static void wb_zero_release(struct device *dev)
+{
+}
+
 static struct device wb_dev_zero = {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
+	.bus_id = "wb0",
+#else
 	.init_name = "wb0",
-	.release = wb_dev_release,
+#endif
+	.release = wb_zero_release,
 };
 
 static struct bus_type wb_bus_type = {
@@ -79,8 +87,13 @@ int wb_register_device(struct wb_device *wbdev)
 	wbdev->dev.bus = &wb_bus_type;
 	wbdev->dev.parent = &wbdev->bus->dev;
 	wbdev->dev.release = wb_dev_release;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
+	snprintf(wbdev->dev.bus_id, BUS_ID_SIZE, "wb%d-%s-%s", devno,
+		wbdev->wbd.vendor_name, wbdev->wbd.device_name);
+#else
 	dev_set_name(&wbdev->dev, "wb%d-%s-%s", devno, wbdev->wbd.vendor_name,
 		wbdev->wbd.device_name);
+#endif
 	INIT_LIST_HEAD(&wbdev->list);
 
 	return device_register(&wbdev->dev);
@@ -132,6 +145,9 @@ static struct wb_device *wb_get_next_device(struct wb_bus *bus, wb_addr_t wb_ptr
         if (wbd.wbd_magic != SDWB_WBD_MAGIC)
 		return NULL;
 
+	wbd.hdl_base = be64_to_cpu(wbd.hdl_base);
+	wbd.hdl_size = be64_to_cpu(wbd.hdl_size);
+
 	wbdev = kzalloc(sizeof(struct wb_device), GFP_KERNEL);
 	if (!wbdev)
 		return NULL;
@@ -140,6 +156,25 @@ static struct wb_device *wb_get_next_device(struct wb_bus *bus, wb_addr_t wb_ptr
 	wbdev->bus = bus;
 
 	return wbdev;
+}
+
+void wb_read_sdwb_header(struct wb_bus *bus, struct sdwb_head *head)
+{
+	wb_read_cfg(bus, bus->sdwb_header_base, (void *)head,
+		sizeof(struct sdwb_head));
+	head->wbid_address = be64_to_cpu(head->wbid_address);
+	head->wbd_address = be64_to_cpu(head->wbd_address);
+}
+
+void wb_read_sdwb_id(struct wb_bus *bus, struct sdwb_head *head,
+	struct sdwb_wbid *wbid)
+{
+	wb_read_cfg(bus, head->wbid_address, (void *)wbid,
+		sizeof(struct sdwb_wbid));
+
+	wbid->bstream_type = be64_to_cpu(wbid->bstream_type);
+	wbid->bstream_version = be64_to_cpu(wbid->bstream_version);
+	wbid->bstream_date = be64_to_cpu(wbid->bstream_date);
 }
 
 int wb_scan_bus(struct wb_bus *bus)
@@ -151,8 +186,7 @@ int wb_scan_bus(struct wb_bus *bus)
 	struct wb_device *wbdev;
 	struct wb_device *next;
 
-	wb_read_cfg(bus, bus->sdwb_header_base, (void *)&head,
-		sizeof(struct sdwb_head));
+	wb_read_sdwb_header(bus, &head);
 
 	/* verify our header using the magic field */
 	if (head.magic != SDWB_HEAD_MAGIC) {
@@ -161,9 +195,8 @@ int wb_scan_bus(struct wb_bus *bus)
 		return -ENODEV;
 	}
 
-	wb_read_cfg(bus, head.wbid_address, (void *)&wbid,
-		sizeof(struct sdwb_wbid));
-	pr_info(KBUILD_MODNAME ": found sdwb bistream: 0x%llx\n",
+	wb_read_sdwb_id(bus, &head, &wbid);
+	pr_info(KBUILD_MODNAME ": found sdwb bitstream: 0x%llx\n",
 		wbid.bstream_type);
 
 	wbd_ptr = head.wbd_address;
@@ -191,7 +224,6 @@ err_wbdev_register:
 	list_for_each_entry_safe(wbdev, next, &bus->devices, list) {
 		list_del(&wbdev->list);
 		wb_unregister_device(wbdev);
-		kfree(wbdev);
 	}
 	bus->ndev = 0;
 
@@ -215,7 +247,12 @@ int wb_register_bus(struct wb_bus *bus)
 	bus->dev.bus = &wb_bus_type;
 	bus->dev.parent = &wb_dev_zero;
 	bus->dev.release = wb_bus_release;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
+	snprintf(bus->dev.bus_id, BUS_ID_SIZE, "wb-bus%d-%s", devno,
+		bus->name);
+#else
 	dev_set_name(&bus->dev, "wb-bus%d-%s", devno, bus->name);
+#endif
 
 	if (device_register(&bus->dev) < 0) {
 		pr_err(KBUILD_MODNAME ": failed to register bus device %d\n",
@@ -243,9 +280,8 @@ void wb_unregister_bus(struct wb_bus *bus)
 	struct wb_device *next;
 
 	list_for_each_entry_safe(wbdev, next, &bus->devices, list) {
-		list_del(&wbdev->list);
 		wb_unregister_device(wbdev);
-		kfree(wbdev);
+		list_del(&wbdev->list);
 	}
 	device_unregister(&bus->dev);
 }

@@ -20,6 +20,7 @@
  * 02110-1301, USA.
  */
 
+#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -39,7 +40,7 @@ const struct firmware *wb_fw;
 LIST_HEAD(spec_devices);
 static struct mutex list_lock;
 
-void *fake_read_cfg(wb_addr_t addr, void *buf, size_t len)
+void *fake_read_cfg(struct wb_bus *bus, wb_addr_t addr, void *buf, size_t len)
 {
 	if (wb_fw->size < addr + len)
 		return NULL;
@@ -94,7 +95,11 @@ static void fake_wbbus_release(struct device *dev)
 }
 
 static struct device fake_wbbus_device = {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
+	.bus_id = "fake-wbbus0",
+#else
 	.init_name = "fake-wbbus0",
+#endif
 	.release = fake_wbbus_release,
 };
 
