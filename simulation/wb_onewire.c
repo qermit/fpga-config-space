@@ -135,7 +135,7 @@ void ds18b20_read_serial(struct wb_onewire_dev *dev, int port, uint8_t *sbuf)
 	wb_onewire_reset(dev, port);
 	wb_onewire_writebyte(dev, port, 0x33);
 	sbuf[0] = wb_onewire_readbyte(dev, port);
-	for (i = 6; i >= 1; i--)
+	for (i = 1; i <= 6; i++)
 		sbuf[i] = wb_onewire_readbyte(dev, port);
 	sbuf[7] = wb_onewire_readbyte(dev, port);
 }
@@ -158,7 +158,7 @@ int ds18b20_read_temp(struct wb_onewire_dev *dev, int port, uint8_t *serial)
 	int temp;
 	ds18b20_access(dev, port, serial);
 	printk("serial: ");
-	for (i = 0; i < 8; i++)
+	for (i = 7; i >= 0; i--)
 		printk("%02x ", serial[i]);
 	printk("\n");
 	wb_onewire_writebyte(dev, port, 0x44);
@@ -168,7 +168,7 @@ int ds18b20_read_temp(struct wb_onewire_dev *dev, int port, uint8_t *serial)
 	wb_onewire_writebyte(dev, port, 0xbe);
 	wb_onewire_readblock(dev, port, data, 9);
 	printk("data: ");
-	for (i = 0; i < 9; i++)
+	for (i = 8; i >= 0; i--)
 		printk("%2x ", data[i]);
 	printk("\n");
 	temp = (data[1] << 8) | data[0];

@@ -37,7 +37,8 @@ int main(int argc, char *argv[])
 		return ret;
 	}
 
-	printf("Temp: %08x\n", a.temp/16.0);
+	printf("Temp RAW: %08x\n", a.temp);
+	printf("Temp: %08f\n", a.temp/16.0);
 
 	close(fd);
 	return 0;
