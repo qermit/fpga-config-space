@@ -52,7 +52,7 @@ Generating Firmware
 ===================
 
 To generate a Wishbone memory map, we can use the wb_cfggen tool found
-in the simulation/fw/ directory.
+in the fw/ directory.
 
 To generate a firmware file (the wishbone memory space):
 
@@ -60,7 +60,7 @@ $ ./wb_cfggen blocks.list firmware.bin
 
 The wbone.def file specifies the devices that should be attached
 to the Wishbone bus. The format for specifying devices can be seen
-in the example wbone.def file at simulation/fw/wbone.def.
+in the example wbone.def file at fw/wbone.def.
 
 Installing Firmware
 ===================
