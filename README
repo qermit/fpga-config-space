@@ -1,9 +1,11 @@
-Self-describing Wishbone Specification
+Wishbone Bus
 Author: Manohar Vanga
-Email: manohar dot vanga at organization-with-worlds-biggest-particle-collider dot ch
+Email: manohar dot vanga at cern dot ch
 
-This folder contains the specification document for the self-describing
-wishbone bus.
+This is the specification and software for the self-describing Wishbone bus
+specification.
 
-The 'simulation' folder contains the driver and example simulation of a
-wishbone bus.
+The package should contain two folders:
+
+docs  : The documentation about the self-describing Wishbone bus specification.
+driver: The Wishbone bus driver with sample drivers
