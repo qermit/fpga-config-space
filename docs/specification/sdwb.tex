@@ -23,7 +23,7 @@
 \parskip10pt
 \makesavenoteenv{tabular}
 
-\title{Self Describing Wishbone Bus Specification}
+\title{Self Descriptive Structures for Logic Cores}
 \author{Manohar Vanga (BE/CO/HT), Alessandro Rubini (University of Pavia)}
 \date{22 June 2011}
 \begin{document}
@@ -38,89 +38,231 @@
 
 \section{Introduction}
 
-This document describes the specification for the self describing Wishbone
-bus.
+This document describes a specification for a series of self descriptive
+structures that can be used to provide metadata about logic blocks, thus
+allowing for upper level abstractions to automatically discover the blocks.
 
-It is advantageous from a software standpoint to have Wishbone peripherals
-that can be probed automatically. This allows for a clean design of operating
-system drivers.
+\subsection{Requirements}
 
-This specification introduces a standard that allows the Wishbone bus to be
-probed easily.
+The specification designed in this document has been designed with keeping
+the following points in mind.
+
+\begin{itemize}
+\item Provide support for flexibly defining devices ranging from large and
+verbose descriptors to small and efficient ones.
+\item Allow for the integration of firmware level metadata into the structures.
+This includes information like firmware version and synthesis date.
+\item Support for heirarchical definitions where devices express parent-child
+relationships.
+\item Provide support for proprietary blocks that cannot be modified at the
+source level and can possibly contain entire device heirarchies.
+\item There should be a minimal sets of constraints placed on designers and
+integrators in terms of how and where they can map their designs in memory.
+\item There should be no forcible use of external metadata. Relying on external
+information quickly leads to outdated and mismatched metadata.
+\item Structures should be space efficient and provide support for a wide range
+of hardware ranging from the small to the highly complex.
+\end{itemize}
+
+\subsection{Definitions}
+\begin{description}
+  \item[Logic Blocks] \hfill \\
+    Logic blocks refer to specific logic written in a high level hardware-description
+    language. These are also referred to as IP cores.
+  \item[Bitstream] \hfill \\
+    The compiled binary version of a complete HDL design, possibly consisting of
+    multiple interconnected logic blocks, is referred to as a bitstream in this
+    document.
+  \item[Designer] \hfill \\
+    In this document, the term designer refers to the person who authors logic
+    blocks in a hardware description language.
+  \item[Integrator] \hfill \\
+    In this document, the term integrator refers to the person who is responsible
+    for taking a set of logic blocks and connecting them together to create the
+    final topology of the bistream.
+\end{description}
 
 \pagebreak
 
-\section{Specification}
+\section{Structures}
 
-The specification has three parts:
+The structures of the specification are separated into block descriptive
+structures and topology descriptive structures.
+
+Block descriptive structures are used to describe device information that
+is static. Examples of information that resides in block descriptive
+structures are device and vendor identifiers. This allows manufacturers to
+fix this information into logic blocks before distribution and not worry
+about providing the ability to modify the contents.
+
+Topology descriptive structures are used to describe the topology of blocks
+within an address space. These contain information that is defined by the
+integrator or designer who describes the high level topology of multiple
+logic blocks in a hierarchy. An example of information that resides in
+topology descriptive structures is the base address of a logic block in a
+mapped address space.
+
+The following are the block descriptive structures that are a part of this
+specification.
 
 \begin{itemize}
-\item Header block
-\item ID block
-\item Device descriptor block
+\item Device descriptor blocks
 \end{itemize}
 
-Each bitstream should contain a single header, ID and device descriptor
-block. The device descriptor block in turn can contain multiple device
-descriptor structures.
+The following are the topology descriptive structures that are a part of this
+specification.
+
+\begin{itemize}
+\item Header blocks
+\item ID blocks
+\item Child pointer blocks
+\end{itemize}
+
+All structures contain variations on the address size to support constrained
+devices. The available address sizes in the current specification are 64, 32
+and 16 bits.
 
 The following points should be noted:
 
 \begin{itemize}
 \item All values are big-endian. This has been chosen as it facilitates easy
-human readability of the values.
-\item The presence of 64 bit registers does not imply the requirement for a
-64 bit wide data bus. Multiple reads can be done using a smaller data
-bus width (eg. 2 reads on a 32 bit data bus).
+human readability of the values. This is true of all values within structures
+and should be adhered to carefully.
+\item The presence of 64 bit registers within certain structures does not imply
+the requirement for a 64 bit wide data bus. Multiple reads can be done using a
+smaller data bus width (eg. 2 reads on a 32 bit data bus).
+\item The maximum address width is currently 64 bits. While buses such as Wishbone
+allow for a theoretically infinite address space, we have stayed within current
+practical limits for this. In future versions, this may be increased based on
+volatile requirements. This expasibility has been kept in mind throughout the
+design of this specification.
+\item It is entirely the choice of the designer to choose what size descriptor set
+they wish to use for their logic blocks. It is entirely feasible to use a 64 bit
+descriptor set for a device that only needs 16 bits of address space.
 \end{itemize}
 
-\subsection{Header}
+\subsection{Header Blocks}
 
-The Wishbone header contains the locations of the device descriptor block and 
-ID block in the Wishbone address space.
+The header blocks are simple structures that contains the locations of a top-level
+child pointer block (see Section \ref{}) and an ID block (see Section \ref{}).
 
-The header block can be placed at any location within the Wishbone address space
-as long as the bus controller knows the location (eg. a constant in HDL).
+Header blocks can be placed at any location within an address space
+as long as the location can be found in some way (eg. a constant in HDL).
 It is recommended that the address of the header be placed into memory
 within the parent bus. For example, a BAR can be used in the case of PCI,
 the CR/CSR space in the case of VME and the configuration space in the case
 of Etherbone.
 
-The structure of the header block is described in Table \ref{hdr_block_struct}.
+\subsubsection{LCSD64 Header Block}
+The LCSD64 header block is the one used in a 64 bit address space. The structure
+of the LCSD64 header block is described in Table \ref{hdr_block_struct}.
 
 \begin{center}
-	\begin{savenotes}
-	\begin{table}[!ht]\footnotesize
-	\caption{Wishbone header block structure}\label{hdr_block_struct}\centering
-	\begin{tabular}{| c | c | l | c | c | p{5cm} |} \hline
-	Offset & Size (in bytes) & Name & Access & Value & Description \\ \hline
-	0x00 & 0x08 & MAGIC & RO & 0x5344574248454144LL & Magic number used to ensure that there is a valid header present. \\ \hline
-	0x08 & 0x08 & WBIDB\_ADDR & RO & - & Address of the Wishbone ID block. See section \ref{id_block} for more information. \\ \hline
-	0x10 & 0x08 & WBDDB\_ADDR & RO & - & Address of the Wishbone device descriptor block. See section \ref{device_block} for more information. \\ \hline
-	\end{tabular}
-	\end{table}
-	\end{savenotes}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{LCSD64 header block structure}\label{hdr_block_struct}\centering
+      \begin{tabular}{| c | c | l | c | c | p{5cm} |} \hline
+      Offset & Size (in bytes) & Name & Access & Value & Description \\ \hline
+      0x00 & 0x08 & MAGIC & RO & 0x5344574248454144LL & Magic number used to ensure that there is a valid header present. \\ \hline
+      0x08 & 0x08 & ID\_BLOCK\_ADDR & RO & - & Address of the ID block. See section \ref{id_block} for more information. \\ \hline
+      0x10 & 0x08 & TLCP\_BLOCK\_ADDR & RO & - & Address of the top-level child pointer block. See section \ref{child_pointer_block} for more information. \\ \hline
+      \end{tabular}
+    \end{table}
+  \end{savenotes}
 \end{center}
 
 \begin{description}
-\item[MAGIC (Offset: 0x00)] \hfill \\
+\item[MAGIC] \hfill \\
 This field contains a unique value that allows software to ensure that
 the header contains valid data. If the magic number does not match the
-expected value, the software should abort immediately.
+expected value, the software should abort.
 
 The magic number in the current version of the specification is expected to
-be 0x5344574248454144 or the ASCII string "SDWBHEAD" without the string
-terminator.
+be 0x5344574248454144 or the ASCII string "SDWBHEAD" (big-endian) without the
+string terminator.
 
-\item[WBIDB\_ADDR (Offset: 0x08)] \hfill \\
-This field contains the address of the Wishbone ID block (see Section \ref{id_block}
-for more information). The software reading this field should know what address width
-to expect.
+\item[ID\_BLOCK\_ADDR] \hfill \\
+This field contains the address of the ID block in the memory space (see Section
+\ref{id_block} for more information).
 
-\item[WBDDB\_ADDR (Offset: 0x10)] \hfill \\
-This field contains the address of the device descriptor block (see Section
-\ref{device_block} for more information). The software reading this field should
-know what address width to expect.
+\item[TLCP\_BLOCK\_ADDR] \hfill \\
+This field contains the address of the top level child pointer block (see Section
+\ref{tlcp_block} for more information).
+\end{description}
+
+\subsubsection{LCSD32 Header Block}
+The LCSD32 header block is the one used in a 32 bit address space. The structure
+of the LCSD32 header block is described in Table \ref{hdr_block_struct}.
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{LCSD32 header block structure}\label{hdr_block_struct}\centering
+      \begin{tabular}{| c | c | l | c | c | p{5cm} |} \hline
+      Offset & Size (in bytes) & Name & Access & Value & Description \\ \hline
+      0x00 & 0x08 & MAGIC & RO & 0x5344574248454144LL & Magic number used to ensure that there is a valid header present. \\ \hline
+      0x08 & 0x04 & ID\_BLOCK\_ADDR & RO & - & Address of the ID block. See section \ref{id_block} for more information. \\ \hline
+      0x0c & 0x04 & TLCP\_BLOCK\_ADDR & RO & - & Address of the top-level child pointer block. See section \ref{child_pointer_block} for more information. \\ \hline
+      \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\begin{description}
+\item[MAGIC] \hfill \\
+This field contains a unique value that allows software to ensure that
+the header contains valid data. If the magic number does not match the
+expected value, the software should abort.
+
+The magic number in the current version of the specification is expected to
+be 0x5344574248454144 or the ASCII string "SDWBHEAD" (big-endian) without the
+string terminator.
+
+\item[ID\_BLOCK\_ADDR] \hfill \\
+This field contains the address of the ID block in the memory space (see Section
+\ref{id_block} for more information).
+
+\item[TLCP\_BLOCK\_ADDR] \hfill \\
+This field contains the address of the top level child pointer block (see Section
+\ref{tlcp_block} for more information).
+\end{description}
+
+\subsubsection{LCSD16 Header Block}
+The LCSD16 header block is the one used in a 16 bit address space. The structure
+of the LCSD16 header block is described in Table \ref{hdr_block_struct}.
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{LCSD16 header block structure}\label{hdr_block_struct}\centering
+      \begin{tabular}{| c | c | l | c | c | p{5cm} |} \hline
+      Offset & Size (in bytes) & Name & Access & Value & Description \\ \hline
+      0x00 & 0x08 & MAGIC & RO & 0x5344574248454144LL & Magic number used to ensure that there is a valid header present. \\ \hline
+      0x08 & 0x02 & ID\_BLOCK\_ADDR & RO & - & Address of the ID block. See section \ref{id_block} for more information. \\ \hline
+      0x0c & 0x02 & TLCP\_BLOCK\_ADDR & RO & - & Address of the top-level child pointer block. See section \ref{child_pointer_block} for more information. \\ \hline
+      0x0c & 0x04 & RESERVED & RO & - & Reserved \\ \hline
+      \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\begin{description}
+\item[MAGIC] \hfill \\
+This field contains a unique value that allows software to ensure that
+the header contains valid data. If the magic number does not match the
+expected value, the software should abort.
+
+The magic number in the current version of the specification is expected to
+be 0x5344574248454144LL or the ASCII string "SDWBHEAD" (big-endian) without the
+string terminator.
+
+\item[ID\_BLOCK\_ADDR] \hfill \\
+This field contains the address of the ID block in the memory space (see Section
+\ref{id_block} for more information).
+
+\item[TLCP\_BLOCK\_ADDR] \hfill \\
+This field contains the address of the top level child pointer block (see Section
+\ref{tlcp_block} for more information).
 \end{description}
 
 \subsection{ID Block}\label{id_block}
