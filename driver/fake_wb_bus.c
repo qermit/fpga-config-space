@@ -95,7 +95,7 @@ static void fake_wbbus_release(struct device *dev)
 }
 
 static struct device fake_wbbus_device = {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 	.bus_id = "fake-wbbus0",
 #else
 	.init_name = "fake-wbbus0",

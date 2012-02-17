@@ -41,7 +41,7 @@ static void wb_zero_release(struct device *dev)
 }
 
 static struct device wb_dev_zero = {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 	.bus_id = "wb0",
 #else
 	.init_name = "wb0",
@@ -87,7 +87,7 @@ int wb_register_device(struct wb_device *wbdev)
 	wbdev->dev.bus = &wb_bus_type;
 	wbdev->dev.parent = &wbdev->bus->dev;
 	wbdev->dev.release = wb_dev_release;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 	snprintf(wbdev->dev.bus_id, BUS_ID_SIZE, "wb%d-%s-%s", devno,
 		wbdev->wbd.vendor_name, wbdev->wbd.device_name);
 #else
@@ -142,7 +142,7 @@ static struct wb_device *wb_get_next_device(struct wb_bus *bus, wb_addr_t wb_ptr
 	wb_read_cfg(bus, wb_ptr, (void *)&wbd,
 		sizeof(struct sdwb_wbd));
 
-        if (wbd.wbd_magic != SDWB_WBD_MAGIC)
+	if (wbd.wbd_magic != SDWB_WBD_MAGIC)
 		return NULL;
 
 	wbd.hdl_base = be64_to_cpu(wbd.hdl_base);
@@ -222,7 +222,7 @@ int wb_scan_bus(struct wb_bus *bus)
 	pr_info(KBUILD_MODNAME
 		": found %d wishbone devices on wishbone bus %s\n",
 		bus->ndev, bus->name);
-	
+
 	return 0;
 
 err_wbdev_register:
@@ -253,7 +253,7 @@ int wb_register_bus(struct wb_bus *bus)
 	bus->dev.bus = &wb_bus_type;
 	bus->dev.parent = &wb_dev_zero;
 	bus->dev.release = wb_bus_release;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 	snprintf(bus->dev.bus_id, BUS_ID_SIZE, "wb-bus%d-%s", devno,
 		bus->name);
 #else
