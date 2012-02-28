@@ -1,6 +1,8 @@
-\documentclass{article}
+\documentclass[a4paper, 12pt]{article}
 
-\usepackage{fullpage}
+\usepackage{draftwatermark}
+\usepackage{changepage}
+%\usepackage{fullpage}
 \usepackage{color}
 \usepackage{xcolor}
 \usepackage{listings}
@@ -8,6 +10,8 @@
 \usepackage{multirow}
 \usepackage{footnote}
 \usepackage{graphicx}
+
+\SetWatermarkScale{4}
 
 \usepackage{caption}
 \DeclareCaptionFont{white}{\color{white}}
@@ -86,35 +90,35 @@ of hardware ranging from the small to the highly complex.
 
 \section{Structures}
 
-The structures of the specification are separated into block descriptive
-structures and topology descriptive structures.
+The structures of the specification are separated into \emph{block descriptive}
+structures and \emph{topology descriptive} structures.
 
-Block descriptive structures are used to describe device information that
+\emph{Block descriptive} structures are used to describe device information that
 is static. Examples of information that resides in block descriptive
 structures are device and vendor identifiers. This allows manufacturers to
 fix this information into logic blocks before distribution and not worry
 about providing the ability to modify the contents.
 
-Topology descriptive structures are used to describe the topology of blocks
+\emph{Topology descriptive} structures are used to describe the topology of blocks
 within an address space. These contain information that is defined by the
 integrator or designer who describes the high level topology of multiple
 logic blocks in a hierarchy. An example of information that resides in
 topology descriptive structures is the base address of a logic block in a
 mapped address space.
 
-The following are the block descriptive structures that are a part of this
+The following are the \emph{block descriptive} structures that are a part of this
 specification.
 
 \begin{itemize}
 \item Device descriptor blocks
 \end{itemize}
 
-The following are the topology descriptive structures that are a part of this
+The following are the \emph{topology descriptive} structures that are a part of this
 specification.
 
 \begin{itemize}
 \item Header blocks
-\item ID blocks
+\item Identification blocks
 \item Child pointer blocks
 \end{itemize}
 
@@ -144,7 +148,7 @@ descriptor set for a device that only needs 16 bits of address space.
 \subsection{Header Blocks}
 
 The header blocks are simple structures that contains the locations of a top-level
-child pointer block (see Section \ref{}) and an ID block (see Section \ref{}).
+child pointer block (see Section \ref{}) and an \emph{identification block} (see Section \ref{}).
 
 Header blocks can be placed at any location within an address space
 as long as the location can be found in some way (eg. a constant in HDL).
@@ -161,15 +165,20 @@ of the LCSD64 header block is described in Table \ref{hdr_block_struct}.
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
       \caption{LCSD64 header block structure}\label{hdr_block_struct}\centering
-      \begin{tabular}{| c | c | l | c | c | p{5cm} |} \hline
-      Offset & Size (in bytes) & Name & Access & Value & Description \\ \hline
-      0x00 & 0x08 & MAGIC & RO & 0x5344574248454144LL & Magic number used to ensure that there is a valid header present. \\ \hline
-      0x08 & 0x08 & ID\_BLOCK\_ADDR & RO & - & Address of the ID block. See section \ref{id_block} for more information. \\ \hline
-      0x10 & 0x08 & TLCP\_BLOCK\_ADDR & RO & - & Address of the top-level child pointer block. See section \ref{child_pointer_block} for more information. \\ \hline
-      \end{tabular}
+      \begin{adjustwidth}{-0.3in}{-1in}% adjust the L and R margins by 1 inch
+        \begin{tabular}{| c | c | l | c | c | p{5cm} |} \hline
+        Offset & Size & Name & Access & Value & Description \\ \hline
+        0x00 & 0x04 & MAGIC & RO & 0x53445742L & Magic number used to ensure that there is a valid header present. \\ \hline
+        0x04 & 0x02 & LCSD\_ATTR & RO & - & Attributes field describing various attributes of the LCSD version used. \\ \hline
+        0x06 & 0x02 & DEVICE\_COUNT & RO & - & The number of top-level devices. \\ \hline
+        0x08 & 0x08 & ID\_BLOCK\_ADDR & RO & - & Address of the \emph{identification block}. See section \ref{id_block} for more information. \\ \hline
+        0x10 & 0x08 & TLCP\_BLOCK\_ADDR & RO & - & Address of the top-level child pointer block. See section \ref{child_pointer_block} for more information. \\ \hline
+        \end{tabular}
+      \end{adjustwidth}
     \end{table}
   \end{savenotes}
 \end{center}
+
 
 \begin{description}
 \item[MAGIC] \hfill \\
@@ -178,128 +187,73 @@ the header contains valid data. If the magic number does not match the
 expected value, the software should abort.
 
 The magic number in the current version of the specification is expected to
-be 0x5344574248454144 or the ASCII string "SDWBHEAD" (big-endian) without the
+be 0x53445742 or the ASCII string "SDWB" (big-endian) without the
 string terminator.
 
-\item[ID\_BLOCK\_ADDR] \hfill \\
-This field contains the address of the ID block in the memory space (see Section
-\ref{id_block} for more information).
-
-\item[TLCP\_BLOCK\_ADDR] \hfill \\
-This field contains the address of the top level child pointer block (see Section
-\ref{tlcp_block} for more information).
-\end{description}
-
-\subsubsection{LCSD32 Header Block}
-The LCSD32 header block is the one used in a 32 bit address space. The structure
-of the LCSD32 header block is described in Table \ref{hdr_block_struct}.
+\item[LCSD\_ATTR] \hfill \\
+This field contains various attributes that allow for identifying the size of
+various blocks that has been used. The bits of this field are described in detail
+in Table \ref{hdr_block_attr_struct}.
 
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{LCSD32 header block structure}\label{hdr_block_struct}\centering
-      \begin{tabular}{| c | c | l | c | c | p{5cm} |} \hline
-      Offset & Size (in bytes) & Name & Access & Value & Description \\ \hline
-      0x00 & 0x08 & MAGIC & RO & 0x5344574248454144LL & Magic number used to ensure that there is a valid header present. \\ \hline
-      0x08 & 0x04 & ID\_BLOCK\_ADDR & RO & - & Address of the ID block. See section \ref{id_block} for more information. \\ \hline
-      0x0c & 0x04 & TLCP\_BLOCK\_ADDR & RO & - & Address of the top-level child pointer block. See section \ref{child_pointer_block} for more information. \\ \hline
+      \caption{LCSD64 header attributes field structure}\label{hdr_block_attr_struct}\centering
+      \begin{tabular}{| c | l | c | c | p{5cm} |} \hline
+      Bits & Name & Access & Value & Description \\ \hline
+      0 - 1 & LCSD\_SIZE & RO & \vtop{\hbox{\strut 00 = 8 bits}\hbox{\strut 01 = 16 bits}\hbox{\strut 10 = 32 bits}\hbox{\strut 11 = 64 bits}} & The size of descriptors used. \\ \hline
+      2 - 15 & RESERVED & RO & - & Reserved \\ \hline
       \end{tabular}
     \end{table}
   \end{savenotes}
 \end{center}
 
-\begin{description}
-\item[MAGIC] \hfill \\
-This field contains a unique value that allows software to ensure that
-the header contains valid data. If the magic number does not match the
-expected value, the software should abort.
-
-The magic number in the current version of the specification is expected to
-be 0x5344574248454144 or the ASCII string "SDWBHEAD" (big-endian) without the
-string terminator.
+\item[DEVICE\_COUNT] \hfill \\
+This field contains the count of top level devices. This is used to determine how
+far to read into the TLCP block when discovering devices. The two byte size of this
+field allows for up to 65,536 top level child devices to be present.
 
 \item[ID\_BLOCK\_ADDR] \hfill \\
-This field contains the address of the ID block in the memory space (see Section
-\ref{id_block} for more information).
+This field contains the absolute address of the \emph{identification block} in the memory space (see
+Section \ref{id_block} for more information).
 
 \item[TLCP\_BLOCK\_ADDR] \hfill \\
-This field contains the address of the top level child pointer block (see Section
-\ref{tlcp_block} for more information).
+This field contains the absolute address of the top level child pointer block (see
+Section \ref{tlcp_block} for more information).
 \end{description}
 
-\subsubsection{LCSD16 Header Block}
-The LCSD16 header block is the one used in a 16 bit address space. The structure
-of the LCSD16 header block is described in Table \ref{hdr_block_struct}.
+\subsection{LCSD64/32/16/8 Identification Block}\label{id_block}
+
+The \emph{identification block} contains information that identifies the bitstream within the FPGA.
+
+The structure of the \emph{identification block} is described in Table \ref{id_block_struct}.
 
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{LCSD16 header block structure}\label{hdr_block_struct}\centering
-      \begin{tabular}{| c | c | l | c | c | p{5cm} |} \hline
-      Offset & Size (in bytes) & Name & Access & Value & Description \\ \hline
-      0x00 & 0x08 & MAGIC & RO & 0x5344574248454144LL & Magic number used to ensure that there is a valid header present. \\ \hline
-      0x08 & 0x02 & ID\_BLOCK\_ADDR & RO & - & Address of the ID block. See section \ref{id_block} for more information. \\ \hline
-      0x0c & 0x02 & TLCP\_BLOCK\_ADDR & RO & - & Address of the top-level child pointer block. See section \ref{child_pointer_block} for more information. \\ \hline
-      0x0c & 0x04 & RESERVED & RO & - & Reserved \\ \hline
-      \end{tabular}
+      \caption{LCSD64 identification block structure}\label{id_block_struct}\centering
+      \begin{adjustwidth}{-0.4in}{-1in}% adjust the L and R margins by 1 inch
+        \begin{tabular}{| l | c | l | c | c | p{5cm} |} \hline
+        Offset & Size (in bytes) & Name & Access & Value & Description \\ \hline
+        0x00 & 0x08 & BSTREAM\_TYPE & RO & - & The bitstream type identifier. \\ \hline
+        0x08 & 0x04 & BSTREAM\_VERSION & RO & - & The version of the specific bitstream. \\ \hline
+        0x0C & 0x04 & BSTREAM\_DATE & RO & - & The synthesis date of the bitstream. \\ \hline
+        0x10 & 0x10 & BSTREAM\_SOURCE & RO & 0x0 & The source code management (SCM) identifier. \\ \hline
+        \end{tabular}
+      \end{adjustwidth}
     \end{table}
   \end{savenotes}
 \end{center}
 
 \begin{description}
-\item[MAGIC] \hfill \\
-This field contains a unique value that allows software to ensure that
-the header contains valid data. If the magic number does not match the
-expected value, the software should abort.
-
-The magic number in the current version of the specification is expected to
-be 0x5344574248454144LL or the ASCII string "SDWBHEAD" (big-endian) without the
-string terminator.
-
-\item[ID\_BLOCK\_ADDR] \hfill \\
-This field contains the address of the ID block in the memory space (see Section
-\ref{id_block} for more information).
-
-\item[TLCP\_BLOCK\_ADDR] \hfill \\
-This field contains the address of the top level child pointer block (see Section
-\ref{tlcp_block} for more information).
-\end{description}
-
-\subsection{ID Block}\label{id_block}
-
-The ID block contains information that uniquely identifies the bitstream
-within the FPGA.
-
-The ID block additionally contains information about the parent board.
-This information allows clients unable to access the parent bus memory
-to know the metadata of the hardware they are accessing.
-
-The structure of the ID block is described in Table \ref{id_block_struct}.
-
-\begin{center}
-	\begin{savenotes}
-	\begin{table}[!ht]\footnotesize
-	\caption{Wishbone ID block structure}\label{id_block_struct}\centering
-	\begin{tabular}{| l | c | l | c | c | p{5cm} |} \hline
-	Offset & Size (in bytes) & Name & Access & Value & Description \\ \hline
-	0x00 & 0x08 & BSTREAM\_DEVTYPE & RO & - & The bitstream type identifier. \\ \hline
-	0x08 & 0x04 & BSTREAM\_VERSION & RO & - & The version of the specific bitstream. \\ \hline
-	0x0C & 0x04 & BSTREAM\_DATE & RO & - & The synthesis date of the bitstream. \\ \hline
-	0x10 & 0x10 & BSTREAM\_SOURCE & RO & 0x0 & The SVN revision number or the SHA-1 hash of the Git release (first 16 bytes). \\ \hline
-	\end{tabular}
-	\end{table}
-	\end{savenotes}
-\end{center}
-
-\begin{description}
-\item[BSTREAM\_DEVTYPE (Offset: 0x00)] \hfill \\
+\item[BSTREAM\_TYPE (Offset: 0x00)] \hfill \\
 The bitstream device type should hold a value that uniquely identifies the type of 
 bitstream present in the FPGA. Note that different bitstreams can have the
 same type with differing versions (see below).
 
 \item[BSTREAM\_VERSION (Offset: 0x08)] \hfill \\
 The bitstream version should hold a value that specifies the version of the
-bitstream present in the FPGA. This field along with the BSTREAM\_DEVTYPE field,
+bitstream present in the FPGA. This field along with the BSTREAM\_TYPE field,
 should uniquely identify a specific bitstream.
 
 \item[BSTREAM\_DATE (Offset: 0x0C)] \hfill \\
@@ -309,8 +263,7 @@ the bitstream. An example of a hex-readable date is 0x20111225 (25th December
 
 \item[BSTREAM\_SOURCE (Offset: 0x10)] \hfill \\
 This field should specify an identifier for the revision control software
-used to manage the HDL code for the bitstream type. This allows for the 
-possibility of automatic checking out and loading of bitstreams.
+used to manage the HDL code for the bitstream type.
 
 In the case of SVN repositories, the value of the revision number should
 be stored in this field. For example, if the SVN revision is 1024, the 
@@ -322,105 +275,151 @@ in this field.
 
 \end{description}
 
-\subsection{Device Descriptor Block}\label{device_block}
+\subsection{LCSD64 Child Pointer Block}\label{cp_block}
 
-The device descriptor block describes all the Wishbone peripherals present
-on the bus. The block is made of an array of device descriptors which have
-a structure as described in Table \ref{dev_desc_struct}.
+The child pointer block is a variable sized array of Child pointers. The LCSD
+structure size of this must be the same as that given in the header.
+The structure of the child pointers is described in Table \ref{cp_block_struct}
+
+\begin{center}
+\begin{savenotes}
+\begin{table}[!ht]\footnotesize
+\caption{LCSD64 child pointer structure}\label{cp_block_struct}\centering
+\begin{adjustwidth}{-0.4in}{-1in}% adjust the L and R margins by 1 inch
+\begin{tabular}{| l | c | l | c | c | p{5cm} |} \hline
+Offset & Size (in bytes) & Name & Access & Value & Description \\ \hline
+0x00 & 0x08 & OFFSET & RO & - & The offset of the child from the address of this child pointer structure. \\ \hline
+\end{tabular}
+\end{adjustwidth}
+\end{table}
+\end{savenotes}
+\end{center}
+
+
+\subsection{LCSD64 Device Descriptor}\label{device_block}
+
+The device descriptor describes a single device. The device descriptor has a
+structure as described in Table \ref{dev_desc_struct}.
 
 \begin{center}
 	\begin{savenotes}
 	\begin{table}[!ht]\footnotesize
-	\caption{Wishbone device descriptor structure}\label{dev_desc_struct}\centering
+	\caption{LCSD64 device descriptor structure}\label{dev_desc_struct}\centering
 	\begin{tabular}{| l | c | l | c | c | p{5cm} |} \hline
 	Offset & Size (in bytes) & Name & Access & Value & Description \\ \hline
-	0x00 & 0x08 & VENDOR & RO & - & The vendor ID of the vendor of the Wishbone device. \\ \hline
-	0x08 & 0x04 & DEVICE & RO & - & The device ID of the Wishbone device. \\ \hline
-	0x0C & 0x02 & WBD\_MAGIC & RO & 0x5742 & Magic number used to identify a valid device descriptor. \\ \hline
-	0x0E & 0x01 & WBD\_VER\_MAJOR & RO & - & The major version of the descriptor format. \\ \hline
-	0x0F & 0x01 & WBD\_VER\_MINOR & RO & - & The minor version of the descriptor format. \\ \hline
-	0x10 & 0x08 & HDL\_BASE & RO & - & Base address (Wishbone) of the Wishbone device. \\ \hline
+	0x00 & 0x08 & VENDOR & RO & - & The vendor ID of the vendor of the device. \\ \hline
+	0x08 & 0x04 & DEVICE & RO & - & The device ID of the device. \\ \hline
+	0x0C & 0x02 & LCSD\_MAGIC & RO & 0x5742 & Magic number used to identify a valid device descriptor. \\ \hline
+	0x0E & 0x01 & LCSD\_VER\_MAJOR & RO & - & The major version of the descriptor format. \\ \hline
+	0x0F & 0x01 & LCSD\_VER\_MINOR & RO & - & The minor version of the descriptor format. \\ \hline
+	0x10 & 0x04 & DEVICE\_OFFSET & RO & - & The offset of this block with respect to the device base address. \\ \hline
+	0x14 & 0x04 & DEVICE\_FLAGS & RO & 0x0 & Device flags. \\ \hline
 	0x18 & 0x08 & HDL\_SIZE & RO & - & Size (in bytes) of the device address space. \\ \hline
-	0x20 & 0x04 & WBD\_FLAGS & RO & 0x0 & Device flags. \\ \hline
-	0x24 & 0x04 & HDL\_CLASS & RO & - & HDL class. \\ \hline
-	0x28 & 0x04 & HDL\_VERSION & RO & - & HDL version. \\ \hline
-	0x2C & 0x04 & HDL\_DATE & RO & - & HDL generation date. \\ \hline
-	0x30 & 0x10 & VENDOR\_NAME & RO & - & Vendor name (ASCII string) \\ \hline
-	0x40 & 0x10 & DEVICE\_NAME & RO & - & Device name (ASCII string) \\ \hline
+	0x20 & 0x04 & HDL\_CLASS & RO & - & HDL class. \\ \hline
+	0x24 & 0x04 & HDL\_VERSION & RO & - & HDL version. \\ \hline
+	0x28 & 0x10 & VENDOR\_NAME & RO & - & Vendor name (ASCII string) \\ \hline
+	0x38 & 0x10 & DEVICE\_NAME & RO & - & Device name (ASCII string) \\ \hline
+	0x48 & 0x08 & NUM\_CHILDREN & RO & 0x0 & Number of children this device has. \\ \hline
+	0x50 & - & DEVICE\_CHILDREN & RO & - & Child pointer block. \\ \hline
 	\end{tabular}
 	\end{table}
 	\end{savenotes}
 \end{center}
 
 \begin{description}
-\item[VENDOR (Offset: 0x00)] \hfill \\
-The vendor ID of the Wishbone device.
+\item[VENDOR] \hfill \\
+The vendor ID of the device.
 
-\item[DEVICE (Offset: 0x08)] \hfill \\
-The device ID of the Wishbone device. Together with the vendor ID, the
+\item[DEVICE] \hfill \\
+The device ID of the device. Together with the vendor ID, the
 device ID may be used to match device drivers. The format can be specified
 in any way by a vendor as the software reading this field will be
-specific to each vendor (selected based on the metadata stored in the
-parent board) and is expected to know how to decode this field.
+specific to each vendor.
 
-\item[WBD\_MAGIC (Offset: 0x0C)] \hfill \\
-This is a unique value used to identify a valid Wishbone device structure. If
-an invalid magic value is found, it is assumed that there are no more devices
-to be discovered and the auto-discovery is ended. Thus, it is used as the array
-terminator for the Wishbone device block.
+\item[LCSD\_MAGIC] \hfill \\
+This is a unique value used to identify a valid device descriptor. If
+an invalid magic value is found, that device is ignored.
 
 The magic number in all versions of the specification can be expected to
 be 0x5742 or the ASCII string "WB" without the string terminator.
 
-\item[WBD\_VER\_MAJOR (Offset: 0x0E)] \hfill \\
+\item[LCSD\_VER\_MAJOR] \hfill \\
 The major version of the device descriptor format. This field is incompatible
 between versions. This means that a change in the descriptor structure itself
 leads to an increase in the major version. An example of a major version change
 is the extension of HDL\_BASE and HDL\_SIZE to 16 bytes (128 bits).
 
-\item[WBD\_VER\_MINOR (Offset: 0x0F)] \hfill \\
+\item[LCSD\_VER\_MINOR] \hfill \\
 The minor version of the device descriptor format. This field is compatible
 between versions. This means that a change only in the minor number means the
 structure is preserved. An example of a minor version change is the addition
-of a new flag in the WBD\_FLAGS field.
+of a new flag in the DEVICE\_FLAGS field.
 
-\item[HDL\_BASE (Offset: 0x10)] \hfill \\
-This field contains the base address of the Wishbone device.
-The software reading this field should know what address width to expect.
+\item[DEVICE\_OFFSET] \hfill \\
+This field contains the offset of the start of the device descriptor within
+the address space of the device. This can be an internal offset, in which
+case the offset is subtracted from the address of the descriptor to get the
+base address of the device. It may also be an external offset, in which
+case the offset is added to the address of the device descriptor to get the
+base address of the device. The type is specified by the INTERNAL\_OFFSET
+flag in the DEVICE\_FLAGS register.
 
-\item[HDL\_SIZE (Offset: 0x18)] \hfill \\
+\item[DEVICE\_FLAGS] \hfill \\
+This field contains device specific flags. The structure is given below in
+table \ref{dev_flags}.
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{LCSD64 device flags field structure}\label{dev_flags}\centering
+      \begin{tabular}{| c | l | c | c | p{5cm} |} \hline
+      Bits & Name & Access & Value & Description \\ \hline
+      0 & EXTERNAL\_OFFSET & RO & \vtop{\hbox{\strut 0 = Internal}\hbox{\strut 1 = External}} & Specified whether the offset provided in the DEVICE\_OFFSET field is internal of external. \\ \hline
+      1 & ENDIAN & RO & \vtop{\hbox{\strut 0 = Big Endian}\hbox{\strut 1 = Little Endian}} & Specifies the endianness of the address range of this device. \\ \hline
+      2 & IGNORE & RO & \vtop{\hbox{\strut 0 = Use this descriptor}\hbox{\strut 1 = Ignore descriptor}} & Specifies whether the device should be considered to be present or not. \\ \hline
+      4 - 23 & RESERVED & RO & - & Reserved \\ \hline
+      24 - 27 & GRANULARITY & RO & \vtop{\hbox{\strut 00 = 8 bits}\hbox{\strut 01 = 16 bits}\hbox{\strut 10 = 32 bits}\hbox{\strut 11 = 64 bits}} & The I/O granularity of the device. \\ \hline
+      28 - 31 & WIDTH & RO & \vtop{\hbox{\strut 00 = 8 bits}\hbox{\strut 01 = 16 bits}\hbox{\strut 10 = 32 bits}\hbox{\strut 11 = 64 bits}} & The data width of the device. \\ \hline
+      \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\item[HDL\_SIZE] \hfill \\
 This field contains the size of the address space of this device.
 The software reading this field should know what address width to expect.
 
-\item[WBD\_FLAGS (Offset: 0x20)] \hfill \\
-Currently undefined.
-
-\item[HDL\_CLASS (Offset: 0x24)] \hfill \\
-The class of the Wishbone device. The class is used to identify a device
+\item[HDL\_CLASS] \hfill \\
+The class of the device. The class is used to identify a device
 with a specific register map, so a host driver can handle all devices of
 the same class, irrespective of vendor and device numbers. This is similar
 to PCI or USB devices.
 
-\item[HDL\_VERSION (Offset: 0x28)] \hfill \\
-This field specifies the version of the Wishbone device. The format can be
+\item[HDL\_VERSION] \hfill \\
+This field specifies the version of the device. The format can be
 specified in any way by a vendor as the software reading this field will be
 specific to each vendor (selected based on the metadata stored in the
 parent board) and is expected to know how to decode this field.
 
-\item[HDL\_DATE (Offset: 0x2C)] \hfill \\
-The HDL date should be set to the hex-readable date of synthesis of
-the Wishbone device. An example of a hex-readable date is 0x20111225 (25th
-December 2011).
-
-\item[VENDOR\_NAME (Offset: 0x30)] \hfill \\
+\item[VENDOR\_NAME] \hfill \\
 The ASCII string representation of the vendor name. The unused bytes of the
 string should be set to the value 0x20. The length of the ASCII string can range
 up to the maximum size (16 characters).
 
-\item[DEVICE\_NAME (Offset: 0x40)] \hfill \\
+\item[DEVICE\_NAME] \hfill \\
 The ASCII string representation of the device name. The unused bytes of the
 string should be set to the value 0x20. The length of the ASCII string can range
 up to the maximum size (16 characters).
+
+\item[NUM\_CHILDREN] \hfill \\
+This field specifies the number of children that this device has. The default
+value is set to 0. This is used to identify the length of the child pointer
+block within the descriptor (see DEVICE\_CHILDREN field).
+
+\item[DEVICE\_CHILDREN] \hfill \\
+This field is a variable length child pointer block that provides information
+about all children of this device.
+
 \end{description}
 
 \subsubsection{Note on Vendor IDs}
@@ -448,6 +447,9 @@ recommended fields to use are the vendor name string and a 128 bit random
 seed. It is recommended to use the MD5 hash of these fields and take the
 8 least significant bytes from the resulting hash.
 
+\subsubsection{Note on Optional Fields}
+Device descriptors have certain field which are optional. These are HDL\_CLASS,
+HDL\_VERSION, VENDOR\_NAME, DEVICE\_NAME.
 
 \section{Example Memory Map}
 
