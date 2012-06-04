@@ -1,4 +1,4 @@
-FILE=sdwb
+FILE=proposal
 
 all: $(FILE).pdf
 

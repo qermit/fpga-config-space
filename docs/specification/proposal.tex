@@ -1,0 +1,378 @@
+\documentclass[a4paper, 12pt]{article}
+
+\usepackage{draftwatermark}
+\usepackage{changepage}
+%\usepackage{fullpage}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{footnote}
+\usepackage{graphicx}
+
+\SetWatermarkScale{4}
+
+\usepackage{caption}
+\DeclareCaptionFont{white}{\color{white}}
+\DeclareCaptionFormat{listing}{\colorbox{gray}{\parbox{\textwidth}{#1#2#3}}}
+\captionsetup[lstlisting]{format=listing,labelfont=white,textfont=white}
+\lstset{
+	tabsize=4,
+	basicstyle=\footnotesize,
+	columns=fixed,
+}
+
+\parindent0pt
+\parskip10pt
+\makesavenoteenv{tabular}
+
+\title{Self Descriptive Structures for Logic Cores}
+\author{Manohar Vanga (BE/CO/HT), Alessandro Rubini (University of Pavia)}
+\date{1 June 2012}
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\listoftables
+\listoffigures
+
+\pagebreak
+
+\section{Introduction}
+
+This document describes a specification for a series of self descriptive
+structures that can be used to provide metadata about logic blocks. This metadata
+may be used by higher level abstractions to automatically discover the blocks and
+configure them during runtime.
+
+\section{SDWB Structures}
+
+This section describes the important structures that are a part of the SDWB specification.
+
+\subsection{SDWB Table}
+
+The most important structure that needs to be present in a design to support SDWB
+based autodiscovery is the SDWB table.
+
+The SDWB table is a contiguous array of records that provides the needed metadata
+about devices. There is no restriction placed on where this table is located in
+memory and the higher levels only need to know the location of the top-level table
+to recursively discover the descriptions of all the blocks.
+
+An SDWB table is composed of multiple SDWB records. There are four different types of
+SDWB records that can be used to describe different parts of the design.
+
+\begin{enumerate}
+\item Interconnect Record
+\item Device Record
+\item Bridge Record
+\item Integrator Record
+\end{enumerate}
+
+\subsection{SDWB Product Info}
+
+The SDWB product info structure is a 40 byte structure that provides information about
+the specific product being described. The information provided here is used for device
+identification.
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{SDWB Product Info Structure (40 bytes)}\label{sdwb_product_struct}\centering
+        \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
+        Offset & Size (bytes) & Name & Value & Description \\ \hline
+        0x00 & 8 & VENDOR\_ID & - & 64-bit vendor ID \\ \hline
+        0x08 & 4 & DEVICE\_ID & - & 32-bit vendor specific device ID \\ \hline
+        0x0C & 4 & VERSION & - & Vendor specific device version number \\ \hline
+        0x10 & 4 & DATE & - & The release date (hex format, eg. 0x20120601) \\ \hline
+        0x14 & 19 & NAME & - & ASCII device name without NULL terminator \\ \hline
+        0x27 & 1 & RECORD\_TYPE & - & Record type byte (see Table \ref{record_type}) \\ \hline
+        \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\begin{description}
+\item[VENDOR\_ID] \hfill \\
+This field provides a 64 bit field that identifies the vendor of the device. The vendor may
+be an company, organization or an individual. The size of this field has been kept at 64
+bits to prevent collisions in the long term.
+
+A registry is still needed to prevent collisions when using community developed designs from
+multiple sources and one will be set up in the near future. However, use of the registry is
+not mandated. To allow for this, the 64 bit ID space is split into two parts. All ID's with
+the most significant bit set are considered free to use. No guarantees are provided regarding
+collisions when using this space during integration of designs with externally provided
+components.
+
+The second part of the ID space with the most significant bit unset is reserved for use with
+the registry.
+
+\item[DEVICE\_ID] \hfill \\
+This field specifies a manufacturer defined device ID for the device being described.
+
+\item[VERSION] \hfill \\
+This field specifies a manufacturer defined version number for the device. For example, this
+may be derived from the information provided by the source code management being used.
+
+\item[DATE] \hfill \\
+This field specified the release date of the device being described. This must be a 32-bit hex
+format number in the format 0xYYYYMMDD. For example, 0x20120101 specifies the first day of the
+year 2012.
+
+\item[NAME] \hfill \\
+The ASCII name of the device. No NULL terminator need be provided in this field. The name length
+may be a maximum length of 19 characters. Unused bytes should be set to 0x20 (or ASCII SPACE).
+
+\item[RECORD\_TYPE] \hfill \\
+Since the product info structure is embedded within various types of record structures, this
+field specifies the type of the encapsulating structure. There is a record type for each kind
+of SDWB record as well as one to specify an empty record. The various record types are described
+in Table \ref{record_type}.
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{SDWB Record Types}\label{record_type}\centering
+        \begin{tabular}{| c | l | p{5cm} |} \hline
+        Name & Value & Description \\ \hline
+        INTERCONNECT & 0x00 & Interconnect record type \\ \hline
+        DEVICE & 0x01 & Device record type \\ \hline
+        BRIDGE & 0x02 & Bridge record type \\ \hline
+        INTEGRATOR & 0x80 & Integrator record type \\ \hline
+        EMPTY & 0xFF & Empty record type \\ \hline
+        \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+\end{description}
+
+\subsection{SDWB Component Info}
+
+The Component Info structure is a 56 byte structure which, in addition to embedding product
+information, also additionally provides information regarding the address space used by the
+device. When a particular record type requires address space information in addition to product
+information, this structure is embedded.
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{SDWB Component Info Structure (56 bytes)}\label{sdwb_component_struct}\centering
+        \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
+        Offset & Size (bytes) & Name & Value & Description \\ \hline
+        0x00 & 8 & ADDR\_BEGIN & - & The start address of the component \\ \hline
+        0x08 & 8 & ADDR\_LAST & - & The last valid address of the component \\ \hline
+        0x10 & 40 & PRODUCT & - & SDWB Product Info structure (see Table \ref{sdwb_product_struct} \\ \hline
+        \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\begin{description}
+\item[ADDR\_BEGIN] \hfill \\
+The start address of the memory area occupied by the device.
+
+\item[ADDR\_LAST] \hfill \\
+The last valid address in memory that is occupied by the device. For example, a device that takes
+up the entire 64-bit space has its last address at 0xffffffffffffffff
+
+\item[PRODUCT] \hfill \\
+This is the embedded 40 byte product info structure as described in Table \ref{sdwb_product_struct}.
+\end{description}
+
+\subsection{SDWB Records}
+
+This subsection describes the different SDWB records that compose the SDWB table structure. These
+structures must be instantiated by designers for each logic block in their design and compiled into
+a contiguous SDWB table that gets placed in the bus memory.
+
+\subsubsection{Interconnect Record}
+
+The interconnect record describes the high level bus that has child devices connected to it. This
+structure should be the "header" or first record in the SDWB table. It provides, among other things,
+information regarding the SDWB table (eg. the number of following records).
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{SDWB Interconnect Record Structure}\label{sdwb_interconnect_struct}\centering
+        \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
+        Offset & Size (bytes) & Name & Value & Description \\ \hline
+        0x00 & 4 & MAGIC & 0x53445742 & Magic value for checking validity \\ \hline
+        0x04 & 2 & NUM\_RECORDS & - & Number of records in this SDWB table \\ \hline
+        0x06 & 1 & SDWB\_VERSION & 0x1 & SDWB format version. Current is 0x1 \\ \hline
+        0x07 & 1 & SDWB\_BUS\_TYPE & - & The last valid address of the component \\ \hline
+        0x08 & 56 & COMPONENT & - & SDWB Component Info structure (see Table \ref{sdwb_component_struct} \\ \hline
+        \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\begin{description}
+\item[MAGIC] \hfill \\
+This field is a unique number to ensure that the record being read is valid. The default
+value for this in this version of the specification is 0x53445742 or the ASCII characters
+"SDWB".
+
+\item[NUM\_RECORDS] \hfill \\
+This field specifies the number of records in the table. The number must take into account
+this header (interconnect) record as well. The other records following the header may be
+any combination of device, bridge and integrator records.
+
+\item[SDWB\_VERSION] \hfill \\
+This is the record format version. In the current version of the specification this is the
+value 0x1.
+
+\item[SDWB\_BUS\_TYPE] \hfill \\
+This field specifies the bus type. This field is used when decoding the bus specific information
+inside a device record (see below). In the current version of the specification, the only
+supported bus is Wishbone. Other buses may be added in the future.
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{SDWB Bus Types}\label{bus_type}\centering
+        \begin{tabular}{| c | l | p{5cm} |} \hline
+        Name & Value & Description \\ \hline
+        WISHBONE & 0x00 & Specifies a Wishbone bus type \\ \hline
+        \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\item[COMPONENT] \hfill \\
+An interconnect record has a component info structure embedded within it which can be used
+to provide additional meta-data regarding the interconnect itself.
+\end{description}
+
+\subsubsection{Integrator Record}
+
+An integrator record gives meta-data about the aggregate product of the bus. For example, consider
+a manufacturer that takes components from various vendors and combines them with a standard bus
+interconnect. This aggregate product can be described by an SDWB integrator record.
+
+This record is important as it helps to clearly distinguish product information of devices and of
+their aggregated products. Since this is the only main requirement of the integrator record, it
+only contains a product info structure without the additional address space information (as this
+can easily be gleaned from the records for the specific devices that compose the aggregate). The
+structure of the integrator record is described in Table \ref{sdwb_integrator_struct}.
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{SDWB Integrator Record Structure}\label{sdwb_integrator_struct}\centering
+        \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
+        Offset & Size (bytes) & Name & Value & Description \\ \hline
+        0x00 & 24 & RESERVED & - & Reserved bytes \\ \hline
+        0x18 & 40 & PRODUCT & - & SDWB Product Info structure (see Table \ref{sdwb_product_struct} \\ \hline
+        \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\begin{description}
+\item[PRODUCT] \hfill \\
+An integrator record has a product info structure embedded within it which can be used
+to provide meta-data that aids in identifying the aggregating interconnect.
+\end{description}
+
+\subsubsection{Device Record}
+
+This record type describes a single device or logic block mapped into the memory of the
+bus. In a correct implementation, one device record should exist for each device that is
+connected to the bus. The structure of the device record structure is shown below in Table
+\ref{sdwb_dev_struct}.
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{SDWB Device Record Structure}\label{sdwb_dev_struct}\centering
+        \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
+        Offset & Size (bytes) & Name & Value & Description \\ \hline
+        0x00 & 2 & ABI\_CLASS & - & The ABI class of the device (0 = Custom Device) \\ \hline
+        0x02 & 1 & ABI\_VER\_MAJOR & - & The ABI major version \\ \hline
+        0x03 & 1 & ABI\_VER\_MINOR & - & The ABI minor version \\ \hline
+        0x04 & 4 & BUS\_SPECIFIC & - & Bus specific field \\ \hline
+        0x08 & 56 & COMPONENT & - & SDWB Component Info structure (see Table \ref{sdwb_component_struct} \\ \hline
+        \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\begin{description}
+\item[ABI\_CLASS] \hfill \\
+The ABI class, if specified, tells the kind of standard interface that the device provides. The
+currently available types of ABI classes are specified in Table \ref{abi_class_list}.
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{ABI Classes}\label{abi_class_list}\centering
+        \begin{tabular}{| c | l | p{5cm} |} \hline
+        Value & ABI Class & Description \\ \hline
+        0 & Custom Device & Used when the device does not conform to any standard interface \\ \hline
+        \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\item[ABI\_VER\_MAJOR] \hfill \\
+This is the major version number of the ABI class. Standard interfaces are not compatible between
+major version changes.
+
+\item[ABI\_VER\_MINOR] \hfill \\
+This is the minor version number of the ABI class. Standard interfaces are compatible between
+minor version changes.
+
+\item[BUS\_SPECIFIC] \hfill \\
+This is a 4-byte field that holds bus-specific information. The bus specific information for different
+supported buses is described in Table \ref{bus_specific}.
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{Wishbone -- Bus Specific Information}\label{bus_specific}\centering
+        \begin{tabular}{| c | l | p{5cm} |} \hline
+        Bit Offset & Name & Description \\ \hline
+        0 & ENDIAN & Specifies the endianness of the device (0 = big endian, 1 = little endian) \\ \hline
+        \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\item[COMPONENT] \hfill \\
+An embedded component info structure for providing meta-data about the device being described.
+\end{description}
+
+\subsubsection{Bridge Record}
+
+A bridge record is used to describe a nested bus within the same address space. This is different from
+a bus controller which provides access to an entirely different address space altogether. Bus
+controllers should be treated and handled as devices and not bridges. The structure of the bridge record
+is shown in Table \ref{sdwb_bridge_struct}.
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{SDWB Bridge Structure}\label{sdwb_bridge_struct}\centering
+        \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
+        Offset & Size (bytes) & Name & Value & Description \\ \hline
+        0x00 & 8 & SDWB\_CHILD & - & The relative address of the nested SDWB table \\ \hline
+        0x08 & 56 & COMPONENT & - & SDWB Component Info structure (see Table \ref{sdwb_component_struct} \\ \hline
+        \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\begin{description}
+\item[SDWB\_CHILD] \hfill \\
+This field gives the location of the nested bus' SDWB table. This address is a relative address
+with respect to the start of the nested bus' address space (stored in the component info structure).
+
+\item[COMPONENT] \hfill \\
+An embedded component info structure for providing meta-data about the bridge being described.
+\end{description}
+
+\end{document}
