@@ -28,8 +28,8 @@
 \makesavenoteenv{tabular}
 
 \title{Self Descriptive Structures for Logic Cores}
-\author{Manohar Vanga (BE/CO/HT), Alessandro Rubini (University of Pavia)}
-\date{1 June 2012}
+\author{Manohar Vanga (BE/CO/HT), Wesley Terpstra (GSI), Alessandro Rubini (Independent Consultant)}
+\date{June 13th 2012}
 \begin{document}
 
 \maketitle
@@ -44,8 +44,123 @@
 
 This document describes a specification for a series of self descriptive
 structures that can be used to provide metadata about logic blocks. This metadata
-may be used by higher level abstractions to automatically discover the blocks and
+should be provided by the logic cores, like PCI or USB descriptive records,
+so device drivers and other software can automatically discover the blocks and
 configure them during runtime.
+
+\subsection{History and Rationale}
+
+The idea of a self-describing bus appeared while working on
+\textit{White Rabbit} and related projects that make massive use of
+FPGA devices. Separately and concurrently, both the CERN and the GSI
+working groups identified the need for some way to self-detect the
+contents of a specific logic device after it is programmed.
+
+We envisioned that if the internal FPGA bus would enumerate its own
+content, we would get the following advantages:
+
+\begin{itemize}
+\item Run-time validation of FPGA binary images;
+\item Easy matching of software and gateware;
+\item Automatic handling of several binaries with the same software;
+\item Feasibility of tools like \texttt{lspci} or \texttt{lsusb};
+\item Automatic loading of kernel drivers on the host computer;
+\item Automatic setup of low-level driver within soft cores;
+\item Better decoupling of gateware and software development.
+\end{itemize}
+
+As usual in engineering, we wanted a system that was as simple as possible,
+yet open to future extensions without introducing compatibility issues.
+While our internal bus is \textit{Wishbone}, we designed the structures
+to be generic so other bus implementations may use them. 
+
+We are aware of the AMBA (PrimeCell) cell-id standard, but we think it
+is seriously under-designed: the idea is sound, but a single cell-ID field
+is not enough if we want to make sense of the whole bus. We think the
+hardware and software resources allow a richer description of logic blocks.
+
+We are also aware of the PCI and USB data structures, but they are
+unsuitable for and FPGA, either. On one side, they assume devices are
+enumerated by other means, whereas we need to be able to scan a flat
+address space; on the other their vendor ID space is ridiculously small,
+because the model of the respective consortia is based on artificial scarcity.
+
+This specification, thus, uses 64 bits for the vendor ID, to prevent scarcity.
+The vendor space is spit in two parts, and everybody is free to elect their
+own vendor number and start designing using the spec, provided the most-significant
+bit is set.
+
+We acknowledge the usefulness of a central vendor registry, so the
+vendor-ID space with the first bit zeroed is reserved for numbers that
+are officially assigned and published.  The vendor registry, however, is not
+part of this specification, which just lists the first few vendor-ID values that
+have already been used.
+
+All multi-byte values are stored in \textit{big endian} order.  This
+choice is designed to make the life easier some developers (the poor
+guys that sometimes need to look at binary dumps one byte at a time)
+and to make like harder for other developers (the poor guys that work
+on the PC and think all the world is \textit{little endian}).  Actually,
+by choosing the less common endianness we think it's easier to write
+portable code, because code ignoring byte ordering will simply not work
+when compiled on the PC.
+
+All data structures are 64 byte large and are similar in their
+internal layout; the last byte in the 64-wide slot identifies the type
+of each structure, to allow very simple parsing code and easy extension
+to new types of structures.  The size os a power of two in order to
+avoid multiplication and division in calculating array sizes, as the
+driver may reside in a very simple soft-core.
+
+
+\subsection{Scope of This Specification}
+
+This specification is not \textit{official} in any way: it just
+documents what we are doing and why it is done like it is.  We believe
+in free circulation of ideas and we think the good ones will flourish.
+Everybody is welcome to use the data structures used in this specification
+and give feedback, both positive and negative.
+
+The document (with the notable exception of this section) is written
+as a formal specification because we need clear and sharp rules in
+order to make different implementations interoperate.  We are sticking
+to those rules in our own implementations, both in gateware and in
+associated software.
+
+Everybody is free to choose a vendor-ID and start coding right now; we
+suggest to pick a random 64 bit number and set the most significant
+bit (as an alternative, you can pick a random 63 bit number and
+concatenate it to a single set bit).
+
+If you want to implement your own data structures, similar to ours
+but different in some way, please change the magic number, to avoid
+headaches if both bus implementation are instantiated within the same host
+computer or network.
+
+\subsection{The Overall System Structure}
+
+%FIXME: describe bus, device, driver, controller etc
+
+\subsection{Current Implementations}
+
+Etherbone
+%FIXME: describe etherbone implementation
+
+\section{SDWB Header Material}
+
+This section includes the whole header file you need to define
+the data structures. The header is also part of the associated source files.
+%FIXME: header in the sources
+
+All fields and bits are explained in the later sections of this
+specification, but we prefer to show the meat straight at the
+beginning, before being lost in acronyms and gory details.
+
+This header uses the Linux kernel coding style (e.g.: no \texttt{typedef} is used),
+but you can write it differently if you prefer -- some of us already did -- as
+long as the binary representation of the data matches.
+
+%FIXME: header material in the document
 
 \section{SDWB Structures}
 
