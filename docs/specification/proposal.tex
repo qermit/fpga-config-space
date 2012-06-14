@@ -10,8 +10,11 @@
 \usepackage{multirow}
 \usepackage{footnote}
 \usepackage{graphicx}
+\usepackage{verbatim}
 
 \SetWatermarkScale{4}
+%\SetWatermarkText{beta version}
+\SetWatermarkLightness{0.9}
 
 \usepackage{caption}
 \DeclareCaptionFont{white}{\color{white}}
@@ -27,8 +30,9 @@
 \parskip10pt
 \makesavenoteenv{tabular}
 
-\title{Self Descriptive Structures for Logic Cores}
-\author{Manohar Vanga (BE/CO/HT), Wesley Terpstra (GSI), Alessandro Rubini (Independent Consultant)}
+\title{Self Description Structures for Logic Cores}
+\author{Manohar Vanga (BE/CO/HT), Wesley Terpstra (GSI),\\
+Alessandro Rubini (Independent Consultant)}
 \date{June 13th 2012}
 \begin{document}
 
@@ -42,9 +46,9 @@
 
 \section{Introduction}
 
-This document describes a specification for a series of self descriptive
+This document describes a specification for a series of self description
 structures that can be used to provide metadata about logic blocks. This metadata
-should be provided by the logic cores, like PCI or USB descriptive records,
+should be provided by the logic cores, like PCI or USB description records,
 so device drivers and other software can automatically discover the blocks and
 configure them during runtime.
 
@@ -141,9 +145,20 @@ computer or network.
 \subsection{The Overall System Structure}
 
 The bus described by the structures defined herein is set up as a
-flag address space. Our initial target is the \textit{Wishbone} bus,
+flat address space. Our initial target is the \textit{Wishbone} bus,
 as used in our own FPGA projects, but the overall situation is
-pretty general.
+pretty general and can be applied to any bus or even a storage
+system for quasi-static information in flash memory
+
+To keep variety to a minimum, this standard defines the concept of
+\textit{product}, which is (anything that has been \textit{done}, and thus has
+its own identifiers, name, version and date).  This includes
+meta-information, for example a record of the final build of the
+FPGA binary.
+
+Every \textit{product} that owns some address space is called a
+\textit{component}; as such it specifies its first and last address, as
+64 bit numbers.
 
 Within the bus memory area, the address space available to bus masters
 is usually decoded into several blocks using the high address bits, so
@@ -152,29 +167,30 @@ as powers of two, but this is not mandatory -- some designers may use
 individual address lines to select blocks, to easily get a sparsely
 populated address space.  The designer of the address demultiplexer
 (the \textit{interconnect} block) is expected to describe the
-logic blocks living behind the interconnect, using an array
-of data structures (one per sub-block).
+logic blocks living behind the interconnect, as well as the
+interconnect itself. Thus, the \textit{interconnect} is a \textit{component}
+(it has an address range), and the associated structure is the first
+one of an array of structures, that defines components and optionally
+more abstract products.
 
-Some of those blocks in turn may be bridges to another address
-demultiplexer; to support this the structures allow for a different
-array of structures to be indexed from any array of structures,
-to allow nesting at arbitrary levels.
-
-The structures themselves are expected to be readable at some address
-that is part bus itself (i.e., the interconnect blocks are expected to
-be able to route bus access to their own internal ROM data).
+Some of the blocks within an interconnect data space can in turn be
+bridges to another interconnect device.  Thus, the \textit{bridge}
+component states where he further self-description structures are to
+be found. This allows nesting at arbitrary levels (too deep nesting is
+not a good practice, but the specification is not limiting the
+designer ingenuity).
 
 Only the bus designer knows where the outer-level data structure is to
-be found, and such information is expected to be known but the ``bus
+be found, and such information is expected to be known by the ``bus
 driver'' software package.  For example, a soft-core scanning its own
-bus will know where to start from because it is part of the same
+bus will know where to start from, because it is part of the same
 overall design; a PCI driver must know how to access internal bus
-memory from a PCI memory window, so it can also know where the handle
-to self description lives; an \textit{Etherbone} bus master will
+memory from a PCI memory window, so it can also know where the
+self description entry point is stored; an \textit{Etherbone} bus master will
 comply to its own packet-format standard, so it can as well know
 where to start enumerating the bus from.
 
-We can therefore define the following items to build the
+We can therefore define the following terms to build the
 self-description framework:
 
 \begin{description}
@@ -238,13 +254,13 @@ The same mechanism is soon going to be used in the \textit{White
 Rabbit PTP Core} and the outer-level FPGA designs that are
 being used in our synchronized I/O boards.
 
-\section{SDWB Header Material}
+\section{SDB Header Material}
 
-This section includes the whole header file you need to define
-the data structures. The header is also part of the associated source files.
-%FIXME: header in the sources
+This section includes the whole header file that defines the data
+structures. The header is also part of the source code accompanying
+this specification.
 
-All fields and bits are explained in the later sections of this
+All fields and bits are explained in detail in later sections of this
 specification, but we prefer to show the meat straight at the
 beginning, before being lost in acronyms and gory details.
 
@@ -252,7 +268,9 @@ This header uses the Linux kernel coding style (e.g.: no \texttt{typedef} is use
 but you can write it differently if you prefer -- some of us already did -- as
 long as the binary representation of the data matches this one.
 
-%FIXME: header material in the document
+\footnotesize
+\verbatiminput{sdb-h.expand}
+\normalsize
 
 \section{SDWB Structures}
 
