@@ -13,7 +13,7 @@
 \usepackage{verbatim}
 
 \SetWatermarkScale{4}
-%\SetWatermarkText{beta version}
+\SetWatermarkText{}
 \SetWatermarkLightness{0.9}
 
 \usepackage{caption}
@@ -254,6 +254,7 @@ The same mechanism is soon going to be used in the \textit{White
 Rabbit PTP Core} and the outer-level FPGA designs that are
 being used in our synchronized I/O boards.
 
+
 \section{SDB Header Material}
 
 This section includes the whole header file that defines the data
@@ -272,22 +273,195 @@ long as the binary representation of the data matches this one.
 \verbatiminput{sdb-h.expand}
 \normalsize
 
-\section{SDWB Structures}
+\section{Linux Kernel Model}
 
-This section describes the important structures that are a part of the SDWB specification.
+This sections describes the plans for integration of SDB in the Linux
+Kernel environment.  The uninterested reader can skip over to the next
+section where we get back to the actual structures.
 
-\subsection{SDWB Table}
+In our plans this self-description standard is tightly related with
+Linux device drivers, because most of oue FPGA devices are going to be
+driven by a GNU/Linux host, whether over PCI, VME, or Etherbone.
 
-The most important structure that needs to be present in a design to support SDWB
-based autodiscovery is the SDWB table.
+Devices may appear and disappear during system lifetime: this happens
+when you load and remove the PCI driver (or instantiate an Etherbone
+peer), but also when you reprogram the FPGA with a different binary.
+Another issue is that the device driver may be concerned with the FPGA
+binary as a whole or with each individual logic block; thus, the same
+GPIO logic block can be either driven by the host or ignored -- because
+is is directlly used by the soft-core.
 
-The SDWB table is a contiguous array of records that provides the needed metadata
+\subsection{Wishbone Core and Enumeration}
+
+For the time being, let's call the bus \textit{Wishbone} (this will
+definitely be the first implementation we are using, and some specifics
+of byte-wide access will need to be dealt with, so let's ignore
+generality at this point).
+
+The bus management code will be part of a kernel module called
+\texttt{wb-core}. The core includes bus scanning and enumeration
+logic, as well as the \textit{match} function that mates devices and
+drivers, like every other Linux bus is doing.
+
+When some piece of code detects a new bus, it will register the new
+bus instance, claiming to be the associated controller.  In addition,
+registration specifies the address where SDB records live. The bus and
+controller can be removed at any time, like you can remove a USB hub
+or a \textit{Compact-PCI} bridge.
+
+Such bus creation and removal will typically happen when the PCI
+driver finds its own SPEC carrier, or when the user tells the system
+that at some IP or Ethernet address the Etherbone protocol is
+supported.
+
+The wishbone core will start enumerating the bus, using
+controller-provided operations for the individual I/O transactions;
+such enumeration begins at the known address the controller declared.
+The controller implements such transactions in the proper way, by
+direct reads/writes to PCI or VME memory, or by sending Etherbone frame
+or whatever.
+
+The first SDB record must be an \textit{interconnect} record: thus,
+the first field is the magic number. If the magic number is not found,
+enumeration is aborted.  The \textit{interconnect} record is the first
+in an array of SDB structures, and it declares how long the array is;
+each device then declares its own address range.  The system is
+designed to never generate invalid memory accesses, but the first
+address must be externally provided, and the controller is responsible
+for providing a valid address for its own bus; then, non-SDB buses are
+handled by simply not finding the magic number (in this case we assume
+the bus designer willingly placed another value at that address, by
+knowing the host controller is SDB-ready).
+
+During enumeration, all SDB structures are scanned, and the core will
+register a device for each and any of those items.  If a driver exists
+for the associated device, its own probe function is called, in the
+usual way.  As an alternative, the driver may appear at a later time,
+or can be automatically loaded when the device is detected. Again, these
+operation follow sound Linux tradition and are well known and safe.
+are the well acc
+
+As a special case, a Wishbone driver can request to stop scanning, by
+returning a specific value.  When this happens, the core will stop
+enumerating the bus -- but the driver itself is allowed to register
+further devices or scan sub-buses.
+
+This feature is designed to allow multi-device blocks to be handled as
+a whole.  If the FPGA design is a single complex object, with its own
+CPU inside and internally-driven peripheral, the Linux driver for the
+associated \textit{interconnect} or \textit{integration} record will
+get ownership of everything.  This prevents generic GPIO or UART
+drivers to be probed for, still allowing generic logic blocks to be
+used without the hassle of a host driver trying to manage them
+in conflict with the internal CPU.
+
+Whenever this logic complex is embedded in an outer bus, where
+host-accessible drivers live, such request to stop scanning will not
+prevent outer devices to have their own Linux driver loaded.  Finally,
+if the driver for the logic complex wants to export some inner block
+to a host device driver (e.g., an internal GPIO block), it can still
+register some internal SDB records and keep other ones private,
+according to internal policies.
+
+
+\subsection{Accessing the Bus}
+
+After the controller registered its own self-described bus and
+\texttt{wb-core} is done scanning and probing drivers, applications
+should access those resources.
+
+Whenever a driver has taken ownership of a device, it also takes
+care of user access. Whether it registered GPIO pins, a tty device
+or a network interface, access is not a problem of \texttt{wb-core}.
+
+To allow generic user-space access ot the bus, \texttt{wb-core} offers
+a char device interface, compatible with the API already in use within
+GSI.  The char device is not created by default, but a \textit{sysfs}
+attribute for the bus allows to instantiate it, with a user-provided
+name.  With another \textit{sysfs} attribute, user space can tell the
+core whether it wants complete control of the bus or only of those
+devices that are not yet driven, the latter behavior being the
+default.  A \texttt{wb-core} general parameter can be used to always
+create the char device, and even always granting whole-bus access.
+
+The default behavior fot the char device will return \texttt{EBUSY} for
+all I/O operations that fall in an address space that belongs to a
+device driver. This is consistent with user-space interfaces for
+\textit{I2C-char} and \textit{libgpio}; it is a good policy to prevent
+unexpected race conditions or other inconsistencies.
+
+When user-space requests access to the whole bus, this will force
+unbinding of all the device drivers that are active over the bus.
+This is a shortcut over individually unbinding all drivers using
+\textit{sysfs} device attrobutes.
+
+
+\subsection{Autoprobing Device Drivers}
+
+In order to allow automatic loading of device drivers, not unlike
+what already is in place for PCI, USB and other widespread bus
+interfaces, we plan to add \textit{modalias} support for wishbone
+and, later, for other SDB bus versions.
+
+\subsection{Storage Support}
+
+Another use for SDB we are evaluating these months is a simple yet
+effective flash storage organization.  SDB records can be used as a
+very simple file-system-like interface that can be parsed by a
+soft-core CPU with very little overhead.
+
+Such a file-system will be mostly-read and requires no wear leveling;
+still, we sometimes need to update FPGA binary images or some
+calibration parameters.  In our search for the state of the art, we
+didn't find small and simple filesystems that allow in-place
+replacement of files, without touching nearby files or layout
+information.
+
+If the idea will fly, we'll define storage as a bus type, where each
+record describes a file, with both a name and easily-searched device
+or class identifier.  Within SDB, bridge devices lend themselves to be
+used to represent directories, if needed, without any semantic change.
+This approach allows serious memory savings in soft-core programs that
+must both find whether they have a diagnostic channels in the form of
+a UART and whether they have been provided a configuration file, or
+other board-dependent parameters.
+
+Another special use of this filesystem is for FMC flash devices: the
+standard mandates that the leading part of the flash includes IPMI
+information for the card; the driver for the carrier board will thus
+be able to scan the trailing part of the device for the SDB magic and
+then register a filesystem that only spans the needed part of the
+flash, as defined at manufacture time (or by device-specific
+software).
+
+Applications will create the SDB filesytem as an image file, will
+write them using normal char-device MTD operations and will be able to
+mount it with as a specific filesystem driver. When mounted,
+individual files will be replaceable in place using the normal Unix
+tools and system calls.
+
+
+
+\section{SDB Structures}
+
+
+Note: the document has not been updated after this point.
+\vfill
+
+This section describes the important structures that are a part of the SDB specification.
+
+\subsection{SDB Table}
+
+The most important structure that needs to be present in a design to support SDB
+based autodiscovery is the SDB table.
+
+The SDB table is a contiguous array of records that provides the needed metadata
 about devices. There is no restriction placed on where this table is located in
 memory and the higher levels only need to know the location of the top-level table
 to recursively discover the descriptions of all the blocks.
 
-An SDWB table is composed of multiple SDWB records. There are four different types of
-SDWB records that can be used to describe different parts of the design.
+An SDB table is composed of multiple SDB records. There are four different types of
+SDB records that can be used to describe different parts of the design.
 
 \begin{enumerate}
 \item Interconnect Record
@@ -296,16 +470,16 @@ SDWB records that can be used to describe different parts of the design.
 \item Integrator Record
 \end{enumerate}
 
-\subsection{SDWB Product Info}
+\subsection{SDB Product Info}
 
-The SDWB product info structure is a 40 byte structure that provides information about
+The SDB product info structure is a 40 byte structure that provides information about
 the specific product being described. The information provided here is used for device
 identification.
 
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{SDWB Product Info Structure (40 bytes)}\label{sdwb_product_struct}\centering
+      \caption{SDB Product Info Structure (40 bytes)}\label{sdwb_product_struct}\centering
         \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
         Offset & Size (bytes) & Name & Value & Description \\ \hline
         0x00 & 8 & VENDOR\_ID & - & 64-bit vendor ID \\ \hline
@@ -354,13 +528,13 @@ may be a maximum length of 19 characters. Unused bytes should be set to 0x20 (or
 \item[RECORD\_TYPE] \hfill \\
 Since the product info structure is embedded within various types of record structures, this
 field specifies the type of the encapsulating structure. There is a record type for each kind
-of SDWB record as well as one to specify an empty record. The various record types are described
+of SDB record as well as one to specify an empty record. The various record types are described
 in Table \ref{record_type}.
 
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{SDWB Record Types}\label{record_type}\centering
+      \caption{SDB Record Types}\label{record_type}\centering
         \begin{tabular}{| c | l | p{5cm} |} \hline
         Name & Value & Description \\ \hline
         INTERCONNECT & 0x00 & Interconnect record type \\ \hline
@@ -374,7 +548,7 @@ in Table \ref{record_type}.
 \end{center}
 \end{description}
 
-\subsection{SDWB Component Info}
+\subsection{SDB Component Info}
 
 The Component Info structure is a 56 byte structure which, in addition to embedding product
 information, also additionally provides information regarding the address space used by the
@@ -384,12 +558,12 @@ information, this structure is embedded.
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{SDWB Component Info Structure (56 bytes)}\label{sdwb_component_struct}\centering
+      \caption{SDB Component Info Structure (56 bytes)}\label{sdwb_component_struct}\centering
         \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
         Offset & Size (bytes) & Name & Value & Description \\ \hline
         0x00 & 8 & ADDR\_BEGIN & - & The start address of the component \\ \hline
         0x08 & 8 & ADDR\_LAST & - & The last valid address of the component \\ \hline
-        0x10 & 40 & PRODUCT & - & SDWB Product Info structure (see Table \ref{sdwb_product_struct} \\ \hline
+        0x10 & 40 & PRODUCT & - & SDB Product Info structure (see Table \ref{sdwb_product_struct} \\ \hline
         \end{tabular}
     \end{table}
   \end{savenotes}
@@ -407,29 +581,29 @@ up the entire 64-bit space has its last address at 0xffffffffffffffff
 This is the embedded 40 byte product info structure as described in Table \ref{sdwb_product_struct}.
 \end{description}
 
-\subsection{SDWB Records}
+\subsection{SDB Records}
 
-This subsection describes the different SDWB records that compose the SDWB table structure. These
+This subsection describes the different SDB records that compose the SDB table structure. These
 structures must be instantiated by designers for each logic block in their design and compiled into
-a contiguous SDWB table that gets placed in the bus memory.
+a contiguous SDB table that gets placed in the bus memory.
 
 \subsubsection{Interconnect Record}
 
 The interconnect record describes the high level bus that has child devices connected to it. This
-structure should be the "header" or first record in the SDWB table. It provides, among other things,
-information regarding the SDWB table (eg. the number of following records).
+structure should be the "header" or first record in the SDB table. It provides, among other things,
+information regarding the SDB table (eg. the number of following records).
 
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{SDWB Interconnect Record Structure}\label{sdwb_interconnect_struct}\centering
+      \caption{SDB Interconnect Record Structure}\label{sdwb_interconnect_struct}\centering
         \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
         Offset & Size (bytes) & Name & Value & Description \\ \hline
         0x00 & 4 & MAGIC & 0x53445742 & Magic value for checking validity \\ \hline
-        0x04 & 2 & NUM\_RECORDS & - & Number of records in this SDWB table \\ \hline
-        0x06 & 1 & SDWB\_VERSION & 0x1 & SDWB format version. Current is 0x1 \\ \hline
-        0x07 & 1 & SDWB\_BUS\_TYPE & - & The last valid address of the component \\ \hline
-        0x08 & 56 & COMPONENT & - & SDWB Component Info structure (see Table \ref{sdwb_component_struct} \\ \hline
+        0x04 & 2 & NUM\_RECORDS & - & Number of records in this SDB table \\ \hline
+        0x06 & 1 & SDB\_VERSION & 0x1 & SDB format version. Current is 0x1 \\ \hline
+        0x07 & 1 & SDB\_BUS\_TYPE & - & The last valid address of the component \\ \hline
+        0x08 & 56 & COMPONENT & - & SDB Component Info structure (see Table \ref{sdwb_component_struct} \\ \hline
         \end{tabular}
     \end{table}
   \end{savenotes}
@@ -439,18 +613,18 @@ information regarding the SDWB table (eg. the number of following records).
 \item[MAGIC] \hfill \\
 This field is a unique number to ensure that the record being read is valid. The default
 value for this in this version of the specification is 0x53445742 or the ASCII characters
-"SDWB".
+"SDB".
 
 \item[NUM\_RECORDS] \hfill \\
 This field specifies the number of records in the table. The number must take into account
 this header (interconnect) record as well. The other records following the header may be
 any combination of device, bridge and integrator records.
 
-\item[SDWB\_VERSION] \hfill \\
+\item[SDB\_VERSION] \hfill \\
 This is the record format version. In the current version of the specification this is the
 value 0x1.
 
-\item[SDWB\_BUS\_TYPE] \hfill \\
+\item[SDB\_BUS\_TYPE] \hfill \\
 This field specifies the bus type. This field is used when decoding the bus specific information
 inside a device record (see below). In the current version of the specification, the only
 supported bus is Wishbone. Other buses may be added in the future.
@@ -458,7 +632,7 @@ supported bus is Wishbone. Other buses may be added in the future.
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{SDWB Bus Types}\label{bus_type}\centering
+      \caption{SDB Bus Types}\label{bus_type}\centering
         \begin{tabular}{| c | l | p{5cm} |} \hline
         Name & Value & Description \\ \hline
         WISHBONE & 0x00 & Specifies a Wishbone bus type \\ \hline
@@ -476,7 +650,7 @@ to provide additional meta-data regarding the interconnect itself.
 
 An integrator record gives meta-data about the aggregate product of the bus. For example, consider
 a manufacturer that takes components from various vendors and combines them with a standard bus
-interconnect. This aggregate product can be described by an SDWB integrator record.
+interconnect. This aggregate product can be described by an SDB integrator record.
 
 This record is important as it helps to clearly distinguish product information of devices and of
 their aggregated products. Since this is the only main requirement of the integrator record, it
@@ -487,11 +661,11 @@ structure of the integrator record is described in Table \ref{sdwb_integrator_st
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{SDWB Integrator Record Structure}\label{sdwb_integrator_struct}\centering
+      \caption{SDB Integrator Record Structure}\label{sdwb_integrator_struct}\centering
         \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
         Offset & Size (bytes) & Name & Value & Description \\ \hline
         0x00 & 24 & RESERVED & - & Reserved bytes \\ \hline
-        0x18 & 40 & PRODUCT & - & SDWB Product Info structure (see Table \ref{sdwb_product_struct} \\ \hline
+        0x18 & 40 & PRODUCT & - & SDB Product Info structure (see Table \ref{sdwb_product_struct} \\ \hline
         \end{tabular}
     \end{table}
   \end{savenotes}
@@ -513,14 +687,14 @@ connected to the bus. The structure of the device record structure is shown belo
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{SDWB Device Record Structure}\label{sdwb_dev_struct}\centering
+      \caption{SDB Device Record Structure}\label{sdwb_dev_struct}\centering
         \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
         Offset & Size (bytes) & Name & Value & Description \\ \hline
         0x00 & 2 & ABI\_CLASS & - & The ABI class of the device (0 = Custom Device) \\ \hline
         0x02 & 1 & ABI\_VER\_MAJOR & - & The ABI major version \\ \hline
         0x03 & 1 & ABI\_VER\_MINOR & - & The ABI minor version \\ \hline
         0x04 & 4 & BUS\_SPECIFIC & - & Bus specific field \\ \hline
-        0x08 & 56 & COMPONENT & - & SDWB Component Info structure (see Table \ref{sdwb_component_struct} \\ \hline
+        0x08 & 56 & COMPONENT & - & SDB Component Info structure (see Table \ref{sdwb_component_struct} \\ \hline
         \end{tabular}
     \end{table}
   \end{savenotes}
@@ -581,19 +755,19 @@ is shown in Table \ref{sdwb_bridge_struct}.
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{SDWB Bridge Structure}\label{sdwb_bridge_struct}\centering
+      \caption{SDB Bridge Structure}\label{sdwb_bridge_struct}\centering
         \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
         Offset & Size (bytes) & Name & Value & Description \\ \hline
-        0x00 & 8 & SDWB\_CHILD & - & The relative address of the nested SDWB table \\ \hline
-        0x08 & 56 & COMPONENT & - & SDWB Component Info structure (see Table \ref{sdwb_component_struct} \\ \hline
+        0x00 & 8 & SDB\_CHILD & - & The relative address of the nested SDB table \\ \hline
+        0x08 & 56 & COMPONENT & - & SDB Component Info structure (see Table \ref{sdwb_component_struct} \\ \hline
         \end{tabular}
     \end{table}
   \end{savenotes}
 \end{center}
 
 \begin{description}
-\item[SDWB\_CHILD] \hfill \\
-This field gives the location of the nested bus' SDWB table. This address is a relative address
+\item[SDB\_CHILD] \hfill \\
+This field gives the location of the nested bus' SDB table. This address is a relative address
 with respect to the start of the nested bus' address space (stored in the component info structure).
 
 \item[COMPONENT] \hfill \\
