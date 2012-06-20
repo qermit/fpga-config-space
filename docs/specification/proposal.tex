@@ -208,7 +208,7 @@ the encompassing address space and includes a \textit{product}
 structure.
 
 \item[Interconnect] \hfill \\
-The \textitinterconnect} is a \textitcomponent} representing an address demultiplexer.
+The \textit{interconnect} is a \textit{component} representing an address demultiplexer.
 The associated data structure heads an array of \textit{product} descriptions;
 its specific fields are magic number, bus type, version and the number of
 structures in the array.
@@ -448,37 +448,49 @@ tools and system calls.
 
 \section{SDB Structures}
 
+This section defines the structures that are to be embedded in the
+address space of the target bus.  The words \textbf{shall},
+\textbf{must}, \textbf{should}, \textbf{may}, \textbf{can} have the
+usual normative meaning when used in bold face.
 
-Note: the document has not been updated after this point.
-\vfill
+\subsection{Definitions}
 
-This section describes the important structures that are a part of the SDB specification.
+\begin{description}
+\item[SDB Structure] \hfill \\
+A 64-byte memory area, located within the bus being described
+at a known address. The structure \textbf{must} bit 64-byte aligned
+and it \textbf{must} be readable with
+32-bit I/O transactions. The bus \textbf{may} allow 64-bit, 16-bit
+and 8-bit access to the structure.  Code reading the structure
+\textbf{should} use 32-bit transfers, and \textbf{can} use different
+sizes only when aware of the specifics of the bus.
 
-\subsection{SDB Table}
+\item[SDB Record] \hfill \\
+A synonym for \textit{SDB structure}.
 
-The most important structure that needs to be present in a design to support SDB
-based autodiscovery is the SDB table.
+\item[SDB Array or SDB Table] \hfill \\
+An in-memory array of SDB records. The records \textbf{must}
+be contiguous with no intervening holes, and the table \textbf{must}
+be aligned at a 64-byte boundary.
+he first SDB structure in the array \textbf{must} be an \textit{interconnect}
+record.
 
-The SDB table is a contiguous array of records that provides the needed metadata
-about devices. There is no restriction placed on where this table is located in
-memory and the higher levels only need to know the location of the top-level table
-to recursively discover the descriptions of all the blocks.
+\item[SDB Product] \hfill \\
+A data structure hosted within some SDB records. All currently defined
+record types are \textit{products}.
 
-An SDB table is composed of multiple SDB records. There are four different types of
-SDB records that can be used to describe different parts of the design.
+\item[SDB Component] \hfill \\
+A data structure hosted within some SDB records. A \textit{component}
+includes a \textit{product} structure and defines an address range.
 
-\begin{enumerate}
-\item Interconnect Record
-\item Device Record
-\item Bridge Record
-\item Integrator Record
-\end{enumerate}
+\end{description}
 
-\subsection{SDB Product Info}
+The following sections define the details of each structure.
 
-The SDB product info structure is a 40 byte structure that provides information about
-the specific product being described. The information provided here is used for device
-identification.
+
+
+\subsection{SDB Product Structure}
+
 
 \begin{center}
   \begin{savenotes}
