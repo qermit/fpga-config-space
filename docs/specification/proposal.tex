@@ -30,9 +30,11 @@
 \parskip10pt
 \makesavenoteenv{tabular}
 
-\title{Self Description Structures for Logic Cores}
-\author{Manohar Vanga (BE/CO/HT), Wesley Terpstra (GSI),\\
-Alessandro Rubini (Independent Consultant)}
+\title{Self-Describing Bus (SDB) Specification\\
+for Logic Cores}
+\author{Alessandro Rubini (Consultant for CERN)\\
+Wesley Terpstra (GSI),\\
+Manohar Vanga (CERN, BE/CO/HT)}
 \date{June 20th 2012}
 \begin{document}
 
@@ -86,8 +88,8 @@ hardware and software resources allow a richer description of logic blocks.
 We are also aware of the PCI and USB data structures, but they are
 unsuitable for an FPGA, either. First of all, they assume devices are
 enumerated by other means whereas we need to be able to scan a flat
-address space; then, their vendor ID space is ridiculously small
-because the model of the respective consortia is based on artificial scarcity.
+address space; then, their vendor ID space is not wide enough to allow
+small developers to easily participate.
 
 This specification, thus, uses 64 bits for the vendor ID, to prevent scarcity.
 The vendor space is split in two parts, and all users are free to bless their
@@ -101,14 +103,10 @@ are officially assigned and published.  The vendor registry, however, is not
 part of this specification, which just lists the first few vendor-ID values that
 have already been used.
 
-All multi-byte values are stored in \textit{big endian} order.  This
-choice is taken in order to make life easier for some developers (the poor
-guys and dolls that sometimes need to look at binary dumps one byte at a time)
-and to make life harder for other developers (the poor guys and dolls that work
-on the PC and think all the world is \textit{little endian}).  Actually,
-by choosing the less common endianness we aim for code to be more 
-portable, because code ignoring byte ordering will simply not work
-when compiled on the most common platforms.
+All multi-byte values are stored in \textit{big endian} order.  We need
+a well-defined endianness to allow generic scanning of the target bus;
+we picked bigendian because most embedded devices are big endian and
+because  it is the format usually chosen by existing standards documents.
 
 All data structures are 64 byte in size and they are all similar in their
 internal layout; the last byte in the 64-byte slot identifies the type
@@ -120,11 +118,9 @@ driver may reside in a very simple soft-core.
 
 \subsection{Scope of This Specification}
 
-This specification is not \textit{official} in any way: it just
-documents what we are doing and why we do it like this.  We believe
-in free circulation of ideas and we think the good ones will flourish.
-Everybody is welcome to use the data structures defined  in this specification
-and give feedback, both positive and negative.
+This specification documents the format used by CERN and GSI. However,
+everyone is welcome to use the data structures defined in this
+specification (or customized derivatives) in their own work.
 
 Parts of this document are written in the language of
 a formal specification because we need clear and sharp rules in
@@ -224,14 +220,14 @@ structure declares the address where the self-description for the
 sub-bus is to be found.
 
 \item[Integration] \hfill \\
-The optional \textit{integration} product describes the aggregate bus.
+The optional \textit{integration} product describes an aggregate bus.
 It is a \textit{product} record, not a
 \textit{component}, in that it has no associated address range. This
-meta-information item can be used by a vendor using a standard
-\textit{interconnect} logic block to declare its own
-identifiers and integration date for the whole FPGA design; as
-such we expect to find it only in the description of the
-outer bus description level.
+meta-information item can be used by a vendor to describe
+its particular combination of devices, interconnect, and address layout.
+For example, if an expansion card uses a number of stock devices
+combined with a stock interconnect, its driver can nonetheless recognize
+the aggregate device by the integration record.
 
 \item[Controller] \hfill \\
 The \textit{controller} is a software abstraction, used in the host
@@ -253,7 +249,7 @@ here; by identifying each instantiated device it can also drive the
 remote peripherals without prior knowledge of the specific FPGA binary
 it is talking to.
 
-The same mechanism is soon going to be used in the \textit{White
+The same mechanism is already part of the \textit{White
 Rabbit PTP Core} and the outer-level FPGA designs that are
 being used in our synchronized I/O boards.
 
@@ -283,7 +279,7 @@ Kernel environment.  The uninterested reader can skip over to the next
 section where we get back to the actual structures.
 
 In our plans this self-description standard is tightly related with
-Linux device drivers, because most of oue FPGA devices are going to be
+Linux device drivers, because most of our FPGA devices are going to be
 driven by a GNU/Linux host, whether over PCI, VME, or Etherbone.
 
 Devices may appear and disappear during system lifetime: this happens
@@ -397,7 +393,10 @@ unexpected race conditions or other inconsistencies.
 When user-space requests access to the whole bus, this will force
 unbinding of all the device drivers that are active over the bus.
 This is a shortcut over individually unbinding all drivers using
-\textit{sysfs} device attrobutes.
+\textit{sysfs} device attributes. The system will also support
+a user-access mode by which the whole bus is available to
+user space without passing through the unbinding phase; this is
+meant as a debugging tool and must be used with great care.
 
 
 \subsection{Autoprobing Device Drivers}
