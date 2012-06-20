@@ -33,14 +33,14 @@
 \title{Self Description Structures for Logic Cores}
 \author{Manohar Vanga (BE/CO/HT), Wesley Terpstra (GSI),\\
 Alessandro Rubini (Independent Consultant)}
-\date{June 13th 2012}
+\date{June 20th 2012}
 \begin{document}
 
 \maketitle
 
 \tableofcontents
-\listoftables
-\listoffigures
+%\listoftables
+%\listoffigures
 
 \pagebreak
 
@@ -54,7 +54,7 @@ configure them during runtime.
 
 \subsection{History and Rationale}
 
-The idea of a self-describing bus appeared while working on
+The idea of a self-description for a  bus appeared while working on
 \textit{White Rabbit} and related projects that make massive use of
 FPGA devices. Separately and concurrently, both the CERN and the GSI
 working groups identified the need for some way to self-detect the
@@ -69,7 +69,7 @@ content, we would get the following advantages:
 \item Automatic handling of several binaries with the same software;
 \item Feasibility of tools similar to \texttt{lspci} and \texttt{lsusb};
 \item Automatic loading of kernel drivers on the host computer;
-\item Automatic setup of low-level driver within soft cores;
+\item Automatic setup of low-level drivers within soft cores;
 \item Better decoupling of gateware and software development.
 \end{itemize}
 
@@ -90,9 +90,9 @@ address space; then, their vendor ID space is ridiculously small
 because the model of the respective consortia is based on artificial scarcity.
 
 This specification, thus, uses 64 bits for the vendor ID, to prevent scarcity.
-The vendor space is spit in two parts, and everybody is free to elect their
-own vendor number and start designing using the spec, provided the most-significant
-bit is set.
+The vendor space is split in two parts, and all users are free to bless their
+own vendor number and start designing using these data structures,
+provided the most-significant vendor-id bit is set.
 
 We acknowledge the usefulness of a central vendor registry, so
 the lower half of the
@@ -102,16 +102,16 @@ part of this specification, which just lists the first few vendor-ID values that
 have already been used.
 
 All multi-byte values are stored in \textit{big endian} order.  This
-choice is designed to make the life easier some developers (the poor
-guys that sometimes need to look at binary dumps one byte at a time)
-and to make life harder for other developers (the poor guys that work
+choice is taken in order to make life easier for some developers (the poor
+guys and dolls that sometimes need to look at binary dumps one byte at a time)
+and to make life harder for other developers (the poor guys and dolls that work
 on the PC and think all the world is \textit{little endian}).  Actually,
-by choosing the less common endianness we think it's easier to write
-portable code, because code ignoring byte ordering will simply not work
-when compiled on the PC.
+by choosing the less common endianness we aim for code to be more 
+portable, because code ignoring byte ordering will simply not work
+when compiled on the most common platforms.
 
-All data structures are 64 byte large and are similar in their
-internal layout; the last byte in the 64-wide slot identifies the type
+All data structures are 64 byte in size and they are all similar in their
+internal layout; the last byte in the 64-byte slot identifies the type
 of each structure, to allow very simple parsing code and easy extension
 to new types of structures.  The size is a power of two in order to
 avoid multiplication and division in calculation of sizes, as the
@@ -126,16 +126,16 @@ in free circulation of ideas and we think the good ones will flourish.
 Everybody is welcome to use the data structures defined  in this specification
 and give feedback, both positive and negative.
 
-The document (with the notable exception of this section) is written
-as a formal specification because we need clear and sharp rules in
+Parts of this document are written in the language of
+a formal specification because we need clear and sharp rules in
 order to make different implementations interoperate.  We are sticking
 to those rules in our own implementations, both in gateware and in
 associated software.
 
 Everybody is free to choose a vendor-ID and start coding right now; we
 suggest to pick a random 64 bit number and set the most significant
-bit (as an alternative, you can pick a random 63 bit number and
-concatenate it to a single set bit).
+bit (as an alternative, you can paste the bit ``1'' in front of
+a random 63 bit number).
 
 If you want to implement your own data structures, similar to ours
 but different in some way, please change the magic number, to avoid
@@ -151,13 +151,13 @@ pretty general and can be applied to any bus or even a storage
 system for quasi-static information in flash memory
 
 To keep variety to a minimum, this standard defines the concept of
-\textit{product}, which is (anything that has been \textit{done}, and thus has
-its own identifiers, name, version and date).  This includes
+\textit{product}, which is anything that has been \textit{done}, and thus has
+its own identifiers, name, version and date.  This includes
 meta-information, for example a record of the final build of the
 FPGA binary.
 
-Every \textit{product} that owns some address space is called a
-\textit{component}; as such it specifies its first and last address, as
+Every \textit{product} that lives in some address range is called a
+\textit{component}; as such it specifies its first and last address, both as
 64 bit numbers.
 
 Within the bus memory area, the address space available to bus masters
@@ -169,16 +169,18 @@ populated address space.  The designer of the address demultiplexer
 (the \textit{interconnect} block) is expected to describe the
 logic blocks living behind the interconnect, as well as the
 interconnect itself. Thus, the \textit{interconnect} is a \textit{component}
-(it has an address range), and the associated structure is the first
-one of an array of structures, that defines components and optionally
-more abstract products.
+(so that it owns an address range), and the associated SDB record is the first
+one of an array of structures; the other records on the array
+defines the \textit{components} that are connected downstream of this multiplexer
+and optionally more abstract \textit{products}.
 
-Some of the blocks within an interconnect data space can in turn be
-bridges to another interconnect device.  Thus, the \textit{bridge}
-component states where he further self-description structures are to
+Some of the blocks within the data space of an \textit{interconnect}
+component can in turn be
+bridges to other \textit{interconnect} components.  Thus, the \textit{bridge}
+component states the address where further self-description structures are to
 be found. This allows nesting at arbitrary levels (too deep nesting is
-not a good practice, but the specification is not limiting the
-designer ingenuity).
+not a good practice, but this specification is not limiting the
+designer's ingenuity).
 
 Only the bus designer knows where the outer-level data structure is to
 be found, and such information is expected to be known by the ``bus
@@ -186,44 +188,45 @@ driver'' software package.  For example, a soft-core scanning its own
 bus will know where to start from, because it is part of the same
 overall design; a PCI driver must know how to access internal bus
 memory from a PCI memory window, so it can also know where the
-self description entry point is stored; an \textit{Etherbone} bus master will
+SDB entry point is stored; an \textit{Etherbone} bus master will
 comply to its own packet-format standard, so it can as well know
-where to start enumerating the bus from.
+where to start enumerating the remote bus from.
 
 We can therefore define the following terms to build the
 self-description framework:
 
 \begin{description}
 \item[Product] \hfill \\
-Every structure includes \textit{product} fields. They are
-the vendor and device identifiers, version and date, an UTF-8
+Every structure includes \textit{product} fields, i.e.
+the vendor and device identifiers, version and date, and an UTF-8
 name.
 
 \item[Component] \hfill \\
-A component is a product with an associated address range. Its
+A component is a \textit{product} with an associated address range. Its
 structure lists the first and last valid addresses within
-the encompassing address space.
+the encompassing address space and includes a \textit{product}
+structure.
 
 \item[Interconnect] \hfill \\
-The interconnect is a component representing an address demultiplexer.
-The associated data structure heads an array of product descriptions,
-it features a magic number, bus type, version and the number of
+The \textitinterconnect} is a \textitcomponent} representing an address demultiplexer.
+The associated data structure heads an array of \textit{product} descriptions;
+its specific fields are magic number, bus type, version and the number of
 structures in the array.
 
 \item[Device] \hfill \\
-The device component identifies a peripheral block, with
+The \textit{device} component identifies a peripheral block, with
 its class, ABI version and bus-specific flags.
 
 \item[Bridge] \hfill \\
-The bridge component marks a memory area leading to a lower-level
-address demultiplexer (i.e. \textit{interconnect}). Its data
-structure declares the address where the self-description of the
-sub-bus is found.
+The \textit{bridge} component marks a memory area leading to a lower-level
+address demultiplexer (i.e. an \textit{interconnect}). Its data
+structure declares the address where the self-description for the
+sub-bus is to be found.
 
 \item[Integration] \hfill \\
-The optional integration product describes the aggregate bus.
+The optional \textit{integration} product describes the aggregate bus.
 It is a \textit{product} record, not a
-\textit{component}, so it has no associated address range. This
+\textit{component}, in that it has no associated address range. This
 meta-information item can be used by a vendor using a standard
 \textit{interconnect} logic block to declare its own
 identifiers and integration date for the whole FPGA design; as
@@ -233,9 +236,9 @@ outer bus description level.
 \item[Controller] \hfill \\
 The \textit{controller} is a software abstraction, used in the host
 computer driving the bus (if any). The controller defines the
-methods to access its own bus and knows where the outer description
+methods to access its own bus and knows where the outer SDB
 array is found.  There is no controller concept for soft-cores
-self-scanning their own address space.
+that  self-scan their own address space.
 
 \end{description}
 
@@ -258,8 +261,8 @@ being used in our synchronized I/O boards.
 \section{SDB Header Material}
 
 This section includes the whole header file that defines the data
-structures. The header is also part of the source code accompanying
-this specification.
+structures. The header itself is included in the source code
+that accompanies this specification.
 
 All fields and bits are explained in detail in later sections of this
 specification, but we prefer to show the meat straight at the
@@ -286,12 +289,13 @@ driven by a GNU/Linux host, whether over PCI, VME, or Etherbone.
 Devices may appear and disappear during system lifetime: this happens
 when you load and remove the PCI driver (or instantiate an Etherbone
 peer), but also when you reprogram the FPGA with a different binary.
-Another issue is that the device driver may be concerned with the FPGA
-binary as a whole or with each individual logic block; thus, the same
-GPIO logic block can be either driven by the host or ignored -- because
-is is directlly used by the soft-core.
+Another issue is that the device drivers may either be concerned with the FPGA
+binary as a whole or be interested in each and every  individual logic block;
+thus, the same
+GPIO logic block can be either driven by the host or ignored by it -- because
+is is directly used by the soft-core within the synthesized binary.
 
-\subsection{Wishbone Core and Enumeration}
+\subsection{Wb-core and Enumeration}
 
 For the time being, let's call the bus \textit{Wishbone} (this will
 definitely be the first implementation we are using, and some specifics
@@ -310,19 +314,19 @@ controller can be removed at any time, like you can remove a USB hub
 or a \textit{Compact-PCI} bridge.
 
 Such bus creation and removal will typically happen when the PCI
-driver finds its own SPEC carrier, or when the user tells the system
-that at some IP or Ethernet address the Etherbone protocol is
+driver finds its own FPGA carrier board, or when the user tells the system
+that at some network address the Etherbone protocol is
 supported.
 
 The wishbone core will start enumerating the bus, using
 controller-provided operations for the individual I/O transactions;
 such enumeration begins at the known address the controller declared.
 The controller implements such transactions in the proper way, by
-direct reads/writes to PCI or VME memory, or by sending Etherbone frame
+direct reads/writes to PCI or VME memory, or by sending Etherbone frames,
 or whatever.
 
 The first SDB record must be an \textit{interconnect} record: thus,
-the first field is the magic number. If the magic number is not found,
+the first bytes at the SDB address are the magic number. If the magic number is not found,
 enumeration is aborted.  The \textit{interconnect} record is the first
 in an array of SDB structures, and it declares how long the array is;
 each device then declares its own address range.  The system is
@@ -331,31 +335,30 @@ address must be externally provided, and the controller is responsible
 for providing a valid address for its own bus; then, non-SDB buses are
 handled by simply not finding the magic number (in this case we assume
 the bus designer willingly placed another value at that address, by
-knowing the host controller is SDB-ready).
+knowing the host controller is SDB-aware).
 
 During enumeration, all SDB structures are scanned, and the core will
 register a device for each and any of those items.  If a driver exists
 for the associated device, its own probe function is called, in the
 usual way.  As an alternative, the driver may appear at a later time,
 or can be automatically loaded when the device is detected. Again, these
-operation follow sound Linux tradition and are well known and safe.
-are the well acc
+operations follow sound Linux tradition and are well known and safe.
 
-As a special case, a Wishbone driver can request to stop scanning, by
-returning a specific value.  When this happens, the core will stop
+As a special case, the probe function for a Wishbone driver can tell
+the controller to stop scanning the bus, by
+returning a specific non-zero value.  When this happens, the core will stop
 enumerating the bus -- but the driver itself is allowed to register
-further devices or scan sub-buses.
+further devices or ask to scan sub-buses.
 
 This feature is designed to allow multi-device blocks to be handled as
 a whole.  If the FPGA design is a single complex object, with its own
 CPU inside and internally-driven peripheral, the Linux driver for the
 associated \textit{interconnect} or \textit{integration} record will
 get ownership of everything.  This prevents generic GPIO or UART
-drivers to be probed for, still allowing generic logic blocks to be
-used without the hassle of a host driver trying to manage them
-in conflict with the internal CPU.
+drivers to be probed for by the Linux host, while
+still allowing generic logic blocks to be used in the internal design.
 
-Whenever this logic complex is embedded in an outer bus, where
+Whenever this logic multi-device complex is embedded in an outer bus, where
 host-accessible drivers live, such request to stop scanning will not
 prevent outer devices to have their own Linux driver loaded.  Finally,
 if the driver for the logic complex wants to export some inner block
@@ -368,25 +371,26 @@ according to internal policies.
 
 After the controller registered its own self-described bus and
 \texttt{wb-core} is done scanning and probing drivers, applications
-should access those resources.
+need a way to access those resources.
 
 Whenever a driver has taken ownership of a device, it also takes
 care of user access. Whether it registered GPIO pins, a tty device
-or a network interface, access is not a problem of \texttt{wb-core}.
+or a network interface, device access is not a problem of \texttt{wb-core}.
 
-To allow generic user-space access ot the bus, \texttt{wb-core} offers
+To allow generic user-space access to the bus, \texttt{wb-core} offers
 a char device interface, compatible with the API already in use within
 GSI.  The char device is not created by default, but a \textit{sysfs}
 attribute for the bus allows to instantiate it, with a user-provided
 name.  With another \textit{sysfs} attribute, user space can tell the
 core whether it wants complete control of the bus or only of those
 devices that are not yet driven, the latter behavior being the
-default.  A \texttt{wb-core} general parameter can be used to always
-create the char device, and even always granting whole-bus access.
+default.  A \texttt{wb-core} system-wide parameter can be used to always
+create the char device, and even always granting whole-bus access
+without scanning and registering devices.
 
-The default behavior fot the char device will return \texttt{EBUSY} for
+Unless it owns the whole bus, the char device will return \texttt{EBUSY} for
 all I/O operations that fall in an address space that belongs to a
-device driver. This is consistent with user-space interfaces for
+device driver. This is consistent with the user-space interfaces of
 \textit{I2C-char} and \textit{libgpio}; it is a good policy to prevent
 unexpected race conditions or other inconsistencies.
 
@@ -410,7 +414,7 @@ effective flash storage organization.  SDB records can be used as a
 very simple file-system-like interface that can be parsed by a
 soft-core CPU with very little overhead.
 
-Such a file-system will be mostly-read and requires no wear leveling;
+Such a file-system will be mostly-read and requires no wear-leveling;
 still, we sometimes need to update FPGA binary images or some
 calibration parameters.  In our search for the state of the art, we
 didn't find small and simple filesystems that allow in-place
