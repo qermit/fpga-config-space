@@ -35,16 +35,33 @@ for Logic Cores}
 \author{Alessandro Rubini (Consultant for CERN)\\
 Wesley Terpstra (GSI),\\
 Manohar Vanga (CERN, BE/CO/HT)}
-\date{June 20th 2012}
+\date{June 21th 2012}
 \begin{document}
 
 \maketitle
 
 \tableofcontents
-%\listoftables
+\listoftables
 %\listoffigures
 
 \pagebreak
+
+\section*{Bugs}
+
+This version of this document is still a draft (if it was software, it would be
+between \textit{beta} and \textit{release candidate}).
+
+This is a list of things that ought to be changed or added:
+
+\begin{itemize}
+\item We should clarify that in nested buses addresses are relative to the sub-bus;
+\item The type description should get a more prominent place than the
+  current description in the \textit{product} structure;
+\item We need a policy for designers adding class etc, and it must be described;
+\item Wishbone-specific flags deserve a subsection;
+\item Filesystem-specific flags must be defined and documented.
+\end{itemize}
+
 
 \section{Introduction}
 
@@ -471,8 +488,17 @@ A synonym for \textit{SDB structure}.
 An in-memory array of SDB records. The records \textbf{must}
 be contiguous with no intervening holes, and the table \textbf{must}
 be aligned at a 64-byte boundary.
-he first SDB structure in the array \textbf{must} be an \textit{interconnect}
-record.
+The first SDB structure in the array \textbf{must} be an \textit{interconnect}
+record (for this reason, you \textbf{must} verify the \textit{magic number}
+of the array before accessing any other location in the array.
+
+\item[Record Type] \hfill \\
+The last byte of every SDB structure (offset 0x3f) represents its type.
+When reading any SDB structures, unless it is the first in an array,
+software \textbf{must} check the \textit{record type} before making sense
+of other fields.  Designers \textbf{may} extend this specification with
+new record types, and software \textbf{must} ignore those structures
+whose type is not known.
 
 \item[SDB Product] \hfill \\
 A data structure hosted within some SDB records. All currently defined
@@ -486,163 +512,201 @@ includes a \textit{product} structure and defines an address range.
 
 The following sections define the details of each structure.
 
-
-
 \subsection{SDB Product Structure}
 
+The product is embedded in all currently-defined non-empty data structures.
+All multi-byte fields \textbf{must} be stored in big-endian byte order.
 
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{SDB Product Info Structure (40 bytes)}\label{sdwb_product_struct}\centering
-        \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
-        Offset & Size (bytes) & Name & Value & Description \\ \hline
-        0x00 & 8 & VENDOR\_ID & - & 64-bit vendor ID \\ \hline
-        0x08 & 4 & DEVICE\_ID & - & 32-bit vendor specific device ID \\ \hline
-        0x0C & 4 & VERSION & - & Vendor specific device version number \\ \hline
-        0x10 & 4 & DATE & - & The release date (hex format, eg. 0x20120601) \\ \hline
-        0x14 & 19 & NAME & - & ASCII device name without NULL terminator \\ \hline
-        0x27 & 1 & RECORD\_TYPE & - & Record type byte (see Table \ref{record_type}) \\ \hline
+      \caption{SDB Product Structure (40 bytes, at offset 24)}\label{sdb_product}\centering
+        \begin{tabular}{| c | c | c | l | c | p{5cm} |} \hline
+        First & Last & Size & Name & Value & Description \\ \hline
+        0x18 & 0x1f & 8 & vendor\_id & - & 64-bit vendor ID \\ \hline
+        0x20 & 0x23 & 4 & device\_id & - & 32-bit vendor specific device ID \\ \hline
+        0x24 & 0x27 & 4 & version & - & Vendor specific device version number \\ \hline
+        0x28 & 0x2b & 4 & date & - & The release date (hex format, eg. 0x20120601) \\ \hline
+        0x2c & 0x3e & 19 & name & - & UTF-8 device name, 0x20 filled, without terminator \\ \hline
+        0x3f & 0x3f & 1 & record\_type & - & Record type byte (see Table \ref{record_type}) \\ \hline
         \end{tabular}
     \end{table}
   \end{savenotes}
 \end{center}
 
 \begin{description}
-\item[VENDOR\_ID] \hfill \\
+\item[vendor\_id] \hfill \\
 This field provides a 64 bit field that identifies the vendor of the device. The vendor may
-be an company, organization or an individual. The size of this field has been kept at 64
-bits to prevent collisions in the long term.
+be an company, organization or an individual. The vendor name spaces is split in two halves;
+anybody \textbf{can} pick a vendor ID in the upper half (first bit set), and the
+63 bits \textbf{must} be picked as a random number and \textbf{should} be used consistently
+in all the vendor's designs.
 
 A registry is still needed to prevent collisions when using community developed designs from
-multiple sources and one will be set up in the near future. However, use of the registry is
-not mandated. To allow for this, the 64 bit ID space is split into two parts. All ID's with
-the most significant bit set are considered free to use. No guarantees are provided regarding
-collisions when using this space during integration of designs with externally provided
-components.
+multiple sources, and one should be set up as you read this.
+Entities that want a more official vendor
+ID than a random number, \textbf{should} apply with the current registry using a number of their choice.
+Small
+numbers \textbf{should} be avoided, preferring more meaningful strings instead. The
+registry \textbf{should} reject numbers smaller than 12 bits, and \textbf{may} reject numbers
+according to policies other than collisions with other vendors.
 
-The second part of the ID space with the most significant bit unset is reserved for use with
-the registry.
-
-\item[DEVICE\_ID] \hfill \\
+\item[device\_id] \hfill \\
 This field specifies a manufacturer defined device ID for the device being described.
+Vendors are free to managed these 32 bits as they like, but they \textbf{should} use
+the same identifier for fully compatible implementations, using other fields like \textit{version}
+and \textit{date} to differentiate them.
 
-\item[VERSION] \hfill \\
-This field specifies a manufacturer defined version number for the device. For example, this
-may be derived from the information provided by the source code management being used.
+\item[version] \hfill \\
+This field specifies a manufacturer defined version number for the device. Vendors
+\textbf{can} use the bits as they wish; for example, this \textbf{may} be used sequentially
+or \textbf{may} be derived from the information provided by the source code management in use
+for gateware source code.
 
-\item[DATE] \hfill \\
-This field specified the release date of the device being described. This must be a 32-bit hex
-format number in the format 0xYYYYMMDD. For example, 0x20120101 specifies the first day of the
-year 2012.
 
-\item[NAME] \hfill \\
-The ASCII name of the device. No NULL terminator need be provided in this field. The name length
-may be a maximum length of 19 characters. Unused bytes should be set to 0x20 (or ASCII SPACE).
+\item[date] \hfill \\
+Design/release date of the product. This \textbf{must} be either 0 (unspecified) or a 32-bit hex
+format number in the format 0xYYYYMMDD. For example, 0x20120501.
 
-\item[RECORD\_TYPE] \hfill \\
-Since the product info structure is embedded within various types of record structures, this
-field specifies the type of the encapsulating structure. There is a record type for each kind
-of SDB record as well as one to specify an empty record. The various record types are described
-in Table \ref{record_type}.
+\item[name] \hfill \\
+The UTF-8 name of the device. As long as the name fits in 19 bytes, designers are free to choose
+any string (e.g. both ``\texttt{UART}`` or ``\texttt{8250-like Serial}'' are valid names).
+The name \textbf{should} be a single word or an hyphenated word, avoiding spaces, because it \textbf{may}
+be used by driver software to generate pathnames.  The string \textbf{must} start at offset 0
+and \textbf{must} be feature value 0x20 (space) in all trailing bytes.
+It \textbf{must not} have a trailing zero byte.
+
+\item[record\_type] \hfill \\
+Since the product structure is at the end of the SDB record, it includes the
+type field. You can access the field from any SDB record, because all records feature
+the type byte at offset 0x3f.  Software \textbf{must} verify this field before trying to
+make sense of any other field in the SDB record.
+There is a record type for each kind
+of SDB record, and the header file gives it a symbolic name through \texttt{enum}.
+The currently defined record types are listed in Table \ref{record_type}.  New
+record types will most likely enter this specification over time, without the need
+to change the SDB version or overall layout.  Users adding new record types \textbf{must}
+choose a yet-unused value with the hight bit clear for \textit{component} records (0-127);
+users adding new record types of informative value (a \textit{product} or a completely
+different structure) \textbf{must} choose a yet-unused value with the high bit set (128-255).
+Local or temporary uses \textbf{should} fall in the ranges 0x70-0x7f and 0xf0-0xfe.
+Software \textbf{should} report a warning when if finds an
+unknown record type in the range 0x00-0x7f is found; unknown records in the range 0x80-0xff
+\textbf{can} be ignored silently.
+\end{description}
 
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
       \caption{SDB Record Types}\label{record_type}\centering
-        \begin{tabular}{| c | l | p{5cm} |} \hline
+        \begin{tabular}{| c | l | p{6cm} |} \hline
         Name & Value & Description \\ \hline
-        INTERCONNECT & 0x00 & Interconnect record type \\ \hline
-        DEVICE & 0x01 & Device record type \\ \hline
-        BRIDGE & 0x02 & Bridge record type \\ \hline
-        INTEGRATOR & 0x80 & Integrator record type \\ \hline
-        EMPTY & 0xFF & Empty record type \\ \hline
+        sdb\_type\_interconnect & 0x00 & Interconnect record, first of a table \\ \hline
+        sdb\_type\_device & 0x01 & Device definition \\ \hline
+        sdb\_type\_bridge & 0x02 & Bridge to a sub-bus \\ \hline
+        & 0x70-0x7f & Local/temporary use \\ \hline
+        sdb\_type\_integration & 0x80 & Informative integration structure \\ \hline
+        & 0xf0-0xfef & Local/temporary use \\ \hline
+        sdb\_type\_empty & 0xFF & Empty record \\ \hline
         \end{tabular}
     \end{table}
   \end{savenotes}
 \end{center}
-\end{description}
 
-\subsection{SDB Component Info}
+\subsection{SDB Component Structure}
 
-The Component Info structure is a 56 byte structure which, in addition to embedding product
-information, also additionally provides information regarding the address space used by the
-device. When a particular record type requires address space information in addition to product
-information, this structure is embedded.
+The SDB Component is described by a data structure that includes \textit{product}
+information. It provides information regarding the address space used by the
+component it describes.
 
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{SDB Component Info Structure (56 bytes)}\label{sdwb_component_struct}\centering
-        \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
-        Offset & Size (bytes) & Name & Value & Description \\ \hline
-        0x00 & 8 & ADDR\_BEGIN & - & The start address of the component \\ \hline
-        0x08 & 8 & ADDR\_LAST & - & The last valid address of the component \\ \hline
-        0x10 & 40 & PRODUCT & - & SDB Product Info structure (see Table \ref{sdwb_product_struct} \\ \hline
+      \caption{SDB Component Structure (56 bytes, at offset 8)}\label{sdb_component}\centering
+        \begin{tabular}{| c | c | c | l | c | p{5cm} |} \hline
+        First & Last & Size & Name & Value & Description \\ \hline
+        0x08 & 0x0f & 8 & addr\_first & - & The first valid address of the component \\ \hline
+        0x10 & 0x17 & 8 & addr\_last & - & The last valid address of the component \\ \hline
+        0x18 & 0x3f & 40 & product & - & SDB Product structure (see Table \ref{sdb_product} \\ \hline
         \end{tabular}
     \end{table}
   \end{savenotes}
 \end{center}
 
 \begin{description}
-\item[ADDR\_BEGIN] \hfill \\
-The start address of the memory area occupied by the device.
+\item[addr\_first] \hfill \\
+The field \textbf{must} represent the first byte address that belongs to this component,
+withing the encompassing bus. If the address bits in the bus are less than 64, the
+unused most significant bits must be cleared. (e.g.: 0x0000.0000.0400.0000)
 
-\item[ADDR\_LAST] \hfill \\
-The last valid address in memory that is occupied by the device. For example, a device that takes
-up the entire 64-bit space has its last address at 0xffffffffffffffff
+\item[addr\_last] \hfill \\
+The field \textbf{must} represent the last byte address that belongs to this component,
+withing the encompassing bus. If the address bits in the bus are less than 64, the
+unused most significant bits must be cleared. (e.g.: 0x0000.0000.0400.ffff).
+Thus \textbf{must not} represent the first invalid address (e.g.: 0x0000.0000.0401.0000).
 
-\item[PRODUCT] \hfill \\
-This is the embedded 40 byte product info structure as described in Table \ref{sdwb_product_struct}.
+\item[product] \hfill \\
+This is the embedded 40 byte product info structure as described in Table \ref{sdb_product}.
 \end{description}
 
 \subsection{SDB Records}
 
-This subsection describes the different SDB records that compose the SDB table structure. These
+This subsection describes the currently defined SDB records that build an SDB array.
+These
 structures must be instantiated by designers for each logic block in their design and compiled into
-a contiguous SDB table that gets placed in the bus memory.
+a contiguous SDB table, placed at a known address in the bus memory.  Most of these structures
+include a \textit{component} structure or a \textit{product} structure, and the rules for the
+respective fields apply.
 
-\subsubsection{Interconnect Record}
+\subsubsection{SDB Interconnect}
 
-The interconnect record describes the high level bus that has child devices connected to it. This
-structure should be the "header" or first record in the SDB table. It provides, among other things,
-information regarding the SDB table (eg. the number of following records).
+The \textit{interconnect} record describes the overall bus or bus subset. Every
+SDB table \textbf{must} feature such structure as first one in the array.
 
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{SDB Interconnect Record Structure}\label{sdwb_interconnect_struct}\centering
-        \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
-        Offset & Size (bytes) & Name & Value & Description \\ \hline
-        0x00 & 4 & MAGIC & 0x53445742 & Magic value for checking validity \\ \hline
-        0x04 & 2 & NUM\_RECORDS & - & Number of records in this SDB table \\ \hline
-        0x06 & 1 & SDB\_VERSION & 0x1 & SDB format version. Current is 0x1 \\ \hline
-        0x07 & 1 & SDB\_BUS\_TYPE & - & The last valid address of the component \\ \hline
-        0x08 & 56 & COMPONENT & - & SDB Component Info structure (see Table \ref{sdwb_component_struct} \\ \hline
+      \caption{SDB Interconnect Record (64 bytes, type 0x00)}\label{sdb_interconnect}\centering
+        \begin{tabular}{| c | c | c | l | c | p{4cm} |} \hline
+        First & Last & Size & Name & Value & Description \\ \hline
+        0x00 & 0x03 & 4 & sdb\_magic & 0x5344422d & ``SDB-'', used to verify a table is actually there \\ \hline
+        0x04 & 0x05 & 2 & sdb\_records & - & Number of records in this SDB table (including this one) \\ \hline
+        0x06 & 0x06 & 1 & sdb\_version & 1 & SDB format version. Currently 1 \\ \hline
+        0x07 & 0x07 & 1 & sdb\_bus\_type & - & The bus type for all components in the table \\ \hline
+        0x08 & 0x3f & 56 & sdb\_component & - & SDB Component structure (see Table \ref{sdb_component} \\ \hline
         \end{tabular}
     \end{table}
   \end{savenotes}
 \end{center}
 
 \begin{description}
-\item[MAGIC] \hfill \\
-This field is a unique number to ensure that the record being read is valid. The default
-value for this in this version of the specification is 0x53445742 or the ASCII characters
-"SDB".
+\item[sdb\_magic] \hfill \\
+The field \textbf{must} be set to 0x5344422d. If you use a similar data structure but
+choose not to fully comply to this standard, you \textbf{must} use a different magic
+number.
+% can people comply with this ``must'' clause, if they choose not to comply with SDB?
 
-\item[NUM\_RECORDS] \hfill \\
-This field specifies the number of records in the table. The number must take into account
-this header (interconnect) record as well. The other records following the header may be
-any combination of device, bridge and integrator records.
+\item[sdb\_records] \hfill \\
+This field specifies the number of records in the table. It \textbf{must} include
+this very record in the count, and the whole address range (this number multplied by 64 bytes)
+\textbf{must} be accessible. Note that the array \textbf{may} include empty records at any position.
 
-\item[SDB\_VERSION] \hfill \\
+\item[sdb\_version] \hfill \\
 This is the record format version. In the current version of the specification this is the
-value 0x1.
+value 0x1. If software finds an unknown version number it \textbf{must} abort enumeration.
 
-\item[SDB\_BUS\_TYPE] \hfill \\
+\item[sdb\_bus\_type] \hfill \\
 This field specifies the bus type. This field is used when decoding the bus specific information
-inside a device record (see below). In the current version of the specification, the only
-supported bus is Wishbone. Other buses may be added in the future.
+inside a device record (see below).  All records in the array share the same
+bus type, bus-specific bits in each device declare the details for data access.
+
+Table \ref{bus_type} lists the currently defined types.
+
+\item[sdb\_component] \hfill \\
+An interconnect record describes a \textit{component}, so it embeds a component structure.
+The \textit{type} field in the component is 0x00.
+\end{description}
+
 
 \begin{center}
   \begin{savenotes}
@@ -650,143 +714,127 @@ supported bus is Wishbone. Other buses may be added in the future.
       \caption{SDB Bus Types}\label{bus_type}\centering
         \begin{tabular}{| c | l | p{5cm} |} \hline
         Name & Value & Description \\ \hline
-        WISHBONE & 0x00 & Specifies a Wishbone bus type \\ \hline
+        WishBone & 0x00 & Specifies a Wishbone bus type, as commonly used in FPGAs \\ \hline
+        Storage & 0x01 & Specifies use of SDB records as a simple filesystem \\ \hline
         \end{tabular}
     \end{table}
   \end{savenotes}
 \end{center}
 
-\item[COMPONENT] \hfill \\
-An interconnect record has a component info structure embedded within it which can be used
-to provide additional meta-data regarding the interconnect itself.
-\end{description}
 
-\subsubsection{Integrator Record}
+\subsubsection{Integration Record}
 
-An integrator record gives meta-data about the aggregate product of the bus. For example, consider
+An integration record is a \textit{product} record (not a \textit{component}, because
+it has no associated address range).
+The structure provides meta-data about the aggregate product of the bus or bus subset.
+For example, consider
 a manufacturer that takes components from various vendors and combines them with a standard bus
-interconnect. This aggregate product can be described by an SDB integrator record.
-
-This record is important as it helps to clearly distinguish product information of devices and of
-their aggregated products. Since this is the only main requirement of the integrator record, it
-only contains a product info structure without the additional address space information (as this
-can easily be gleaned from the records for the specific devices that compose the aggregate). The
-structure of the integrator record is described in Table \ref{sdwb_integrator_struct}.
+interconnect. This aggregate product can be described by an SDB integration record, claiming
+a vendor ID, the release date and the other \textit{product} information.
+The integrator record is is described in Table \ref{sdb_integrator}.
 
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{SDB Integrator Record Structure}\label{sdwb_integrator_struct}\centering
-        \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
-        Offset & Size (bytes) & Name & Value & Description \\ \hline
-        0x00 & 24 & RESERVED & - & Reserved bytes \\ \hline
-        0x18 & 40 & PRODUCT & - & SDB Product Info structure (see Table \ref{sdwb_product_struct} \\ \hline
+      \caption{SDB Integrator Record (64 bytes, type 0x80)}\label{sdb_integrator}\centering
+        \begin{tabular}{| c | c | c | l | c | p{5cm} |} \hline
+        First & Last & Size & Name & Value & Description \\ \hline
+        0x00 & 0x1f & 24 & reserved & - & Reserved/unused space \\ \hline
+        0x18 & 0x3f & 40 & product & - & SDB Product Info structure \\ \hline
         \end{tabular}
     \end{table}
   \end{savenotes}
 \end{center}
 
 \begin{description}
-\item[PRODUCT] \hfill \\
-An integrator record has a product info structure embedded within it which can be used
-to provide meta-data that aids in identifying the aggregating interconnect.
+\item[reserved] \hfill \\
+The initial field in this record is unused, because all needed information is
+part of the product structure. Users \textbf{should} fill this area with all bits
+clear or all bit set.
+
+\item[product] \hfill \\
+This is the \textit{product} structure described in Table \ref{sdb_product}. The
+record type for an integration record is 0x80.
 \end{description}
 
 \subsubsection{Device Record}
 
 This record type describes a single device or logic block mapped into the memory of the
-bus. In a correct implementation, one device record should exist for each device that is
-connected to the bus. The structure of the device record structure is shown below in Table
-\ref{sdwb_dev_struct}.
+bus. In a compliant implementation, one device record \textbf{should} exist for each device that is
+connected to the bus. Users \textbf{may} choose to aggregate a complex device under a single
+description record. The structure of the device record structure is shown below in Table
+\ref{sdb_device}.
 
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{SDB Device Record Structure}\label{sdwb_dev_struct}\centering
-        \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
-        Offset & Size (bytes) & Name & Value & Description \\ \hline
-        0x00 & 2 & ABI\_CLASS & - & The ABI class of the device (0 = Custom Device) \\ \hline
-        0x02 & 1 & ABI\_VER\_MAJOR & - & The ABI major version \\ \hline
-        0x03 & 1 & ABI\_VER\_MINOR & - & The ABI minor version \\ \hline
-        0x04 & 4 & BUS\_SPECIFIC & - & Bus specific field \\ \hline
-        0x08 & 56 & COMPONENT & - & SDB Component Info structure (see Table \ref{sdwb_component_struct} \\ \hline
+      \caption{SDB Device Record (64 bytes, type 0x01)}\label{sdb_device}\centering
+        \begin{tabular}{| c | c | c | l | c | p{5cm} |} \hline
+        First & Last & Size & Name & Value & Description \\ \hline
+        0x00 & 0x01 & 2 & abi\_class & - & The ABI class of the device (0 = Custom Device) \\ \hline
+        0x02 & 0x02 & 1 & abi\_ver\_major & - & The ABI major version \\ \hline
+        0x03 & 0x03 & 1 & abi\_ver\_minor & - & The ABI minor version \\ \hline
+        0x04 & 0x07 & 4 & bus\_specific & - & Bus specific field (flags) \\ \hline
+        0x08 & 0x3f & 56 & sdb\_component & - & SDB Component Info structure \\ \hline
         \end{tabular}
     \end{table}
   \end{savenotes}
 \end{center}
 
 \begin{description}
-\item[ABI\_CLASS] \hfill \\
-The ABI class, if specified, tells the kind of standard interface that the device provides. The
-currently available types of ABI classes are specified in Table \ref{abi_class_list}.
+\item[abi\_class] \hfill \\
+The ABI class, if not 0, tells the kind of standard interface that the device provides. This
+allows a single driver to deal with compatible devices designed by different vendors, not unlikely
+PCI or USB classes.  Currently, no ABI class is defined. Designers \textbf{should} use 0 here,
+at this point in time.
 
-\begin{center}
-  \begin{savenotes}
-    \begin{table}[!ht]\footnotesize
-      \caption{ABI Classes}\label{abi_class_list}\centering
-        \begin{tabular}{| c | l | p{5cm} |} \hline
-        Value & ABI Class & Description \\ \hline
-        0 & Custom Device & Used when the device does not conform to any standard interface \\ \hline
-        \end{tabular}
-    \end{table}
-  \end{savenotes}
-\end{center}
-
-\item[ABI\_VER\_MAJOR] \hfill \\
+\item[abi\_ver\_major] \hfill \\
 This is the major version number of the ABI class. Standard interfaces are not compatible between
-major version changes.
+major version changes.  If the class is 0, designers \textbf{can} use this field of driver-specific uses. For
+example, a driver can be able to deal with a number of similar devices (all with a different device-ID)
+and use the ABI fields as a hint to classify the various devices.
 
-\item[ABI\_VER\_MINOR] \hfill \\
+\item[abi\_ver\_minor] \hfill \\
 This is the minor version number of the ABI class. Standard interfaces are compatible between
-minor version changes.
+minor version changes. Again, if the class is 0, developers \textbf{can} set this field for internal use.
 
-\item[BUS\_SPECIFIC] \hfill \\
-This is a 4-byte field that holds bus-specific information. The bus specific information for different
-supported buses is described in Table \ref{bus_specific}.
+\item[bus\_specific] \hfill \\
+This is a 4-byte field that holds bus-specific information, most likely flags. Currently, only
+Wishbone flags are defined; please refer to header files for details.
 
-\begin{center}
-  \begin{savenotes}
-    \begin{table}[!ht]\footnotesize
-      \caption{Wishbone -- Bus Specific Information}\label{bus_specific}\centering
-        \begin{tabular}{| c | l | p{5cm} |} \hline
-        Bit Offset & Name & Description \\ \hline
-        0 & ENDIAN & Specifies the endianness of the device (0 = big endian, 1 = little endian) \\ \hline
-        \end{tabular}
-    \end{table}
-  \end{savenotes}
-\end{center}
-
-\item[COMPONENT] \hfill \\
-An embedded component info structure for providing meta-data about the device being described.
+\item[component] \hfill \\
+This is a standard \textit{component} structure (see Table \ref{sdb_component}). The record type
+for a device is 0x01.
 \end{description}
 
 \subsubsection{Bridge Record}
 
 A bridge record is used to describe a nested bus within the same address space. This is different from
 a bus controller which provides access to an entirely different address space altogether. Bus
-controllers should be treated and handled as devices and not bridges. The structure of the bridge record
-is shown in Table \ref{sdwb_bridge_struct}.
+structures with nested interconnects are typical in complex projects.
+The structure of the bridge record is shown in Table \ref{sdb_bridge}.
 
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
-      \caption{SDB Bridge Structure}\label{sdwb_bridge_struct}\centering
-        \begin{tabular}{| c | c | l | c | p{5cm} |} \hline
-        Offset & Size (bytes) & Name & Value & Description \\ \hline
-        0x00 & 8 & SDB\_CHILD & - & The relative address of the nested SDB table \\ \hline
-        0x08 & 56 & COMPONENT & - & SDB Component Info structure (see Table \ref{sdwb_component_struct} \\ \hline
+      \caption{SDB Device Record (64 bytes, type 0x02)}\label{sdb_bridge}\centering
+        \begin{tabular}{| c | c | c | l | c | p{5cm} |} \hline
+        First & Last & Size & Name & Value & Description \\ \hline
+        0x00 & 0x07 & 8 & sdb\_child & - & The relative address of the nested SDB table \\ \hline
+        0x08 & 0x3f & 56 & sdb\_component & - & SDB Component structure \\ \hline
         \end{tabular}
     \end{table}
   \end{savenotes}
 \end{center}
 
 \begin{description}
-\item[SDB\_CHILD] \hfill \\
+\item[sdb\_child] \hfill \\
 This field gives the location of the nested bus' SDB table. This address is a relative address
 with respect to the start of the nested bus' address space (stored in the component info structure).
+The value \textbf{must} point to an SDB array that begins with an \textit{interconnect} record.
 
-\item[COMPONENT] \hfill \\
-An embedded component info structure for providing meta-data about the bridge being described.
+\item[component] \hfill \\
+An embedded component info structure, where the type is 0x01 See Table \ref{sdb_component}.
 \end{description}
 
 \end{document}
