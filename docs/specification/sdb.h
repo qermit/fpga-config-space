@@ -85,8 +85,8 @@ struct sdb_bridge {
 /* Type 0x80: integration
  *
  * all types with by 7 set are meta-information, so
- * software can ignore the types it doesn't know. Here
- * we just provide product information for the overall FPGA
+ * software can ignore the types it doesn't know. Here we
+ * just provide product information for an aggregate device
  */
 struct sdb_integration {
 	uint8_t			reserved[24];	/* 0x00-0x17 */
@@ -97,9 +97,10 @@ struct sdb_integration {
  *
  * this allows keeping empty slots during development,
  * so they can be filled later with miminal efforts and
- * no misleading description is ever shipped -- hopefully
+ * no misleading description is ever shipped -- hopefully.
+ * It can also be used to pad a table to a desired length.
  */
-struct sdb_integration {
+struct sdb_empty {
 	uint8_t			reserved[63];	/* 0x00-0x3e */
 	uint8_t			record_type;	/* 0x3f */
 };
