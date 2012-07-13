@@ -35,7 +35,7 @@ for Logic Cores}
 \author{Alessandro Rubini (Consultant for CERN)\\
 Wesley Terpstra (GSI),\\
 Manohar Vanga (CERN, BE/CO/HT)}
-\date{June 21th 2012}
+\date{July 13th 2012}
 \begin{document}
 
 \maketitle
@@ -425,12 +425,12 @@ and, later, for other SDB bus versions.
 
 \subsection{Storage Support}
 
-Another use for SDB we are evaluating these months is a simple yet
+Another use for SDB is a simple yet
 effective flash storage organization.  SDB records can be used as a
 very simple file-system-like interface that can be parsed by a
 soft-core CPU with very little overhead.
 
-Such a file-system will be mostly-read and requires no wear-leveling;
+Such a file-system is mostly-read and requires no wear-leveling;
 still, we sometimes need to update FPGA binary images or some
 calibration parameters.  In our search for the state of the art, we
 didn't find small and simple filesystems that allow in-place
@@ -526,7 +526,7 @@ All multi-byte fields \textbf{must} be stored in big-endian byte order.
         0x18 & 0x1f & 8 & vendor\_id & - & 64-bit vendor ID \\ \hline
         0x20 & 0x23 & 4 & device\_id & - & 32-bit vendor specific device ID \\ \hline
         0x24 & 0x27 & 4 & version & - & Vendor specific device version number \\ \hline
-        0x28 & 0x2b & 4 & date & - & The release date (hex format, eg. 0x20120601) \\ \hline
+        0x28 & 0x2b & 4 & date & - & The release date (hex format, eg. 0x20120621) \\ \hline
         0x2c & 0x3e & 19 & name & - & UTF-8 device name, 0x20 filled, without terminator \\ \hline
         0x3f & 0x3f & 1 & record\_type & - & Record type byte (see Table \ref{record_type}) \\ \hline
         \end{tabular}
@@ -537,7 +537,7 @@ All multi-byte fields \textbf{must} be stored in big-endian byte order.
 \begin{description}
 \item[vendor\_id] \hfill \\
 This field provides a 64 bit field that identifies the vendor of the device. The vendor may
-be an company, organization or an individual. The vendor name spaces is split in two halves;
+be an company, organization or an individual. The vendor name space is split in two halves;
 anybody \textbf{can} pick a vendor ID in the upper half (first bit set), and the
 63 bits \textbf{must} be picked as a random number and \textbf{should} be used consistently
 in all the vendor's designs.
@@ -553,7 +553,7 @@ according to policies other than collisions with other vendors.
 
 \item[device\_id] \hfill \\
 This field specifies a manufacturer defined device ID for the device being described.
-Vendors are free to managed these 32 bits as they like, but they \textbf{should} use
+Vendors are free to manage these 32 bits as they like, but they \textbf{should} use
 the same identifier for fully compatible implementations, using other fields like \textit{version}
 and \textit{date} to differentiate them.
 
@@ -566,7 +566,7 @@ for gateware source code.
 
 \item[date] \hfill \\
 Design/release date of the product. This \textbf{must} be either 0 (unspecified) or a 32-bit hex
-format number in the format 0xYYYYMMDD. For example, 0x20120501.
+format number in the format 0xYYYYMMDD. For example, 0x20120621.
 
 \item[name] \hfill \\
 The UTF-8 name of the device. As long as the name fits in 19 bytes, designers are free to choose
@@ -669,7 +669,7 @@ SDB table \textbf{must} feature such structure as first one in the array.
       \caption{SDB Interconnect Record (64 bytes, type 0x00)}\label{sdb_interconnect}\centering
         \begin{tabular}{| c | c | c | l | c | p{4cm} |} \hline
         First & Last & Size & Name & Value & Description \\ \hline
-        0x00 & 0x03 & 4 & sdb\_magic & 0x5344422d & ``SDB-'', used to verify a table is actually there \\ \hline
+        0x00 & 0x03 & 4 & sdb\_magic & 0x5344422D & ``SDB-'', used to verify a table is actually there \\ \hline
         0x04 & 0x05 & 2 & sdb\_records & - & Number of records in this SDB table (including this one) \\ \hline
         0x06 & 0x06 & 1 & sdb\_version & 1 & SDB format version. Currently 1 \\ \hline
         0x07 & 0x07 & 1 & sdb\_bus\_type & - & The bus type for all components in the table \\ \hline
@@ -681,8 +681,8 @@ SDB table \textbf{must} feature such structure as first one in the array.
 
 \begin{description}
 \item[sdb\_magic] \hfill \\
-The field \textbf{must} be set to 0x5344422d. If you use a similar data structure but
-choose not to fully comply to this standard, you \textbf{must} use a different magic
+The field \textbf{must} be set to 0x5344422D. If you use a similar data structure but
+choose to not fully comply to this standard, you \textbf{must} use a different magic
 number.
 % can people comply with this ``must'' clause, if they choose not to comply with SDB?
 

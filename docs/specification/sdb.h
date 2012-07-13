@@ -47,7 +47,7 @@ enum sdb_record_type {
 
 /* Type 0: interconnect (first of the array)
  *
- * magic ix 0x5344422d, sdb_records is the length of the table
+ * magic is 0x5344422D, sdb_records is the length of the table
  * including this first record, version is 1. The bus type
  * is enumerated later.
  */
@@ -84,7 +84,7 @@ struct sdb_bridge {
 
 /* Type 0x80: integration
  *
- * all types with by 7 set are meta-information, so
+ * all types with bit 7 set are meta-information, so
  * software can ignore the types it doesn't know. Here we
  * just provide product information for an aggregate device
  */
