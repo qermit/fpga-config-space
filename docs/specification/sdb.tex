@@ -837,4 +837,111 @@ The value \textbf{must} point to an SDB array that begins with an \textit{interc
 An embedded component info structure, where the type is 0x01 See Table \ref{sdb_component}.
 \end{description}
 
+\section{A Simple Real-World Example}
+
+This section shows the simplest real-world example of an SDB array.
+The FPGA binary used as an example is the \textit{boot} image to be
+programmed in the SPEC cards
+(\texttt{http://www.ohwr.org/projects/spec}); it only includes the
+\textit{syscon} device, which allows generic access to the FMC
+mezzanine card.
+
+\subsection{Binary Data}
+
+
+The following binary dump appears at offset 0x100 of the memory window
+that maps to the programmable device:
+
+\footnotesize
+\begin{verbatim}
+000000 53 44 42 2d 00 02 01 00 00 00 00 00 00 00 00 00  >SDB-............<
+000010 00 00 00 00 00 00 01 ff 00 00 00 00 00 00 06 51  >...............Q<
+000020 e6 a5 42 c9 00 00 00 02 20 12 05 11 57 42 34 2d  >..B..... ...WB4-<
+000030 43 72 6f 73 73 62 61 72 2d 47 53 49 20 20 20 00  >Crossbar-GSI   .<
+000040 00 00 01 01 00 00 00 07 00 00 00 00 00 00 00 00  >................<
+000050 00 00 00 00 00 00 00 ff 00 00 00 00 00 00 ce 42  >...............B<
+000060 ff 07 fc 47 00 00 00 01 20 12 03 05 57 52 2d 50  >...G.... ...WR-P<
+000070 65 72 69 70 68 2d 53 79 73 63 6f 6e 20 20 20 01  >eriph-Syscon   .<
+\end{verbatim}
+\normalsize
+
+\subsection{Parsing the Data}
+
+This is the suggested parsing sequence for the data shown above. The
+parsing code is assumed to know where the data structure is expected to live.
+
+\begin{itemize}
+\item The parser verifies the magic number 0x5344422D at offset 0.
+\item The type byte of 0x00 at offset 0x3f confirms this is an \textit{interconnect} record.
+\item The SDB version, at offset 6, confirms this is version 1 and we can parse it.
+\item By reading the 16-bit field at position 04-05, we know this is an array of two items.
+\item The second item is of type \textit{device} (type 0x01).
+\end{itemize}
+
+What follows is the split-out view of the two structures:
+
+\footnotesize
+\begin{verbatim}
+Interconnect:
+0x00:   53 44 42 2d               (Magic "SDB-")
+0x04:   00 02                     (Number of records)
+0x06:   01                        (SDB version)
+0x07:   00                        (Bus type: wishbone)
+0x08:   00 00 00 00 00 00 00 00   (First address)
+0x10:   00 00 00 00 00 00 01 ff   (Last address)
+0x18:   00 00 00 00 00 00 06 51   (Vendor: GSI)
+0x20:   e6 a5 42 c9               (Device)
+0x24:   00 00 00 02               (Version)
+0x28:   20 12 05 11               (Date: 11th May 2012)
+0x2c:   "WB4-Crossbar-GSI   "     (Name)
+0x3f:   00                        (Type: interconnect)
+
+Device:
+0x00:   00 00                     (ABI class)
+0x02:   01                        (ABI version major)
+0x03:   01                        (ABI version minor)
+0x04:   00 00 00 07               (Bus-specific: BE, 8,16,32 bits)
+0x08:   00 00 00 00 00 00 00 00   (First address)
+0x10:   00 00 00 00 00 00 00 ff   (Last address)
+0x18:   00 00 00 00 00 00 ce 42   (Vendor: CERN)
+0x20:   ff 07 fc 47               (Device)
+0x24:   00 00 00 01               (Version)
+0x28:   20 12 03 05               (Date: 5th March 2012)
+0x2c:   "WR-Periph-Syscon   "     (Name)
+0x3f:   01                        (Type: device)
+\end{verbatim}
+\normalsize
+
+The previous dump shows how the vendor identifiers in this case have
+been allocated in the globally-assigned space, while device identifiers
+are pseudo-random numbers, in charge of the respective vendor.
+
+\subsection{Endianness Problems}
+
+Please note that the host may have some issue reading the binary
+dumps. According to how the bridge between the host and FPGA is
+designed you may face one of the following situation:
+
+\begin{itemize}
+\item The host is big-endian (data is always correct).
+\item The host is little-endian and the bridge is byte-oriented.
+\item The host is little-endian and the bridge is word-oriented.
+\end{itemize}
+
+If the bridge is byte-oriented, i.e. each and every byte can be
+independently addressed as such, then the usual endian conversion
+rules apply (e.g. you can \textit{memcpy} and then access fields with
+endian-aware code).
+
+If the bridge it word-oriented, however, the behaviour is stranger, in
+a way.  After you copied the data to host memory (whether one byte at
+a time or not), you'll find that within each word the bytes are
+swapped.  This happens because when the host reads the byte at offset
+0, it requests bits 0..7, and the bridge returns the byte at offset 3,
+which corresponds to those bits.  If this is your case, you need to
+byte-swap each 32-bit word before using the structure in a
+little-endian host. After such swapping, the usual rules for
+multi-byte values apply.
+
+
 \end{document}
