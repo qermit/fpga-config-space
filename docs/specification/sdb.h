@@ -1,3 +1,8 @@
+/*
+ * This is version 1.0 of sdb.h, as included the specification v1.0
+ */
+#ifndef __SDB_H__
+#define __SDB_H__
 #include <stdint.h>
 
 /*
@@ -47,10 +52,10 @@ enum sdb_record_type {
 
 /* Type 0: interconnect (first of the array)
  *
- * magic is 0x5344422D, sdb_records is the length of the table
- * including this first record, version is 1. The bus type
- * is enumerated later.
+ * sdb_records is the length of the table including this first
+ *  record, version is 1. The bus type is enumerated later.
  */
+#define				SDB_MAGIC 	0x5344422d /* "SDB-" */
 struct sdb_interconnect {
 	uint32_t		sdb_magic;	/* 0x00-0x03 */
 	uint16_t		sdb_records;	/* 0x04-0x05 */
@@ -117,3 +122,5 @@ enum sdb_bus_type {
 #define SDB_WB_ACCESS64		0x08
 
 #define SDB_WB_LITTLE_ENDIAN		0x80
+
+#endif /* __SDB_H__ */
