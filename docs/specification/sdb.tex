@@ -31,11 +31,11 @@
 \makesavenoteenv{tabular}
 
 \title{Self-Describing Bus (SDB) Specification\\
-for Logic Cores}
+for Logic Cores -- Version 1.0}
 \author{Alessandro Rubini (Consultant for CERN)\\
 Wesley Terpstra (GSI),\\
 Manohar Vanga (CERN, BE/CO/HT)}
-\date{July 13th 2012}
+\date{July 19th 2012}
 \begin{document}
 
 \maketitle
@@ -48,10 +48,8 @@ Manohar Vanga (CERN, BE/CO/HT)}
 
 \section*{Bugs}
 
-This version of this document is still a draft (if it was software, it would be
-between \textit{beta} and \textit{release candidate}).
-
-This is a list of things that ought to be changed or added:
+Even though we blessed this version as 1.0, there are still some
+things that ought to be changed or added:
 
 \begin{itemize}
 \item We should clarify that in nested buses addresses are relative to the sub-bus;
@@ -62,6 +60,23 @@ This is a list of things that ought to be changed or added:
 \item Filesystem-specific flags must be defined and documented.
 \end{itemize}
 
+\section*{Versioning}
+
+This is version 1.0, and describes version 1 of the data
+structures. All future \textbf{compatible} releases of this
+specification will be blessed 1.\textit{x}, for some ever-increasing
+version of \textit{x}.  A compatible specification is one that
+explains better some unclear points (see ``Bugs'' above) or that adds
+record types that may be identified (and possibly ignored) by previous
+parsers.
+
+If we ever need to release version 2 (or further) of the SDB
+structures, the specification version will be raised accordingly. New
+specifications will continue to describe older versions of the data
+structures, and parsers running on host computers will be required to
+still parse the older versions.  (No such requirement is there for
+soft-cores, because the parser code is synthesized together with the data
+structures).
 
 \section{Introduction}
 
