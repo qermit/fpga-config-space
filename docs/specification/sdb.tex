@@ -852,17 +852,18 @@ The value \textbf{must} point to an SDB array that begins with an \textit{interc
 An embedded component info structure, where the type is 0x01 See Table \ref{sdb_component}.
 \end{description}
 
-\section{A Simple Real-World Example}
+\section{Simple Real-World Examples}
 
-This section shows the simplest real-world example of an SDB array.
-The FPGA binary used as an example is the \textit{boot} image to be
+This section shows the details of the simplest real-world example of an SDB array,
+and an overlook of a more structured device.
+
+\subsection{Simple Binary Data}
+
+The FPGA binary used as the simplest example is the \textit{boot} image to be
 programmed in the SPEC cards
 (\texttt{http://www.ohwr.org/projects/spec}); it only includes the
 \textit{syscon} device, which allows generic access to the FMC
 mezzanine card.
-
-\subsection{Binary Data}
-
 
 The following binary dump appears at offset 0x100 of the memory window
 that maps to the programmable device:
@@ -931,6 +932,35 @@ The previous dump shows how the vendor identifiers in this case have
 been allocated in the globally-assigned space, while device identifiers
 are pseudo-random numbers, in charge of the respective vendor.
 
+\subsection{A More Structured Device}
+
+The following is the output of \texttt{eb-ls}, and \textit{Etherbone}
+tool, when run over a complex White Rabbit device. This output
+comes from scanning the SDB structures:
+
+\footnotesize
+\begin{verbatim}
+root@scul007:~# eb-ls dev/pcie_wb0
+BusPath   VendorID         Product   Base(Hex)  Description
+1         000000000000ce42:66cfeb52         0  WB4-BlockRAM
+2         0000000000000651:eef0b198    100000  WB4-Bridge-GSI
+2.1       0000000000000651:35aa6b95    100000  GSI_GPIO_32
+2.2       0000000000000651:8752bf44    140000  GSI_ECA_UNIT
+2.3       0000000000000651:10051981    180000  GSI_TM_LATCH
+3         0000000000000651:eef0b198    200000  WB4-Bridge-GSI
+3.1       000000000000ce42:66cfeb52    200000  WB4-BlockRAM
+3.2       0000000000000651:eef0b198    220000  WB4-Bridge-GSI
+3.2.1     000000000000ce42:ab28633a    220000  WR-Mini-NIC
+3.2.2     000000000000ce42:650c2d4f    220100  WR-Endpoint
+3.2.3     000000000000ce42:65158dc0    220200  WR-Soft-PLL
+3.2.4     000000000000ce42:de0d8ced    220300  WR-PPS-Generator
+3.2.5     000000000000ce42:ff07fc47    220400  WR-Periph-Syscon
+3.2.6     000000000000ce42:e2d13d04    220500  WR-Periph-UART
+3.2.7     000000000000ce42:779c5443    220600  WR-Periph-1Wire
+3.2.8     000000000000ce42:779c5443    220700  WR-Periph-1Wire
+\end{verbatim}
+\normalsize
+
 \subsection{Endianness Problems}
 
 Please note that the host may have some issue reading the binary
@@ -958,5 +988,11 @@ byte-swap each 32-bit word before using the structure in a
 little-endian host. After such swapping, the usual rules for
 multi-byte values apply.
 
+\subsection{Existing Tools}
+
+As part of the \textit{Etherbone} project, you already find a number
+of tools that work with SDB structures (including \texttt{eb-ls} that
+printed the table of devices shown above).  The project is at
+\texttt{http://www.ohwr.org/projects/etherbone-core} .
 
 \end{document}
