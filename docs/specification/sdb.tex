@@ -963,9 +963,9 @@ BusPath   VendorID         Product   Base(Hex)  Description
 
 \subsection{Endianness Problems}
 
-Please note that the host may have some issue reading the binary
+Please note that the host may have some issues reading the binary
 dumps. According to how the bridge between the host and FPGA is
-designed you may face one of the following situation:
+designed you may face one of the following situations:
 
 \begin{itemize}
 \item The host is big-endian (data is always correct).
@@ -975,18 +975,18 @@ designed you may face one of the following situation:
 
 If the bridge is byte-oriented, i.e. each and every byte can be
 independently addressed as such, then the usual endian conversion
-rules apply (e.g. you can \textit{memcpy} and then access fields with
-endian-aware code).
+rules apply (e.g. you can \textit{memcpy} the records to host memory
+and access fields with endian-aware code).
 
-If the bridge it word-oriented, however, the behaviour is stranger, in
+If the bridge is word-oriented, with 32-bit words in this example, the behaviour is stranger, in
 a way.  After you copied the data to host memory (whether one byte at
-a time or not), you'll find that within each word the bytes are
-swapped.  This happens because when the host reads the byte at offset
-0, it requests bits 0..7, and the bridge returns the byte at offset 3,
-which corresponds to those bits.  If this is your case, you need to
+a time or not), you'll find that the bytes are swapped within each word.
+This happens because the 32-bit word is transferred as a whole: the least significant
+bits remain the the least significant, but they come from offset 3 in the data structure
+and are stored at offset 0 in the little-endian host.  If this is your case, you need to
 byte-swap each 32-bit word before using the structure in a
-little-endian host. After such swapping, the usual rules for
-multi-byte values apply.
+little-endian host. After such swapping, the data fields live at the correct
+offsets and must be accessed as big endian.
 
 \subsection{Existing Tools}
 
