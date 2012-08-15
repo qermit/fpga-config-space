@@ -3,7 +3,11 @@
  */
 #ifndef __SDB_H__
 #define __SDB_H__
+#ifdef __KERNEL__
+#include <linux/types.h>
+#else
 #include <stdint.h>
+#endif
 
 /*
  * All structures are 64 bytes long and are expected
