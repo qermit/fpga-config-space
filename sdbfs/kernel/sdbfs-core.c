@@ -74,12 +74,13 @@ static int sdbfs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 	}
 
-	/* instantiate and link root dentry */
-	root = d_alloc_root(inode);
-	if (!root) {
-		iput(inode);
+	/*
+	 * Instantiate and link root dentry. d_make_root only exists
+	 * after 3.2, but d_alloc_root was killed soon after 3.3
+	 */
+	root = d_make_root(inode);
+	if (!root)
 		return -ENOMEM;
-	}
 	root->d_fsdata = NULL; /* FIXME: d_fsdata */
 	sb->s_root = root;
 	return 0;
