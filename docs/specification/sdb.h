@@ -1,5 +1,5 @@
 /*
- * This is version 1.0 of sdb.h, as included the specification v1.0
+ * This is a modified version 1.0 of sdb.h, not the official spec version
  */
 #ifndef __SDB_H__
 #define __SDB_H__
@@ -114,9 +114,10 @@ struct sdb_empty {
 	uint8_t			record_type;	/* 0x3f */
 };
 
-/* The type of bus, for bus-specific flags (currently only Wishbone) */
+/* The type of bus, for bus-specific flags */
 enum sdb_bus_type {
-	sdb_wishbone = 0x00
+	sdb_wishbone = 0x00,
+	sdb_data     = 0x01,
 };
 
 #define SDB_WB_WIDTH_MASK		0x0f
@@ -126,5 +127,9 @@ enum sdb_bus_type {
 #define SDB_WB_ACCESS64		0x08
 
 #define SDB_WB_LITTLE_ENDIAN		0x80
+
+#define SDB_DATA_READ		0x04
+#define SDB_DATA_WRITE		0x02
+#define SDB_DATA_EXEC		0x01
 
 #endif /* __SDB_H__ */
