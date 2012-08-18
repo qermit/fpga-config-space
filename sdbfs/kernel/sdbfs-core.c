@@ -125,6 +125,4 @@ static void sdbfs_exit(void)
 module_init(sdbfs_init);
 module_exit(sdbfs_exit);
 
-
-
-
+MODULE_LICENSE("GPL");

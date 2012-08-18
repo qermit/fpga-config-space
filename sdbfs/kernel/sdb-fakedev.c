@@ -103,3 +103,5 @@ static void fakedev_exit(void)
 
 module_init(fakedev_init);
 module_exit(fakedev_exit);
+
+MODULE_LICENSE("GPL");
