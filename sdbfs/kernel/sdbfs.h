@@ -22,8 +22,10 @@ struct sdbfs_dev;
 struct sdbfs_dev_ops {
 	struct module *owner;
 	int (*erase)(struct sdbfs_dev *d, uint32_t begin, uint32_t end);
-	ssize_t (*read)(struct sdbfs_dev *d, uint32_t begin, size_t count);
-	ssize_t (*write)(struct sdbfs_dev *d, uint32_t begin, size_t count);
+	ssize_t (*read)(struct sdbfs_dev *d, uint32_t begin, u8 *buf, 
+			size_t count);
+	ssize_t (*write)(struct sdbfs_dev *d, uint32_t begin, u8 *buf,
+			 size_t count);
 };
 
 struct sdbfs_dev {
