@@ -61,6 +61,14 @@ static int sdbfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
 	struct dentry *root;
+	struct sdbfs_dev *sd;
+
+	/* HACK: this data is really a name */
+	sd = sdbfs_get_by_name(data);
+	if (IS_ERR(sd))
+		return PTR_ERR(sd);
+	sb->s_fs_info = sd;
+
 
 	/* All of our data is organized as 64-byte blocks */
 	sb->s_blocksize = 64;
@@ -89,10 +97,9 @@ static int sdbfs_fill_super(struct super_block *sb, void *data, int silent)
 static struct dentry *sdbfs_mount(struct file_system_type *type, int flags,
 			   const char *name, void *data)
 {
-	/* FIXME: use "name" */
-	printk("%s: flags 0x%x, name %s, data %p\n", __func__,
-	       flags, name, data);
-	return mount_single(type, flags, data, sdbfs_fill_super);
+	char *fakedata = (char *)name;
+	/* HACK: use "name" as data, to use the mount_single helper */
+	return mount_single(type, flags, fakedata, sdbfs_fill_super);
 }
 
 static void sdbfs_kill_sb(struct super_block *sb)
@@ -101,7 +108,7 @@ static void sdbfs_kill_sb(struct super_block *sb)
 
 	kill_anon_super(sb);
 	if (sd)
-		module_put(sd->ops->owner);
+		sdbfs_put(sd);
 }
 
 static struct file_system_type sdbfs_fs_type = {

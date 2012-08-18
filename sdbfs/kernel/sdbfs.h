@@ -31,10 +31,18 @@ struct sdbfs_dev_ops {
 struct sdbfs_dev {
 	char *name;
 	int blocksize;
+	unsigned long headerpos;
 	struct sdbfs_dev_ops *ops;
+	struct list_head list;
 };
 
-int sdbfs_register_device(struct sdbfs_dev *d);
-void sdbfs_unregister_device(struct sdbfs_dev *d);
+/* Internal inter-file calls */
+struct sdbfs_dev *sdbfs_get_by_name(char *name);
+void sdbfs_put(struct sdbfs_dev *sd);
+
+
+/* Exported to other modules */
+int sdbfs_register_device(struct sdbfs_dev *sd);
+void sdbfs_unregister_device(struct sdbfs_dev *sd);
 
 #endif /* __SDBFS_H__ */
