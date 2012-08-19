@@ -27,12 +27,13 @@ struct fakedev {
 static struct fakedev fakedev_devs[8];
 static struct device fakedev_device;
 
-static ssize_t fakedev_read(struct sdbfs_dev *sd, uint32_t begin, u8 *buf,
+static ssize_t fakedev_read(struct sdbfs_dev *sd, uint32_t begin, void *buf,
 		     size_t count)
 {
 	struct fakedev *fd;
 	int len;
 
+	printk("%s: %08x - %i\n", __func__, (int)begin, count);
 	fd = container_of(sd, struct fakedev, sd);
 	len = fd->fw->size;
 	if (begin > len)
@@ -68,6 +69,7 @@ static int fakedev_init(void)
 
 	for (i = 0; i < nimg; i++) {
 		d = fakedev_devs + i;
+		printk("request for %i -- n %i\n", i, nimg);
 		if (request_firmware(&d->fw, fsimg[i], &fakedev_device) < 0) {
 			printk("%s: can't load %s\n", KBUILD_MODNAME,
 			       fsimg[i]);

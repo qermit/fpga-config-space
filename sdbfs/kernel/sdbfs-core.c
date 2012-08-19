@@ -10,52 +10,221 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/sdb.h> /* in ../include, by now */
+#include <linux/uaccess.h>
 
 #include "sdbfs.h"
 #include "sdbfs-int.h"
 
+#define SDB_SIZE (sizeof(struct sdb_device))
 
 static int sdbfs_readdir(struct file * filp,
 			 void * dirent, filldir_t filldir)
 {
+	struct inode *ino = filp->f_dentry->d_inode;
+	struct sdbfs_inode *inode;
+	struct sdb_device *s_d;
+	unsigned long file_off = filp->f_pos;
+	unsigned long offset = ino->i_ino & ~1;
+	int i, j, n;
+
 	printk("%s\n", __func__);
-	return -ENOENT;
+	if (file_off != 0)
+		return 0;
+
+	inode = container_of(ino, struct sdbfs_inode, ino);
+	n = be16_to_cpu(inode->s_i.sdb_records) - 1;
+	/* FIXME: use file_off */
+	for (i = 0; i < n; i++) {
+		char s[20];
+
+		offset += SDB_SIZE;
+		s_d = (struct sdb_device *)inode->files + i;
+		strncpy(s, s_d->sdb_component.product.name, 19);
+		for (j = 19; j; j--) {
+			s[j] = '\0';
+			if (s[j-1] != ' ')
+				break;
+		}
+		if (filldir(dirent, s, j, offset, offset, DT_UNKNOWN) < 0)
+			return i;
+		filp->f_pos++;
+	}
+	return i;
 }
 
-static const struct file_operations sdbfs_dir_operations = {
+static const struct file_operations sdbfs_dir_fops = {
 	.read		= generic_read_dir,
 	.readdir	= sdbfs_readdir,
 	.llseek		= default_llseek,
 };
 
+static ssize_t sdbfs_read(struct file *f, char __user *buf, size_t count,
+			  loff_t *offp)
+{
+	struct inode *ino = f->f_dentry->d_inode;
+	struct super_block *sb = ino->i_sb;
+	struct sdbfs_dev *sd = sb->s_fs_info;
+	struct sdbfs_inode *inode;
+	char kbuf[16];
+	unsigned long start, size;
+	ssize_t ret;
+
+	inode = container_of(ino, struct sdbfs_inode, ino);
+	start = be64_to_cpu(inode->s_d.sdb_component.addr_first);
+	size = be64_to_cpu(inode->s_d.sdb_component.addr_last) + 1 - start;
+
+	/* Horribly inefficient, who cares... */
+	if (*offp > size)
+		return 0;
+	if (*offp + count > size)
+		count = size - *offp;
+	ret = count;
+	while (count) {
+		int n = sizeof(kbuf) > count ? count : sizeof(kbuf);
+
+		/* FIXME: error checking */
+		sd->ops->read(sd, start + *offp, kbuf, n);
+		if (copy_to_user(buf, kbuf, n))
+			return -EFAULT;
+		count -= n;
+		buf += n;
+		*offp += n;
+	}
+	return ret;
+}
+
+static const struct file_operations sdbfs_fops = {
+	.read		= sdbfs_read,
+};
+static struct inode *sdbfs_iget(struct super_block *sb, int inum);
+
 static struct dentry *sdbfs_lookup(struct inode *dir,
 				   struct dentry *dentry, struct nameidata *nd)
 {
-	printk("%s\n", __func__);
-	return NULL;
+	struct inode *ino = NULL;
+	struct sdbfs_inode *inode = container_of(dir, struct sdbfs_inode, ino);
+	struct sdb_device *s_d;
+	unsigned long inum = dir->i_ino & ~1;
+	int i, n, len;
+
+	n = be16_to_cpu(inode->s_i.sdb_records) - 1;
+	for (i = 0; i < n; i++) {
+		s_d = (struct sdb_device *)inode->files + i;
+		len = strlen(s_d->sdb_component.product.name);
+		if (len != dentry->d_name.len)
+			continue;
+		if (!strncmp(s_d->sdb_component.product.name,
+			     dentry->d_name.name, len))
+			break;
+	}
+	if (i != n)
+		ino = sdbfs_iget(dir->i_sb, inum + SDB_SIZE * (i+1));
+	d_add(dentry, ino);
+	return 0;
 }
 
-static const struct inode_operations sdbfs_dir_inode_operations = {
+static const struct inode_operations sdbfs_dir_iops = {
 	.lookup		= sdbfs_lookup,
 };
 
+static struct kmem_cache *sdbfs_inode_cache;
+
 static struct inode *sdbfs_alloc_inode(struct super_block *sb)
 {
+	struct sdbfs_inode *inode;
+
 	printk("%s\n", __func__);
-	return NULL;
+	inode = kmem_cache_alloc(sdbfs_inode_cache, GFP_KERNEL);
+	if (!inode)
+		return NULL;
+	inode_init_once(&inode->ino);
+	printk("%s: return %p\n", __func__, &inode->ino);
+	return &inode->ino;
 }
 
 static void sdbfs_destroy_inode(struct inode *ino)
 {
+	struct sdbfs_inode *inode;
+
+	printk("%s\n", __func__);
+	inode = container_of(ino, struct sdbfs_inode, ino);
+	kmem_cache_free(sdbfs_inode_cache, inode);
 }
 
 static const struct super_operations sdbfs_super_ops = {
 	.alloc_inode    = sdbfs_alloc_inode,
 	.destroy_inode  = sdbfs_destroy_inode,
 };
+
+static struct inode *sdbfs_iget(struct super_block *sb, int inum)
+{
+	struct inode *ino;
+	struct sdbfs_dev *sd = sb->s_fs_info;
+	struct sdbfs_inode *inode;
+	uint32_t offset;
+	int i, j, n, len;
+	uint8_t *s;
+
+	printk("%s: inum %i\n", __func__, inum);
+	ino = iget_locked(sb, inum);
+	if (!ino)
+		return ERR_PTR(-ENOMEM);
+	if (!(ino->i_state & I_NEW))
+		return ino;
+
+	/* The inode number is the offset, but root ino is currently 1 */
+	offset = inum & ~1;
+	inode = container_of(ino, struct sdbfs_inode, ino);
+	n = sd->ops->read(sd, offset, &inode->s_d, SDB_SIZE);
+	if (n != SDB_SIZE)
+		return ERR_PTR(-EIO);
+
+	set_nlink(ino, 1);
+	ino->i_size = be64_to_cpu(inode->s_d.sdb_component.addr_last)
+		- be64_to_cpu(inode->s_d.sdb_component.addr_first) + 1;
+	ino->i_mtime.tv_sec = ino->i_atime.tv_sec = ino->i_ctime.tv_sec = 0;
+	ino->i_mtime.tv_nsec = ino->i_atime.tv_nsec = ino->i_ctime.tv_nsec = 0;
+
+ 	switch (inode->s_d.sdb_component.product.record_type) {
+	case sdb_type_interconnect:
+		printk("%s: interconnect\n", __func__);
+		ino->i_mode = S_IFDIR  | 0555;
+		ino->i_op = &sdbfs_dir_iops;
+		ino->i_fop = &sdbfs_dir_fops;
+		/* We are an interconnect, so read the other records too */
+		len = be16_to_cpu(inode->s_i.sdb_records) * SDB_SIZE;
+		inode->files = kmalloc(len, GFP_KERNEL);
+		BUG_ON(!inode->files);
+		n = sd->ops->read(sd, offset + SDB_SIZE, inode->files, len);
+		BUG_ON(n != len);
+		for (i = 0; i < len / SDB_SIZE; i++) {
+			/* zero-terminate: the lost type is not a problem */
+			s = (struct sdb_device *)(inode->files)[i]
+				.sdb_component.product.name;
+			for (j = 19; j; j--) {
+				s[j] = '\0';
+				if (s[j-1] != ' ')
+					break;
+			}
+		}
+		break;
+
+	case sdb_type_device:
+		printk("%s: device\n", __func__);
+		/* FIXME: Which bus type is this? */
+		ino->i_mode = S_IFREG | 0444;
+		ino->i_fop = &sdbfs_fops;
+		break;
+	default:
+		BUG();
+	}
+	unlock_new_inode(ino);
+	return ino;
+}
 
 static int sdbfs_fill_super(struct super_block *sb, void *data, int silent)
 {
@@ -76,10 +245,10 @@ static int sdbfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_magic = SDB_MAGIC;
 	sb->s_op = &sdbfs_super_ops;
 
-	inode = iget_locked(sb, 1 /* FIXME: inode number */);
-	if (!inode) {
-		printk("no inode\n");
-		return -ENOMEM;
+	inode = sdbfs_iget(sb, 1 /* FIXME: root inode */);
+	if (IS_ERR(inode)) {
+		sdbfs_put(sd);
+		return PTR_ERR(inode);
 	}
 
 	/*
@@ -87,8 +256,11 @@ static int sdbfs_fill_super(struct super_block *sb, void *data, int silent)
 	 * after 3.2, but d_alloc_root was killed soon after 3.3
 	 */
 	root = d_make_root(inode);
-	if (!root)
+	if (!root) {
+		sdbfs_put(sd);
+		/* FIXME: release inode? */
 		return -ENOMEM;
+	}
 	root->d_fsdata = NULL; /* FIXME: d_fsdata */
 	sb->s_root = root;
 	return 0;
@@ -97,15 +269,20 @@ static int sdbfs_fill_super(struct super_block *sb, void *data, int silent)
 static struct dentry *sdbfs_mount(struct file_system_type *type, int flags,
 			   const char *name, void *data)
 {
+	struct dentry *ret;
 	char *fakedata = (char *)name;
+
 	/* HACK: use "name" as data, to use the mount_single helper */
-	return mount_single(type, flags, fakedata, sdbfs_fill_super);
+	ret = mount_single(type, flags, fakedata, sdbfs_fill_super);
+	printk("%s: %p\n", __func__, ret);
+	return ret;
 }
 
 static void sdbfs_kill_sb(struct super_block *sb)
 {
 	struct sdbfs_dev *sd = sb->s_fs_info;
 
+	printk("%s\n", __func__);
 	kill_anon_super(sb);
 	if (sd)
 		sdbfs_put(sd);
@@ -120,6 +297,9 @@ static struct file_system_type sdbfs_fs_type = {
 
 static int sdbfs_init(void)
 {
+	sdbfs_inode_cache = KMEM_CACHE(sdbfs_inode, 0);
+	if (!sdbfs_inode_cache)
+		return -ENOMEM;
 	return register_filesystem(&sdbfs_fs_type);
 	return 0;
 }
@@ -127,6 +307,7 @@ static int sdbfs_init(void)
 static void sdbfs_exit(void)
 {
 	unregister_filesystem(&sdbfs_fs_type);
+	kmem_cache_destroy(sdbfs_inode_cache);
 }
 
 module_init(sdbfs_init);

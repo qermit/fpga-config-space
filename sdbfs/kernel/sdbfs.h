@@ -21,10 +21,10 @@ struct sdbfs_dev;
  */
 struct sdbfs_dev_ops {
 	struct module *owner;
-	int (*erase)(struct sdbfs_dev *d, uint32_t begin, uint32_t end);
-	ssize_t (*read)(struct sdbfs_dev *d, uint32_t begin, u8 *buf, 
+	int (*erase)(struct sdbfs_dev *sd, uint32_t begin, uint32_t end);
+	ssize_t (*read)(struct sdbfs_dev *sd, uint32_t begin, void *buf,
 			size_t count);
-	ssize_t (*write)(struct sdbfs_dev *d, uint32_t begin, u8 *buf,
+	ssize_t (*write)(struct sdbfs_dev *sd, uint32_t begin, void *buf,
 			 size_t count);
 };
 
@@ -36,10 +36,10 @@ struct sdbfs_dev {
 	struct list_head list;
 };
 
+
 /* Internal inter-file calls */
 struct sdbfs_dev *sdbfs_get_by_name(char *name);
 void sdbfs_put(struct sdbfs_dev *sd);
-
 
 /* Exported to other modules */
 int sdbfs_register_device(struct sdbfs_dev *sd);

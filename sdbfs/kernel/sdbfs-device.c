@@ -49,6 +49,11 @@ int sdbfs_register_device(struct sdbfs_dev *sd)
 		if (!strcmp(osd->name, sd->name))
 			return -EBUSY;
 	list_add(&sd->list, &sdbfs_devlist);
+
+	list_for_each_entry(osd, &sdbfs_devlist, list)
+		printk("list entry %p\n", osd);
+
+
 	return 0;
 }
 EXPORT_SYMBOL(sdbfs_register_device);
@@ -58,7 +63,13 @@ void sdbfs_unregister_device(struct sdbfs_dev *sd)
 	struct sdbfs_dev *osd;
 
 	list_for_each_entry(osd, &sdbfs_devlist, list)
+		printk("list entry %p\n", osd);
+	printk("removing %p\n", sd);
+
+	list_for_each_entry(osd, &sdbfs_devlist, list)
 		if (osd == sd)
-			list_del(&sd->list);
+			break;
+	if (osd == sd)
+		list_del(&sd->list);
 }
 EXPORT_SYMBOL(sdbfs_unregister_device);
