@@ -55,6 +55,269 @@
 @node Top
 @top Introduction
 
+This package implements and describes a file-system based on the SDB
+data structures defined by the Open Hardware Repository project called
+@i{Fpga Configuration Space}. The official SDB specification at the time
+of this writing is @url{http://www.ohwr.org/attachments/1487/sdb-1.0.pdf}.
+
+The SDB data structures are designed to describe the address space
+covered by a bus, which is split in memory regions belonging to
+different devices. This project reuses the same structures to describe
+a storage address space, exploiting the simple design. While the structures
+are not simple to generate, they are very simple to parse, which allows
+an embedded processor (like a soft-core running on an FPGA) to access
+this filesystem with a minimal amount of code.
+
+@i{sdbfs} is read-only as far as the structure is concerned, but
+individual files may be modified if so configured to.  The filesystem
+is aware of the concept of block size, so it can be placed on flash
+memory, but doesn't do wear-leveling or any other fancy thing to
+preserver simplicity.
+
+@c ##########################################################################
+@node Library Support
+@chapter Library Support
+
+@i{No library is there as of this version}.
+
+This package is expected to offer a library of functions to access the
+filesystem, but not to create it. Library function should allow
+finding a file by name or by vendor/device identifiers, as well as
+read and write it.
+
+The library will be based on the concept of @i{driver}, which offers
+read and write methods for a specific storage device, and the concept
+of @i{instance} of a storage device.
+
+@c ##########################################################################
+@node User-Space Tools
+@chapter User-Space Tools
+
+Currently, there is only one tool: @i{gensdbfs}.  Later versions will
+provide tools to exercise the library function from a host computer,
+based on an @i{sdb} image file.
+
+@c ==========================================================================
+@node gensdbfs
+@section gensdbfs
+
+The tool receives two arguments: the directory to copy into an @i{sdbfs}
+image and the name of the image file to be generated.
+
+It accepts the following command line arguments:
+
+@table @code
+
+@item -b <blocksize>
+
+	The block size to be used in generating the file. All files
+        and directories are currently aligned to the block size, but
+        later versions will not aligned read-only files, to save storage
+        space.  The default block size is 64 bytes.
+
+@item -s <devicesize>
+
+	The device size by default is unlimited, internally
+        represented by 0. If you specify a device size, @i{gensdbfs} will
+        verify that data fits the requested size, and will return an error
+        if it doesn't.
+
+@end table
+
+The tool creates an image file that includes the following SDB structures:
+
+@table @i
+
+@item sdb_interconnect
+
+	The structure is used as the first SDB structure of each directory,
+        so to include the magic number and the size of the directory. The
+        bus type is defined as @i{sdb_data}, with identifier 1. This
+        type is not yet part of the official SDB specification.
+
+@item sdb_device
+
+	Every file is instantiated as a device. By being hosted in a
+        bus of type @i{sdb_data}, the device is known to be a storage area.
+
+@item sdb_bridge (not yet implemented)
+
+	The @i{bridge} structure is used to represent a subdirectory.
+
+@end table
+
+
+The individual fields of the SDB structure are filled in the following way:
+
+@table @code
+
+@item sdb_magic
+
+	Interconnect records, the magic is the standard SDB magic number.
+	
+@item sdb_version
+
+	1, because this is the SDB version used here.
+
+@item sdb_bus_type
+
+	@code{sdb_data} (not part of the 1.0 SDB specification.
+
+@item vendor_id
+
+	0x46696c6544617461LL (i.e. @code{"FileData"}). It may be changed
+        by the configuration file (@b{Not Implemented Yet}).
+
+@item device_id
+
+	The first 4 bytes of the file name.  It may be changed
+        by the configuration file (@b{Not Implemented Yet}).
+
+@item version
+
+	Currently 1. Should be the @i{sdbfs} version (git commit).
+
+@item date
+
+	Currently not set. Should be the date when @i{gensdbfs} generated
+        the image, in the SDB suggested format.
+
+@item name
+
+	The name is the first 19 character of the original file name,
+        padded with blanks (0x20) as SDB commands.  It may be changed
+        by the configuration file (@b{Not Implemented Yet}).
+
+@item record_type
+
+	@code{sdb_type_interconnect}, for the current directory,
+        @code{sdb_type_device} for files and in
+        the future @code{sdb_type_bridge} for subdirectories.
+
+@item addr_first
+@itemx addr_last
+
+	The first and last byte address for the file or (for directories)
+        the whole set of files.  There is no check for overlapping
+        directories after files have been allocated, but the fields are
+        only expected to be useful for files, not for directories.
+
+@item 
+@end table
+
+
+@c ##########################################################################
+@node Kernel Support
+@chapter Kernel Support
+
+Kernel support is in the form of a module, which allows drivers to
+register (and unregister) storage devices. Each storage device
+declares a set of operations to it, so the filesystem can read, erase,
+write data independently of the actual storage.  See @i{sdbfs.h} about
+data structures and methods. 
+
+Another module, called @i{sdb-fakedev.ko} is provided to allow testing
+@i{sdbfs} without real hardware.
+
+@c ==========================================================================
+@node sdbfs.ko
+@section sdbfs.ko
+
+The filesystem currently only works in read-only mode, and there is no
+support for subdirectories.  The @i{name} argument you pass to the
+@code{mount} command must match one of the device names that have already
+been registered to the filesystem using @code{sdbfs_register_device}.
+
+@c ==========================================================================
+@node sdb-fakedev.ko
+@section sdb-fakedev.ko
+
+The module receives an array of strings as a parameter called @code{fsimg}.
+It supports up to 8 strings: for each of them it calls @code{request_firmware}
+and in case of success it registers and @i{sdb} device with the name of
+the firmware file.
+
+@c ==========================================================================
+@node Example use of kernel code
+@section Example use of kernel code
+
+This is an example session that creates, mounts and reads
+an @i{sdbfs} image:
+
+@smallexample
+    # ls -l userspace
+    total 44
+    -rw-rw-r-- 1 rubini staff   458 Aug 17 11:33 Makefile
+    -rwxrwxr-x 1 rubini staff 20630 Aug 30 13:55 gensdbfs
+    -rw-rw-r-- 1 rubini staff  9259 Aug 30 13:55 gensdbfs.c
+    -rw-rw-r-- 1 rubini staff   776 Aug 18 06:54 gensdbfs.h
+    # userspace/gensdbfs -b 1024 userspace /lib/firmware/stuff.sdb
+    # insmod kernel/sdbfs.ko
+    # insmod kernel/sdb-fakedev.ko fsimg=stuff.sdb
+    # mount -t sdbfs stuff.sdb /mnt
+    # ls -l /mnt
+    total 0
+    -r--r--r-- 1 root root   458 Jan  1  1970 Makefile
+    -r--r--r-- 1 root root 20630 Jan  1  1970 gensdbfs
+    -r--r--r-- 1 root root  9259 Jan  1  1970 gensdbfs.c
+    -r--r--r-- 1 root root   776 Jan  1  1970 gensdbfs.h
+    # md5sum /mnt/Makefile userspace/Makefile
+    e87991b1c4ac1664327ef388aac4bd71  /mnt/Makefile
+    e87991b1c4ac1664327ef388aac4bd71  userspace/Makefile
+@end smallexample
+
+@c ==========================================================================
+@node Supported kernel versions
+@section Supported kernel versions
+
+The current version is a development version only, and as such it has
+only been developed and run under Linux-3.4. In the future I'll check
+backward portability -- but I'm sure something changed at 3.2 times,
+so backward portability will need some work.
+
+@c ##########################################################################
+@node Bugs and Missing Features
+@chapter Bugs and Missing Features
+
+While the general idea is flying, there are a lot of details that are
+still missing. This is just a quick list of things, just off the top
+of my head (while looking at the code), sorted by field rather than
+priority or complexity:
+
+@itemize
+
+@item gensdbfs: allow to move the root address from a config file
+
+@item gensdbfs: allow to over-allocate writable file from a config file
+
+@item gensdbfs: receive vendor/device/class from config file
+
+@item kernel: support subdirectories
+
+@item kernel: add . and .. entries to readdir
+
+@item kernel: support writing to files
+
+@item kernel: support device access (i.e., a real SDB bus)
+
+@item kernel: read and write bits are not propa
+
+@item lib: everything
+
+@item userspace: a test suite for the library above
+
+@item fakedev: show available images in /sys
+
+@item general: factorize some common procedures
+
+@item general: the various FIXME for details in the code itself
+
+@item general: too many printk still in the code
+
+@end itemize
+
+
 @bye
 
-@c  LocalWords:  Alessandro Rubini CERN iftex texinfo sdbfs
+@c  LocalWords:  Alessandro Rubini CERN iftex texinfo sdbfs gensdbfs devicesize
+@c  LocalWords:  blocksize fsimg userspace insmod filesystem
