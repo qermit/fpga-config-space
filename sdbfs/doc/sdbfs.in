@@ -74,6 +74,13 @@ is aware of the concept of block size, so it can be placed on flash
 memory, but doesn't do wear-leveling or any other fancy thing to
 preserver simplicity.
 
+Currently, the repository is hosted at Gitorious:
+@code{git://gitorious.org/rubi/sdbfs.git} but it will likely be merged
+into the OHWR project (thus:
+@code{git://ohwr.org/hdl-core-lib/fpga-config-space.git}. If you are reading
+this document and look for the latest version, if the Gitorious repository
+doesn't exist, please try the @i{sdbfs} in the OHWR project.
+
 @c ##########################################################################
 @node Library Support
 @chapter Library Support
