@@ -532,6 +532,13 @@ The following sections define the details of each structure.
 The product is embedded in all currently-defined non-empty data structures.
 All multi-byte fields \textbf{must} be stored in big-endian byte order.
 
+\begin{figure}[h]
+\centering%
+\includegraphics[width=100mm]{img/sdb-product.ps}
+\caption{The Product Structure}
+\label{fig:FigureProduct}
+\end{figure}
+
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
@@ -634,6 +641,13 @@ The SDB Component is described by a data structure that includes \textit{product
 information. It provides information regarding the address space used by the
 component it describes.
 
+\begin{figure}[h]
+\centering%
+\includegraphics[width=100mm]{img/sdb-component.ps}
+\caption{The Component Structure}
+\label{fig:FigureComponent}
+\end{figure}
+
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
@@ -677,6 +691,13 @@ respective fields apply.
 
 The \textit{interconnect} record describes the overall bus or bus subset. Every
 SDB table \textbf{must} feature such structure as first one in the array.
+
+\begin{figure}[h]
+\centering%
+\includegraphics[width=100mm]{img/sdb-interconnect.ps}
+\caption{The Interconnect Structure}
+\label{fig:FigureInterconnect}
+\end{figure}
 
 \begin{center}
   \begin{savenotes}
@@ -748,6 +769,13 @@ interconnect. This aggregate product can be described by an SDB integration reco
 a vendor ID, the release date and the other \textit{product} information.
 The integrator record is is described in Table \ref{sdb_integrator}.
 
+\begin{figure}[h]
+\centering%
+\includegraphics[width=100mm]{img/sdb-integration.ps}
+\caption{The Integration Structure}
+\label{fig:FigureIntegration}
+\end{figure}
+
 \begin{center}
   \begin{savenotes}
     \begin{table}[!ht]\footnotesize
@@ -779,6 +807,13 @@ bus. In a compliant implementation, one device record \textbf{should} exist for 
 connected to the bus. Users \textbf{may} choose to aggregate a complex device under a single
 description record. The structure of the device record structure is shown below in Table
 \ref{sdb_device}.
+
+\begin{figure}[h]
+\centering%
+\includegraphics[width=100mm]{img/sdb-device.ps}
+\caption{The Device Structure}
+\label{fig:FigureDevice}
+\end{figure}
 
 \begin{center}
   \begin{savenotes}
@@ -828,6 +863,13 @@ A bridge record is used to describe a nested bus within the same address space. 
 a bus controller which provides access to an entirely different address space altogether. Bus
 structures with nested interconnects are typical in complex projects.
 The structure of the bridge record is shown in Table \ref{sdb_bridge}.
+
+\begin{figure}[h]
+\centering%
+\includegraphics[width=100mm]{img/sdb-bridge.ps}
+\caption{The Bridge Structure}
+\label{fig:FigureBridge}
+\end{figure}
 
 \begin{center}
   \begin{savenotes}
