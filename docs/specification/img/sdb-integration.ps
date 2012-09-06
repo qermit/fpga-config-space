@@ -1,0 +1,224 @@
+%!PS-Adobe-2.0 EPSF-1.2
+%%Creator: Alessandro Rubini
+%%Title: crap
+%%BoundingBox: 0 0 200 80
+%%EndComments
+
+/S {dup ==} def
+/S2 {2 copy == ==} def
+/S3 {3 copy == == ==} def
+/S4 {4 copy == == == ==} def
+
+/minx 0 def
+/miny 0 def
+/maxx 200 def
+/maxy 80 def
+
+0 setlinecap 1 setlinejoin
+
+/centerstring { % fontname width string -- fontsize
+    gsave
+    3 2 roll findfont setfont          % width string
+    dup 3 1 roll                       % string width string
+    stringwidth pop div dup 3 1 roll   % scale string scale
+    dup neg 0 exch rmoveto             % scale string scale
+    currentfont exch scalefont setfont % scale string
+    show
+    grestore
+} def
+
+/centeratsize { % x y string --
+	gsave
+	3 1 roll moveto 
+	dup stringwidth pop 2 div neg 0 rmoveto show
+	grestore
+} def
+
+
+/grid {
+	gsave
+	.8 .8 .8 setrgbcolor
+	.2 setlinewidth
+	% vertical lines
+	minx 10 maxx {
+		dup
+		miny moveto maxy lineto stroke
+	} for
+	% horizontal lines
+	miny 10 maxy {
+		dup
+		minx exch moveto maxx exch lineto stroke
+	} for
+} def
+%grid
+
+0 0 moveto
+30 10 translate
+10 15 scale
+
+% make a 4-byte word, with ticks inside
+/word { % r g b fillr fillg fillb x y --
+	gsave
+	translate
+	.08 setlinewidth
+	1 setlinejoin
+	1 setlinecap
+	setrgbcolor
+	0 0 moveto 4 0 rlineto 0 1 rlineto -4 0 rlineto closepath fill
+	setrgbcolor
+	0 0 moveto 4 0 rlineto 0 1 rlineto -4 0 rlineto closepath stroke
+	1 0 moveto 0 .1 rlineto stroke
+	2 0 moveto 0 .25 rlineto stroke
+	3 0 moveto 0 .1 rlineto stroke
+	grestore
+} def
+
+% only the border, but same arguments as above
+/short { % r g b fillr fillg fillb x y --
+	gsave
+	translate
+	.08 setlinewidth
+	1 setlinejoin
+	1 setlinecap
+	setrgbcolor
+	setrgbcolor
+	0 0 moveto 2 0 rlineto 0 1 rlineto -2 0 rlineto closepath stroke
+	grestore
+} def
+    
+% only the border, but same arguments as above
+/byte { % r g b fillr fillg fillb x y --
+	gsave
+	translate
+	.08 setlinewidth
+	1 setlinejoin
+	1 setlinecap
+	setrgbcolor
+	setrgbcolor
+	0 0 moveto 1 0 rlineto 0 1 rlineto -1 0 rlineto closepath stroke
+	grestore
+} def
+    
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+/colempty {.7 .7 .7  1  1  1} def
+/colred   {.8 .4 .4  1 .8 .8} def
+/colblu   {.4 .4 .8 .8 .8  1} def
+/colgre   {.4 .8 .4 .8  1 .8} def
+
+/Helvetica-Bold findfont .7 scalefont setfont
+-2.5 0.2 moveto (0x30) show
+-2.5 1.2 moveto (0x20) show
+-2.5 2.2 moveto (0x10) show
+-2.5 3.2 moveto (0x00) show
+
+/Courier-Bold findfont .7 scalefont setfont
+
+/name { % x y wid string --
+    /s exch def
+    /wid exch def
+    /y exch def
+    gsave 
+    wid 2 div add y .4 add %translate 1.5 0 scale 0 0
+    s
+    centeratsize
+    grestore
+} def
+
+/frame {
+    0 4 12 {
+	/xf exch def
+	0 1 3 {
+	    /yf exch def
+	    colempty xf yf word
+	} for
+    } for
+} def
+
+/prod {
+    frame
+    colblu 8 2 word
+    colblu 12 2 word
+    0 4 12 {
+	/xf exch def
+	0 1 1 {
+	    /yf exch def
+	    colblu xf yf word
+	} for
+    } for
+
+    colblu 15 0 byte
+    0 0 .6 setrgbcolor
+    8 2 8 (....vendor_id....) name
+    0 1 4 (device_id) name
+    4 1 4 (version) name
+    8 1 4 (..date..) name
+    12 1 4 (..name..) name
+    0 0 15 (...............name...............) name
+    15 0 1 (T) name
+} def
+
+/comp {
+    prod
+    0 .4 0 setrgbcolor
+    colgre 8 3 word
+    colgre 12 3 word
+    colgre 0 2 word
+    colgre 4 2 word
+    8 3 8 (...addr_first...) name
+    0 2 8 (...addr_last...) name
+    
+} def
+
+/inter {
+    comp
+    colempty 4 3 short
+    colempty 6 3 byte
+    colempty 7 3 byte
+    .2 .2 .2 setrgbcolor
+    0 3 4 (magic) name
+    4 3 2 (nrec) name
+    6 3 1 (V) name
+    7 3 1 (B) name
+} def
+
+/dev {
+    comp
+    colempty 0 3 short
+    colempty 2 3 byte
+    colempty 3 3 byte
+    .2 .2 .2 setrgbcolor
+    0 3 2 (class) name
+    2 3 1 (A) name
+    3 3 1 (a) name
+    4 3 4 (bus-spec) name
+} def
+
+/bridge {
+    comp
+    .2 .2 .2 setrgbcolor
+    0 3 8 (......child......) name
+} def
+
+/integr {
+    prod
+    .2 .2 .2 setrgbcolor
+    0 3 16 (..............reserved..............) name
+    0 2 8 (....reserved....) name
+} def
+
+/empty {
+    frame
+    .2 .2 .2 setrgbcolor
+    0 3 16 (..............reserved..............) name
+    0 2 16 (..............reserved..............) name
+    0 1 16 (..............reserved..............) name
+    0 0 15 (..............reserved............) name
+    colempty 15 0 byte
+    15 0 1 (T) name
+} def    
+
+integr
+
+showpage
