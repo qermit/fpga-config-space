@@ -9,12 +9,20 @@ STRIP           = $(CROSS_COMPILE)strip
 OBJCOPY         = $(CROSS_COMPILE)objcopy
 OBJDUMP         = $(CROSS_COMPILE)objdump
 
-CFLAGS = -Wall -ggdb
+CFLAGS = -Wall -ggdb -O2
+CFLAGS += -I../include/linux # for <sdb.h>
+CFLAGS += -ffunction-sections -fdata-sections
+CFLAGS += -Wno-pointer-sign
 
 LIB = libsdbfs.a
-OBJS = empty.o # temporary
+OBJS = glue.o access.o
 
 all: $(LIB)
 
+$(OBJS): $(wildcard *.h)
+
 $(LIB): $(OBJS)
 	$(AR) r $@ $(OBJS)
+
+clean:
+	rm -f $(OBJS) $(LIB) *~ core
