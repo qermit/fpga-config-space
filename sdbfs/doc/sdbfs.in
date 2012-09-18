@@ -34,7 +34,7 @@
 
 @setchapternewpage off
 
-@set update-month August 2012
+@set update-month September 2012
 
 @finalout
 
@@ -79,7 +79,7 @@ Currently, the repository is hosted at Gitorious:
 into the OHWR project (thus:
 @code{git://ohwr.org/hdl-core-lib/fpga-config-space.git}. If you are reading
 this document and look for the latest version, if the Gitorious repository
-doesn't exist, please try the @i{sdbfs} in the OHWR project.
+doesn't exist, please try the @i{fpga-config-space} in the OHWR project.
 
 @c ##########################################################################
 @node Library Support
@@ -154,13 +154,17 @@ The tool creates an image file that includes the following SDB structures:
 @end table
 
 
+@c --------------------------------------------------------------------------
+@node Use of SDB fields in sdbfs
+@subsection Use of SDB fields in sdbfs
+
 The individual fields of the SDB structure are filled in the following way:
 
 @table @code
 
 @item sdb_magic
 
-	Interconnect records, the magic is the standard SDB magic number.
+	In interconnect records, the magic is the standard SDB magic number.
 	
 @item sdb_version
 
@@ -168,17 +172,18 @@ The individual fields of the SDB structure are filled in the following way:
 
 @item sdb_bus_type
 
-	@code{sdb_data} (not part of the 1.0 SDB specification.
+	@code{sdb_data} (added to SDB specification after version 1.0
+        of the spec itself).
 
 @item vendor_id
 
 	0x46696c6544617461LL (i.e. @code{"FileData"}). It may be changed
-        by the configuration file (@b{Not Implemented Yet}).
+        by the configuration file.
 
 @item device_id
 
 	The first 4 bytes of the file name.  It may be changed
-        by the configuration file (@b{Not Implemented Yet}).
+        by the configuration file.
 
 @item version
 
@@ -192,8 +197,8 @@ The individual fields of the SDB structure are filled in the following way:
 @item name
 
 	The name is the first 19 character of the original file name,
-        padded with blanks (0x20) as SDB commands.  It may be changed
-        by the configuration file (@b{Not Implemented Yet}).
+        padded with blanks (0x20) as per SDB specification. You can't change
+        the name using the configuration file.
 
 @item record_type
 
@@ -202,16 +207,115 @@ The individual fields of the SDB structure are filled in the following way:
         the future @code{sdb_type_bridge} for subdirectories.
 
 @item addr_first
+
+	For a file this is the first byte address where data is found.
+        This is currently an absolute address, which makes sense since
+        we have no subdirectories yet. However, some use cases require
+        the directory information not to live at offset 0, while referring
+        to a file that is at the beginning of the storage. SDB mandates
+        relative addresses because it's designed for gateware crossbars,
+        so we'll have to understand how to deal with this when we have
+        subdirectories.   For the directory itself, addr_first is the
+        address of the directory -- again, data-before-dir is not cleanly
+        handled.
+
 @itemx addr_last
 
-	The first and last byte address for the file or (for directories)
-        the whole set of files.  There is no check for overlapping
-        directories after files have been allocated, but the fields are
-        only expected to be useful for files, not for directories.
+	This is the last allocated byte for files. If the configuration
+        file requested extra size for the file, it is accounted here.
+        The trailing space is filled with zeroes by @file{gensdbfs} but
+        later the configuration file will be able to specify a filler value.
+        For directories, this is the last byte written by any files
+        within the directory itself.
 
 @item 
 @end table
 
+@c --------------------------------------------------------------------------
+@node Customizing gensdbfs
+@subsection Customizing gensdbfs
+
+If @file{gensdbfs} finds a @code{--SDB-CONFIG--} file in
+the toplevel directory, it opens it as a configuration file. Subdirectories
+can't have configuration files, as configuration is filesystem-wide.
+
+The file is a text file, line-oriented. Empty lines and comment lines
+are ignored. All lines that begin with the hash (@code{#}) are
+considered comments (this means that you can't configure a filename
+that begins with the hash, but I think this is not a problem.
+
+Configuration values are specified per-file.  Lines that begin with
+non-space characters refer to file names. Later indented lines
+specify parameters for the current file name.
+
+The following options are supported
+
+@table @code
+
+@item  vendor = <number>
+
+	Change the default vendor value. The value is a 64-bit number and
+        can be specified as decimal, hexadecimal or octal.
+
+@item device = <number>
+
+	Change the default device value (the default device is the first
+        4 bytes of the file name). The value is a 32-bit number and
+        can be specified as decimal, hexadecimal or octal.
+
+@item write = 1
+
+	By default, only world-writable files are generated as writable
+        in the filesystem image. This option allows to create a modifiable
+        file in the sdb filesystem image without giving over permissions on
+        the host filesystem. (You can also use @code{write = 0} to turn
+        off write permission).
+
+@item maxsize = <number>
+
+	Specifies the maximum file size. This allows a writeable file to
+        be extended in the filesystem image, for later overwriting with
+        different data. The program doesn't
+        check whether @i{maxsize} is smaller than the current size.
+@c FIXME: the maxsize/size issue 
+
+@item position = <number>
+
+	Force the data to be placed at a specific address in the
+        filesystem image. For directories, this is the address where
+        you'll find the SDB records, whose first 4 bytes are the magic
+        number. For files this is the placement of the associated data.
+        For all files where @i{position} is not specified, @file{gensdbfs}
+        will allocate storage sequentially after the directory itself,
+        respecting block alignment.  It's not possible, currently, to
+        request all files to be stored sequentially at a specific address
+
+@end table
+
+This package includes a working example in the @file{userspace} directory.
+You can thus test the configuration file by running @file{gensdbfs} over
+its own source directory.
+
+This is the current content of the file:
+
+@example
+   .  
+        vendor = 0x123456789abcdef
+        device = 257
+        position = 0x1000
+
+   Makefile
+        position = 0
+
+   gensdbfs.c
+        write = 1
+        maxsize = 0x10000
+@end example
+
+The resulting @i{sdbfs} image will have @code{Makefile} at offset 0,
+the directory itself at offset 0x1000 and an area of 64kB of storage
+reserved for @code{gensdbfs.c}. The leading part of such are is filled
+with the current contents of the file (which is shorter than 64kB).
 
 @c ##########################################################################
 @node Kernel Support
@@ -293,13 +397,10 @@ priority or complexity:
 
 @itemize
 
-@item gensdbfs: allow to move the root address from a config file
+@item gensdbfs: more config file options, like class
 
-@item gensdbfs: allow to over-allocate writable file from a config file
-
-@item gensdbfs: receive vendor/device/class from config file
-
-@item kernel: support subdirectories
+@item kernel and gensdbfs: support subdirectories. This is not
+trivial because of the relative placement of files within the subdir.
 
 @item kernel: add . and .. entries to readdir
 
@@ -311,7 +412,7 @@ priority or complexity:
 
 @item lib: everything
 
-@item userspace: a test suite for the library above
+@item userspace: tools exercising the library
 
 @item fakedev: show available images in /sys
 
@@ -327,4 +428,4 @@ priority or complexity:
 @bye
 
 @c  LocalWords:  Alessandro Rubini CERN iftex texinfo sdbfs gensdbfs devicesize
-@c  LocalWords:  blocksize fsimg userspace insmod filesystem
+@c  LocalWords:  blocksize fsimg userspace insmod filesystem gateware
