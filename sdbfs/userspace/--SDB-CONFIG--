@@ -1,0 +1,16 @@
+
+# This is an example config file, that can be used to build a filesystem
+# from this very directory. Please note that gensdbfs doesn't look for
+# config files in subdirectories but only in the tol-level one.
+
+.
+	vendor = 0x123456789abcdef
+	device = 257
+	position = 0x1000
+
+Makefile
+	position = 0
+
+gensdbfs.c
+	write = 1
+	maxsize = 0x10000
