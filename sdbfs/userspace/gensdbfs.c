@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <dirent.h>
+#include <ctype.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
@@ -94,6 +95,7 @@ static int __fill_file(struct sdbf *f, char *dir, char *fname)
 	if (f->stbuf.st_mode & S_IROTH) flags |= SDB_DATA_READ;
 	if (f->stbuf.st_mode & S_IWOTH) flags |= SDB_DATA_WRITE;
 	if (f->stbuf.st_mode & S_IXOTH) flags |= SDB_DATA_EXEC;
+	printf("%s: was %x is %x\n", f->fullname, d->bus_specific, flags);
 	d->bus_specific = htonl(flags);
 	/* c->addr_first/last to be filled later */
 	p->vendor_id = htonll(0x46696c6544617461LL); /* "FileData" */
@@ -113,8 +115,69 @@ static int __fill_file(struct sdbf *f, char *dir, char *fname)
 	return 1;
 }
 
+/* Helpers for scan_config(), which is below */
+static struct sdbf *find_filename(struct sdbf *tree, char *s)
+{
+	int i, n = ntohs(tree->s_i.sdb_records);
+	struct sdbf *f;
 
-/* All these functions return a tree, or NULL on error, after printing msg */
+	for (i = 0; i < n; i++) {
+		f = tree + i;
+		if (!strcmp(s, f->fullname))
+			return f;
+		/* "fullname" includes the leading "./", but ease the user */
+		if (!strncmp(f->fullname, "./", 2)
+		    && !strcmp(s, f->fullname + 2))
+			return f;
+	}
+	return NULL;
+}
+
+static int parse_config_line(struct sdbf *tree, struct sdbf *current, int line,
+			      char *t)
+{
+	struct sdb_device *d = &current->s_d;
+	struct sdb_component *c = &d->sdb_component;
+	struct sdb_product *p = &c->product;
+	unsigned long int32; /* may be 64 bits on some machines */
+	unsigned long long int64;
+	int i;
+
+	if (getenv("VERBOSE"))
+		fprintf(stderr, "parse line %i for %s: %s\n", line,
+			current->fullname, t);
+
+	if (sscanf(t, "vendor = %lli", &int64) == 1) {
+		p->vendor_id = htonll(int64);
+		return 0;
+	}
+	if (sscanf(t, "device = %li", &int32) == 1) {
+		p->device_id = htonl(int32);
+		return 0;
+	}
+	if (sscanf(t, "write = %i", &i) == 1) {
+		if (i)
+			d->bus_specific |= htonl(SDB_DATA_WRITE);
+		ekse
+			d->bus_specific &= htonl(~SDB_DATA_WRITE);
+		return 0;
+	}
+	if (sscanf(t, "maxsize = %li", &int32) == 1) {
+		current->size = int32;
+		return 0;
+	}
+	if (sscanf(t, "position = %li", &int32) == 1) {
+		current->userpos = 1;
+		current->astart = int32;
+		return 0;
+	}
+
+	fprintf(stderr, "%s: %s:%i: Unknown directive \"%s\" for file \"%s\"\n",
+		prgname, CFG_NAME, line, t, current->fullname);
+	return -1;
+}
+
+/* step 0: read the directory and build the tree. Returns NULL on error */
 static struct sdbf *scan_input(char *name, struct sdbf *parent, FILE **cfgf)
 {
 	DIR *d;
@@ -157,7 +220,11 @@ static struct sdbf *scan_input(char *name, struct sdbf *parent, FILE **cfgf)
 		if (!strcmp(de->d_name, ".."))
 			continue; /* no dot-dot */
 		if (!strcmp(de->d_name, CFG_NAME)) {
-			/* FIXME: cfg file */
+			*cfgf = fopen(de->d_name, "r");
+			if (!*cfgf)
+				fprintf(stderr, "%s: open(%s): %s\n",
+					prgname, CFG_NAME, strerror(errno));
+			/* don't exit on this error: proceed without cfg */
 			continue;
 		}
 		ret = __fill_file(tree + n, name, de->d_name);
@@ -202,34 +269,78 @@ static void dump_tree(struct sdbf *tree)
 	}
 }
 
+/* step 1: change the in-memory tree according to config file */
 static struct sdbf *scan_config(struct sdbf *tree, FILE *f)
 {
-	return tree; /* FIXME: no config file yet */
-}
+	struct sdbf *current = NULL;
+	char s[256];
+	char *t;
+	int i, lineno = 0;
 
-static struct sdbf *alloc_storage(struct sdbf *tree)
-{
-	/* FIXME: This is just lazy, it starts at 0 and goes linear */
-	int i, n;
-	unsigned long pos;
-	struct sdbf *f;
-
-	n = ntohs(tree->s_i.sdb_records);
-	pos = SDB_ALIGN(n * sizeof(struct sdb_device));
-	tree->rstart = 0;
-
-	for (i = 1; i < n; i++) {
-		f = tree + i;
-		f->rstart = pos;
-		f->s_d.sdb_component.addr_first = htonll(pos);
-		f->s_d.sdb_component.addr_last = htonll(pos + f->size - 1);
-		pos = SDB_ALIGN(pos + f->size);
+	while (fgets(s, sizeof(s), f)) {
+		lineno++;
+		for (i = strlen(s) - 1; i >= 0 && isspace(s[i]); i--)
+			s[i] = '\0';
+		t = s;
+		while (*t && isblank(*t))
+			t++;
+		if (*t == '#' || !*t) /* empty or comment */
+			continue;
+		if (t == s) {
+			/* line starts in column 0: new file name */
+			current = find_filename(tree, s);
+			if (!current) {
+				fprintf(stderr, "%s: %s:%i: \"%s\" not found\n",
+					prgname, CFG_NAME, lineno, s);
+			}
+			continue;
+		}
+		if (!current) {
+			/* ignore directives for non-existent files */
+			continue;
+		}
+		parse_config_line(tree, current, lineno, t);
 	}
-	tree->s_i.sdb_component.addr_first = htonll(0);
-	tree->s_i.sdb_component.addr_last = htonll(pos - 1);
 	return tree;
 }
 
+/* step 2: place the files in the storage area */
+static struct sdbf *alloc_storage(struct sdbf *tree)
+{
+	int i, n;
+	unsigned long rpos; /* the next expected relative position */
+	unsigned long l, last; /* keep track of last, for directory record */
+	struct sdbf *f;
+
+	tree->s_i.sdb_component.addr_first = htonll(tree->astart);
+	/* The "suggested" output place is after the directory itself */
+	n = ntohs(tree->s_i.sdb_records);
+	rpos = SDB_ALIGN(n * sizeof(struct sdb_device));
+	last = tree->astart + rpos;
+
+	for (i = 1; i < n; i++) {
+		f = tree + i;
+		if (f->userpos) { /* user-specified position */
+			f->s_d.sdb_component.addr_first = htonll(f->astart);
+			l = f->astart + f->size - 1;
+			f->s_d.sdb_component.addr_last = htonll(l);
+			if (l > last) last = l;
+			continue;
+		}
+		/* position not mandated: go sequential from previous one */
+		f->rstart = rpos;
+		f->s_d.sdb_component.addr_first = htonll(tree->astart + rpos);
+		l = tree->astart + rpos + f->size - 1;
+		f->s_d.sdb_component.addr_last = htonll(l);
+		if (l > last) last = l;
+		rpos = SDB_ALIGN(rpos + f->size);
+	}
+	/* finally, save the last used byte for the whole directory */
+	tree->s_i.sdb_component.addr_last = htonll(last);
+	return tree;
+}
+
+/* step 3: output the image file */
 static struct sdbf *write_sdb(struct sdbf *tree, FILE *out)
 {
 	int i, j, n, copied;
@@ -244,7 +355,7 @@ static struct sdbf *write_sdb(struct sdbf *tree, FILE *out)
 		return NULL;
 	}
 	n = ntohs(tree->s_i.sdb_records);
-	/* First, write the directory */
+	/* First, write the directory, from its starting position */
 	fseek(out, tree->astart, SEEK_SET);
 	for (i = 0; i < n; i++)
 		fwrite(&tree[i].s_d, sizeof(tree[i].s_d), 1, out);
@@ -257,7 +368,17 @@ static struct sdbf *write_sdb(struct sdbf *tree, FILE *out)
 				sdbf->fullname, strerror(errno));
 			continue;
 		}
-		fseek(out, tree->astart + sdbf->rstart, SEEK_SET);
+
+		/*
+		 * This astart and rstart stuff must be cleaned up, especially
+		 * when we add subdirectories. Currently, user-placed files
+		 * use astart, while auto-allocated use rstart from dir head
+		 */
+		if (sdbf->userpos)
+			fseek(out, sdbf->astart, SEEK_SET);
+		else
+			fseek(out, tree->astart + sdbf->rstart, SEEK_SET);
+
 		for (copied = 0; copied < sdbf->stbuf.st_size; ) {
 			j = fread(buf, 1, blocksize, f);
 			if (j <= 0)
@@ -355,7 +476,6 @@ int main(int argc, char **argv)
 		dump_tree(tree);
 
 	/* write out the whole tree */
-	tree->astart = 0;
 	tree = write_sdb(tree, fout);
 	if (!tree)
 		exit(1);

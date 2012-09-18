@@ -19,6 +19,7 @@ struct sdbf {
 	int nfiles, totsize; /* for dirs */
 	struct sdbf *dot; /* for files, pointer to owning dir */
 	struct sdbf *parent; /* for dirs, current dir in ../ */
+	int userpos;
 };
 
 static inline uint64_t htonll(uint64_t ll)
