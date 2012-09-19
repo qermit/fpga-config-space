@@ -19,7 +19,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
-#include <linux/sdb.h>
+
+#include <sdb.h>
 #include "gensdbfs.h"
 
 /*
@@ -95,7 +96,6 @@ static int __fill_file(struct sdbf *f, char *dir, char *fname)
 	if (f->stbuf.st_mode & S_IROTH) flags |= SDB_DATA_READ;
 	if (f->stbuf.st_mode & S_IWOTH) flags |= SDB_DATA_WRITE;
 	if (f->stbuf.st_mode & S_IXOTH) flags |= SDB_DATA_EXEC;
-	printf("%s: was %x is %x\n", f->fullname, d->bus_specific, flags);
 	d->bus_specific = htonl(flags);
 	/* c->addr_first/last to be filled later */
 	p->vendor_id = htonll(0x46696c6544617461LL); /* "FileData" */

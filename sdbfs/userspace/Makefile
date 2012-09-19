@@ -9,10 +9,18 @@ STRIP           = $(CROSS_COMPILE)strip
 OBJCOPY         = $(CROSS_COMPILE)objcopy
 OBJDUMP         = $(CROSS_COMPILE)objdump
 
-CFLAGS = -I../lib -I../include -Wall -ggdb
+CFLAGS = -Wall -ggdb
+CFLAGS += -I../lib -I../include -I../include/linux
 LDFLAGS = -L../lib -lsdbfs
 
-all: gensdbfs
+PROG = gensdbfs sdb-read
 
-%: %.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+all: $(PROG)
+
+%: %.c
+	$(CC) $(CFLAGS) -o $@ $*.c $(LDFLAGS)
+
+$(PROG): ../lib/libsdbfs.a
+
+clean:
+	rm -f $(PROG) *.o *~ core
