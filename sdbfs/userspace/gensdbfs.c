@@ -158,7 +158,7 @@ static int parse_config_line(struct sdbf *tree, struct sdbf *current, int line,
 	if (sscanf(t, "write = %i", &i) == 1) {
 		if (i)
 			d->bus_specific |= htonl(SDB_DATA_WRITE);
-		ekse
+		else
 			d->bus_specific &= htonl(~SDB_DATA_WRITE);
 		return 0;
 	}
