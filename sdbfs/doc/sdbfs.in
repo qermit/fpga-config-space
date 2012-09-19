@@ -85,24 +85,180 @@ doesn't exist, please try the @i{fpga-config-space} in the OHWR project.
 @node Library Support
 @chapter Library Support
 
-@i{No library is there as of this version}.
+This package offers a library of functions to access the filesystem,
+but not to create it -- creation is perfomed by @file{gensdbfs} which
+has no code to be shared with actual access to the filesystem.
 
-This package is expected to offer a library of functions to access the
-filesystem, but not to create it. Library function should allow
-finding a file by name or by vendor/device identifiers, as well as
-read and write it.
+The library is designed to be used in three different environments:
+Posix user space, Linux kernel space and freestanding environments.
+The last environment is going to be verified with the LM32 processor,
+because we need to access @i{sdbfs} from that very soft-core in our
+FPGA devices.
 
-The library will be based on the concept of @i{driver}, which offers
-read and write methods for a specific storage device, and the concept
-of @i{instance} of a storage device.
+In order to be suitable to constrained freestanding environments, the
+library is designed not to use external functions that may weight over
+the final footprint:
+
+@itemize @bullet
+
+@item No @i{malloc} is ever called by the library;
+
+@item The library keeps internal status to avoid too much token passing;
+
+@item Every function is compiled to its own ELF section;
+
+@item Endian conversion is left out of the library as far as possible.
+
+@end itemize
+
+The user space programs that use this library can be used to better
+understand how the library is meant to be used.
+
+@c ==========================================================================
+@node The Filesystem Structure
+@section The Filesystem Structure
+
+Users of the library must have @code{-I} to find @file{libsdbfs.h}
+(which includes other files from the same directory where it lives).
+Similarly, they must link @file{libsdbfs.a} from the same
+directory.
+
+Everything in the library refers to @code{struct sdbfs} and library
+users can register more than one such filesystems.  A freestanding
+application will most likely have a static structure in its data
+section, initialized at compile time.  Some of the fields
+in the structure are library-private; this is the list of
+the public fields:
+
+@table @code
+
+@item char *name;
+
+	The device name is optional; it is only used by @i{sdbfs_dev_find()}.
+
+@item void *drvdata;
+
+	The field is there for library users to store their data, if they
+        register more than one filesystem and implement the methods
+        listed here below.
+
+@item int blocksize;
+
+	The erase block size for the device.
+
+@item unsigned long entrypoint;
+
+	The offset of the first @i{sdb} record in the device. For example,
+        for FMC EEPROM devices we'll have an entry point of 256 because
+        the FMC standard mandates the content of the leading part of the
+        flash device.
+
+@item void *data;
+
+	If the filesystem is directly mapped, the user may fill this
+        pointer and avoid declaring the @i{read} method described next.
+
+@item unsigned long datalen;
+
+	The length of the mapped area.
+
+@item int (*read)(struct sdbfs *fs, int offset, void *buf, int count);
+
+	The method is used to read raw data from the storage device.
+        It is called by the library if the @i{data} field is NULL.
+
+@item int (*write)(struct sdbfs *fs, int offset, void *buf, int count);
+@itemx int (*erase)(struct sdbfs *fs, int offset, int count);
+
+	These methods are defined but not yet used as of this version.
+
+@end table
+
+@c ==========================================================================
+@node Library functions
+@section Library functions
+
+The library defines the following functions to act on a @i{sdb} storage
+device.  All functions returning integer will return a negative
+number in case of error, within the @i{errno} rante (e.g. @code{-ENOENT}).
+
+@table @code
+@item int sdbfs_dev_create(struct sdbfs *fs, int verbose);
+@itemx int sdbfs_dev_destroy(struct sdbfs *fs);
+
+	Register and unregister a device. Each library user can register
+        more than one device if needed. Please note that the device must
+        be preallocated by the caller, as the library doesn't use
+        @i{malloc} internally, as a design choice.  The @i{create} function
+        fails with @code{ENOTDIR} if no @i{sdb} magic number is found
+        at the specified entry point (field @code{entrypoint}). All
+        fields that are not used by the caller must be zeroed before
+        calling the @i{create} function.
+
+@item struct sdbfs *sdbfs_dev_find(const char *name);
+
+	If the user registered more than one device, this function
+        can be used to scan the list of devices and return one according
+        to its own @code{name} field.
+
+@item int sdbfs_open_name(struct sdbfs *fs, const char *name);
+@itemx int sdbfs_open_id(struct sdbfs *fs, uint64_t vid, uint32_t did);
+@itemx int sdbfs_close(struct sdbfs *fs);
+
+	The library has the concept of @i{currently-open} file for each
+        @i{sdb} device. The user can open a file according to its
+        name or its vendor/device identifiers. Please note that if
+        several files feature tha same identifiers (or name) the library
+        will return the first it finds.  Keeping the @i{open} file
+        within the data structure is clearly limiting over more modern
+        approaches, but it allows keeping down the footprint of both the
+        library and user code.
+
+@item struct sdb_device *sdbfs_scan(struct sdbfs *fs, int newscan);
+
+	The function can be used to get a listing of the @i{sdb}
+        device. If @code{newscan} is not-zero the library starts a
+        fresh new scan; otherwise it continues the ongoing scan.
+        The return value is the pointer to an @i{sdb} strucuture
+        representing the file, which is only valid up to the next
+        library call.  After the last valid file the function returns
+        @code{NULL}.  The function uses internal storage, so it
+        can only be called when no file is currently open.
+
+@item int sdbfs_fstat(struct sdbfs *fs, struct sdb_device *record_return);
+
+	The function copies the @i{sdb} record for the currently-open
+        file to a user-provided data area. The user will then be able
+        to collect information about the file.
+
+@item int sdbfs_fread(struct sdbfs *fs, int offset, char *buf, int count);
+
+	Read from the currently-open file. If the @code{offset} argument
+        is less than zero the file is read sequentially; if it is zero or
+        positive it represents the offset from the beginning of the file.
+
+@item int sdbfs_fwrite(struct sdbfs *fs, int offset, char *buf, int count);
+
+	This is not yet implemented.
+
+@item uint64_t htonll(uint64_t ll);
+@itemx uint64_t ntohll(uint64_t ll);
+
+	The functions are provided by library headers to convert 64-bit
+        values between host byte order and @i{sdb} byte order -- which is
+        the same as network byte order. For 32-bit and 16-bit please use
+        the standard functions for network byte order.
+
+@end table
 
 @c ##########################################################################
 @node User-Space Tools
 @chapter User-Space Tools
 
-Currently, there is only one tool: @i{gensdbfs}.  Later versions will
-provide tools to exercise the library function from a host computer,
-based on an @i{sdb} image file.
+The @file{userspace} subdirectory of this package includes a few
+user-space tools to create @i{sdbfs} images and access them.  All tools
+but @i{gensdbfs} are base on the @i{sdbfs} library and their source
+can be used as an example and best practice of library use.
 
 @c ==========================================================================
 @node gensdbfs
@@ -317,6 +473,111 @@ the directory itself at offset 0x1000 and an area of 64kB of storage
 reserved for @code{gensdbfs.c}. The leading part of such are is filled
 with the current contents of the file (which is shorter than 64kB).
 
+@c ==========================================================================
+@node sdb-read
+@section sdb-read
+
+The @i{sdb-read} program can be used to access an @i{sdbfs} image
+stored in a disk file.  It works both as @i{ls} (to list the files
+included in the image) and as @i{cat} (to print to its own @i{stdout}
+one of the files that live in the binary image).
+
+The program can be used in three ways:
+
+@table @code
+
+@item sdb-read [options] <image-file>
+
+	This invocation lists the contents of the image. With @code{-l}
+        the listing is @i{long}, including more information than the
+        file name.
+
+@item sdb-read [options] <image-file> <filename>
+
+	When called with two arguments, the program prints to @i{stdout}
+        the content of the named file, extracted from the image. Please
+        note that if the file has been over-sized at creation time,
+        the whole allocated data area is printed to standard output.
+
+@item sdb-read [options] <image-file> <hex-vendor>:<hex-device>
+
+	If the second argument is built as two hex numbers separated
+        by a colon, then the program uses them as vendor-id and device-id
+        to find the file.  If more than one file have the same identifiers,
+        the @i{first} of them is printed.
+
+@end table
+
+The following option flags are supported:
+
+@table @code
+
+@item -l
+
+	For listing, use @i{long} format. A @i{verbose} format will
+        be added later.
+
+@item -e <entrypoint>
+
+	Specify the offset of the magic number in the image file.
+
+@item -r
+
+	Register the device with a @i{read} method instead of the @i{data}
+        pointer (@ref{The Filesystem Structure}). In this way the
+        tool can be used to test the library with either access method.
+
+@end table
+
+
+The following examples are based on the @i{sdb} image of the
+@i{userspace} directory of this package, using the
+@code{--SDB-CONFIG--} file part of the package, described and included
+for reference in @ref{Customizing gensdbfs}. You can see how the
+entry point is at 0x1000, the @i{Makefile} is stored at offset 0
+and @i{gensdbfs.c} has been over-allocated as a 64kB area.
+
+@smallexample
+   morgana% ./gensdbfs . /tmp/userspace.sdb
+
+   morgana% ./sdb-read /tmp/userspace.sdb
+   ./sdb-read: sdbfs_dev_create(): Not a directory
+           (wrong entry point 0x00000000?)
+
+   morgana% ./sdb-read -e 0x1000 /tmp/userspace.sdb
+   .
+   gensdbfs.c
+   gensdbfs
+   .gitignore
+   sdb-read
+   sdb-read.c
+   gensdbfs.h
+   Makefile
+
+   morgana% ./sdb-read -e 0x1000 -l /tmp/userspace.sdb
+   ./sdb-read: listing format is to be defined
+   0123456789abcdef:00000101 @@ 00001000-0001de55 .
+   46696c6544617461:67656e73 @@ 00001200-000111ff gensdbfs.c
+   46696c6544617461:67656e73 @@ 00011200-00016e21 gensdbfs
+   46696c6544617461:2e676974 @@ 00016e40-00016e51 .gitignore
+   46696c6544617461:7364622d @@ 00016e80-0001c90f sdb-read
+   46696c6544617461:7364622d @@ 0001c940-0001db29 sdb-read.c
+   46696c6544617461:67656e73 @@ 0001db40-0001de55 gensdbfs.h
+   46696c6544617461:4d616b65 @@ 00000000-0000024b Makefile
+
+   morgana% ./sdb-read -e 0x1000 /tmp/userspace.sdb gensdbfs.c | wc -c
+   65536
+
+   morgana% md5sum Makefile
+   e38de09fe2bd0dab3ff7ebcab300977e  Makefile
+
+   morgana% ./sdb-read -e 0x1000 /tmp/userspace.sdb Makefile | md5sum
+   e38de09fe2bd0dab3ff7ebcab300977e  -
+
+   morgana% ./sdb-read -e 0x1000 /tmp/userspace.sdb 46696c6544617461:4d616b65 | md5sum
+   e38de09fe2bd0dab3ff7ebcab300977e  -
+@end smallexample
+
 @c ##########################################################################
 @node Kernel Support
 @chapter Kernel Support
@@ -397,7 +658,7 @@ priority or complexity:
 
 @itemize
 
-@item gensdbfs: more config file options, like class
+@item gensdbfs: more config file options: class and so on.
 
 @item kernel and gensdbfs: support subdirectories. This is not
 trivial because of the relative placement of files within the subdir.
@@ -408,13 +669,13 @@ trivial because of the relative placement of files within the subdir.
 
 @item kernel: support device access (i.e., a real SDB bus)
 
-@item kernel: read and write bits are not propa
-
-@item lib: everything
-
-@item userspace: tools exercising the library
+@item kernel: read and write bits are not propagated
 
 @item fakedev: show available images in /sys
+
+@item lib: kernel space and freestanding is missing. Also write support
+
+@item read-sdb: implement verbose mode and @code{rwxrwxrwx} in long mode
 
 @item general: factorize some common procedures
 
