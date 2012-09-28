@@ -15,9 +15,9 @@
 #include "sdbfs.h"
 
 /* We register up to 8 filesystems getting the names as module parameters */
-static int nimg;
-static char *fsimg[8];
-module_param_array(fsimg, charp, &nimg, 0444);
+static int fakedev_nimg;
+static char *fakedev_fsimg[8];
+module_param_array_named(fsimg, fakedev_fsimg, charp, &fakedev_nimg, 0444);
 
 struct fakedev {
 	struct sdbfs_dev sd;
@@ -58,7 +58,7 @@ static int fakedev_init(void)
 	int i;
 
 	/* we need a device to request a firmware image */
-	dev_set_name(&fakedev_device, "sdbfs-fakedev");
+	dev_set_name(&fakedev_device, KBUILD_MODNAME);
 	device_initialize(&fakedev_device);
 	i = device_add(&fakedev_device);
 	if (i < 0) {
@@ -67,20 +67,20 @@ static int fakedev_init(void)
 		return i;
 	}
 
-	for (i = 0; i < nimg; i++) {
+	for (i = 0; i < fakedev_nimg; i++) {
 		d = fakedev_devs + i;
-		printk("request for %i -- n %i\n", i, nimg);
-		if (request_firmware(&d->fw, fsimg[i], &fakedev_device) < 0) {
-			printk("%s: can't load %s\n", KBUILD_MODNAME,
-			       fsimg[i]);
+		if (request_firmware(&d->fw, fakedev_fsimg[i],
+				     &fakedev_device) < 0) {
+			dev_err(&fakedev_device, "can't load %s\n",
+			       fakedev_fsimg[i]);
 			continue;
 		}
-		d->sd.name = fsimg[i];
+		d->sd.name = fakedev_fsimg[i];
 		d->sd.blocksize = 64; /* bah! */
 		d->sd.ops = &fakedev_ops;
 		if (sdbfs_register_device(&d->sd) < 0) {
-			printk("%s: can't register %s\n", KBUILD_MODNAME,
-			       fsimg[i]);
+			dev_err(&fakedev_device, "can't register %s\n",
+			       fakedev_fsimg[i]);
 			release_firmware(d->fw);
 			d->fw = NULL;
 		}
@@ -93,7 +93,7 @@ static void fakedev_exit(void)
 	struct fakedev *d;
 	int i;
 
-	for (i = 0; i < nimg; i++) {
+	for (i = 0; i < fakedev_nimg; i++) {
 		d = fakedev_devs + i;
 		if (!d->fw)
 			continue;
