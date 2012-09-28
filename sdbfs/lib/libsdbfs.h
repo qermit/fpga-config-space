@@ -1,16 +1,16 @@
 #ifndef __LIBSDBFS_H__
 #define __LIBSDBFS_H__
 
-#include <sdb.h> /* Please point your "-I" to some sensible place */
-
 /* The library can work in three different environments */
 #ifdef __KERNEL__
 #  include "libsdbfs-kernel.h"
-#elif defined(__linux__)
+#elif defined(__unix__)
 #  include "libsdbfs-user.h"
 #else
 #  include "libsdbfs-freestanding.h"
 #endif
+
+#include <sdb.h> /* Please point your "-I" to some sensible place */
 
 /*
  * Data structures: please not that the library intself doesn't use

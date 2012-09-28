@@ -1,4 +1,11 @@
 
+LINUX ?= /lib/modules/$(shell uname -r)/build
+
+# If we compile for the kernel, we need to include real kernel headers.
+# The thing is enough a mess that I moved it to a different file
+include Makefile.arch
+
+
 AS              = $(CROSS_COMPILE)as
 LD              = $(CROSS_COMPILE)ld
 CC              = $(CROSS_COMPILE)gcc
@@ -9,10 +16,15 @@ STRIP           = $(CROSS_COMPILE)strip
 OBJCOPY         = $(CROSS_COMPILE)objcopy
 OBJDUMP         = $(CROSS_COMPILE)objdump
 
+# calculate endianness at compile time
+ENDIAN := $(shell ./check-endian $(CC))
+
 CFLAGS = -Wall -ggdb -O2
 CFLAGS += -I../include/linux # for <sdb.h>
 CFLAGS += -ffunction-sections -fdata-sections
 CFLAGS += -Wno-pointer-sign
+CFLAGS += $(ENDIAN) $(LINUXINCLUDE)
+
 
 LIB = libsdbfs.a
 OBJS = glue.o access.o
