@@ -29,11 +29,11 @@ struct sdbfs_dev_ops {
 };
 
 struct sdbfs_dev {
-	char *name;
-	int blocksize;
-	unsigned long headerpos;
-	struct sdbfs_dev_ops *ops;
-	struct list_head list;
+	char			*name;
+	int			blocksize;
+	unsigned long		entrypoint;
+	struct sdbfs_dev_ops	*ops;
+	struct list_head	list;
 };
 
 
