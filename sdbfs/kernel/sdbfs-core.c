@@ -32,13 +32,11 @@ static int sdbfs_readdir(struct file * filp,
 	int i, j, n;
 
 	printk("%s\n", __func__);
-	if (file_off != 0)
-		return 0;
 
 	inode = container_of(ino, struct sdbfs_inode, ino);
 	n = be16_to_cpu(inode->s_i.sdb_records) - 1;
-	/* FIXME: use file_off */
-	for (i = 0; i < n; i++) {
+
+	for (i = file_off; i < n; i++) {
 		char s[20];
 
 		offset += SDB_SIZE;
@@ -71,30 +69,39 @@ static ssize_t sdbfs_read(struct file *f, char __user *buf, size_t count,
 	struct sdbfs_inode *inode;
 	char kbuf[16];
 	unsigned long start, size;
-	ssize_t ret;
+	ssize_t i, done;
 
 	inode = container_of(ino, struct sdbfs_inode, ino);
 	start = be64_to_cpu(inode->s_d.sdb_component.addr_first);
 	size = be64_to_cpu(inode->s_d.sdb_component.addr_last) + 1 - start;
 
-	/* Horribly inefficient, who cares... */
 	if (*offp > size)
 		return 0;
 	if (*offp + count > size)
 		count = size - *offp;
-	ret = count;
-	while (count) {
+	done = 0;
+	while (done < count) {
+		/* Horribly inefficient, just copy a few bytes at a time */
 		int n = sizeof(kbuf) > count ? count : sizeof(kbuf);
 
 		/* FIXME: error checking */
-		sd->ops->read(sd, start + *offp, kbuf, n);
-		if (copy_to_user(buf, kbuf, n))
+		i = sd->ops->read(sd, start + *offp, kbuf, n);
+		if (i < 0) {
+			if (done)
+				return done;
+			return i;
+		}
+		if (copy_to_user(buf, kbuf, i))
 			return -EFAULT;
-		count -= n;
-		buf += n;
-		*offp += n;
+		buf += i;
+		done += i;
+		if (i != n) {
+			/* Partial read: done for this time */
+			break;
+		}
 	}
-	return ret;
+	*offp += done;
+	return done;
 }
 
 static const struct file_operations sdbfs_fops = {
