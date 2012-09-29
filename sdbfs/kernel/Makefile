@@ -5,6 +5,7 @@ ccflags-y = -I$M/../include
 
 obj-m = sdbfs.o
 obj-m += sdb-fakedev.o
+obj-m += sdb-iomem.o
 
 sdbfs-y = sdbfs-core.o
 sdbfs-y += sdbfs-file.o
