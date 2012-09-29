@@ -30,12 +30,15 @@ struct sdbfs_dev_ops {
 
 struct sdbfs_dev {
 	char			*name;
+	unsigned long		flags;
 	int			blocksize;
 	unsigned long		entrypoint;
 	struct sdbfs_dev_ops	*ops;
 	struct list_head	list;
 };
 
+/* flags */
+#define SDBFS_F_FIXENDIAN	0x0001
 
 /* Internal inter-file calls */
 struct sdbfs_dev *sdbfs_get_by_name(char *name);

@@ -21,6 +21,20 @@
 
 #define SDB_SIZE (sizeof(struct sdb_device))
 
+static void sdbfs_fix_endian(struct sdbfs_dev *sd, void *ptr, int len)
+{
+	uint32_t *p = ptr;
+	int i;
+
+	if (!sd->flags & SDBFS_F_FIXENDIAN)
+		return;
+	if (len & 3)
+		return; /* Hmmm... */
+
+	for (i = 0; i < len / 4; i++)
+		p[i] = htonl(p[i]);
+}
+
 static int sdbfs_readdir(struct file * filp,
 			 void * dirent, filldir_t filldir)
 {
@@ -184,12 +198,14 @@ static struct inode *sdbfs_iget(struct super_block *sb, int inum)
 	if (!(ino->i_state & I_NEW))
 		return ino;
 
-	/* The inode number is the offset, but root ino is currently 1 */
+	/* The inum is the offset, but to avoid 0 we set the LSB */
 	offset = inum & ~1;
 	inode = container_of(ino, struct sdbfs_inode, ino);
+
 	n = sd->ops->read(sd, offset, &inode->s_d, SDB_SIZE);
 	if (n != SDB_SIZE)
 		return ERR_PTR(-EIO);
+	sdbfs_fix_endian(sd, &inode->s_d, SDB_SIZE);
 
 	set_nlink(ino, 1);
 	ino->i_size = be64_to_cpu(inode->s_d.sdb_component.addr_last)
@@ -208,8 +224,13 @@ static struct inode *sdbfs_iget(struct super_block *sb, int inum)
 		len = be16_to_cpu(inode->s_i.sdb_records) * SDB_SIZE;
 		inode->files = kmalloc(len, GFP_KERNEL);
 		BUG_ON(!inode->files);
+
+		/* FIXME: add dot and dotdot, and maybe named-dot */
 		n = sd->ops->read(sd, offset + SDB_SIZE, inode->files, len);
-		BUG_ON(n != len);
+		if (n != len)
+			return ERR_PTR(-EIO);
+		sdbfs_fix_endian(sd, inode->files, len);
+
 		for (i = 0; i < len / SDB_SIZE; i++) {
 			/* zero-terminate: the lost type is not a problem */
 			s = (struct sdb_device *)(inode->files)[i]
@@ -252,6 +273,7 @@ static int sdbfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *inode;
 	struct dentry *root;
 	struct sdbfs_dev *sd;
+	uint32_t magic;
 
 	/* HACK: this data is really a name */
 	sd = sdbfs_get_by_name(data);
@@ -259,6 +281,18 @@ static int sdbfs_fill_super(struct super_block *sb, void *data, int silent)
 		return PTR_ERR(sd);
 	sb->s_fs_info = sd;
 
+	/* Check magic number first */
+	sd->ops->read(sd, sd->entrypoint, &magic, 4);
+	if (magic == ntohl(SDB_MAGIC)) {
+		/* all right: we are big endian or byte-level connected */
+	} else if (magic == SDB_MAGIC) {
+		/* looks like we are little-endian on a 32-bit-only bus */
+		sd->flags |= SDBFS_F_FIXENDIAN;
+	} else {
+		printk("%s: wrong magic at 0x%lx (%08x is not %08x)\n",
+		       __func__, sd->entrypoint, magic, SDB_MAGIC);
+		return -EINVAL;
+	}
 
 	/* All of our data is organized as 64-byte blocks */
 	sb->s_blocksize = 64;
