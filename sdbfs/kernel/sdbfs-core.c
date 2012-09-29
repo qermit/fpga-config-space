@@ -252,7 +252,7 @@ static int sdbfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_magic = SDB_MAGIC;
 	sb->s_op = &sdbfs_super_ops;
 
-	inode = sdbfs_iget(sb, 1 /* FIXME: root inode */);
+	inode = sdbfs_iget(sb, sd->entrypoint + 1 /* can't be zero */);
 	if (IS_ERR(inode)) {
 		sdbfs_put(sd);
 		return PTR_ERR(inode);
