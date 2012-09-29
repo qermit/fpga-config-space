@@ -57,7 +57,7 @@
 
 This package implements and describes a file-system based on the SDB
 data structures defined by the Open Hardware Repository project called
-@i{Fpga Configuration Space}. The official SDB specification at the time
+@i{FPGA Configuration Space}. The official SDB specification at the time
 of this writing is @url{http://www.ohwr.org/attachments/1487/sdb-1.0.pdf}.
 
 The SDB data structures are designed to describe the address space
@@ -86,7 +86,7 @@ doesn't exist, please try the @i{fpga-config-space} in the OHWR project.
 @chapter Library Support
 
 This package offers a library of functions to access the filesystem,
-but not to create it -- creation is perfomed by @file{gensdbfs} which
+but not to create it -- creation is performed by @file{gensdbfs} which
 has no code to be shared with actual access to the filesystem.
 
 The library is designed to be used in three different environments:
@@ -180,7 +180,7 @@ the public fields:
 
 The library defines the following functions to act on a @i{sdb} storage
 device.  All functions returning integer will return a negative
-number in case of error, within the @i{errno} rante (e.g. @code{-ENOENT}).
+number in case of error, within the @i{errno} range (e.g. @code{-ENOENT}).
 
 @table @code
 @item int sdbfs_dev_create(struct sdbfs *fs, int verbose);
@@ -219,7 +219,7 @@ number in case of error, within the @i{errno} rante (e.g. @code{-ENOENT}).
 	The function can be used to get a listing of the @i{sdb}
         device. If @code{newscan} is not-zero the library starts a
         fresh new scan; otherwise it continues the ongoing scan.
-        The return value is the pointer to an @i{sdb} strucuture
+        The return value is the pointer to an @i{sdb} structure
         representing the file, which is only valid up to the next
         library call.  After the last valid file the function returns
         @code{NULL}.  The function uses internal storage, so it
@@ -588,8 +588,14 @@ declares a set of operations to it, so the filesystem can read, erase,
 write data independently of the actual storage.  See @i{sdbfs.h} about
 data structures and methods. 
 
-Another module, called @i{sdb-fakedev.ko} is provided to allow testing
-@i{sdbfs} without real hardware.
+To test without real hardware at hand, the module called
+@i{sdb-fakedev.ko} can load to kernel space one or more image files,
+and offer their data for mounting.
+
+If your host can access an SDB-described FPGA device in I/O memory,
+the module called @i{sdb-iomem.ko} can register those areas to the
+@i{sdbfs} module, so you can mount the FPGA and perform register
+access from user space using named files.
 
 @c ==========================================================================
 @node sdbfs.ko
@@ -599,6 +605,7 @@ The filesystem currently only works in read-only mode, and there is no
 support for subdirectories.  The @i{name} argument you pass to the
 @code{mount} command must match one of the device names that have already
 been registered to the filesystem using @code{sdbfs_register_device}.
+The available names should appear in @i{sysfs} but this is not yet implemented.
 
 @c ==========================================================================
 @node sdb-fakedev.ko
@@ -606,12 +613,19 @@ been registered to the filesystem using @code{sdbfs_register_device}.
 
 The module receives an array of strings as a parameter called @code{fsimg}.
 It supports up to 8 strings: for each of them it calls @code{request_firmware}
-and in case of success it registers and @i{sdb} device with the name of
+and in case of success it registers an @i{sdb} device with the name of
 the firmware file.
 
+Such images are expected to be the output of @i{gensdbfs}, but currently
+the entry point must be at offset zero (we'd need another module argument
+to specify where the entry point is).
+
+After mount, you'll see the files hosted in the image. See
+@ref{Example use of sdbfs and sdb-fakedev}
+
 @c ==========================================================================
-@node Example use of kernel code
-@section Example use of kernel code
+@node Example use of sdbfs and sdb-fakedev
+@section Example use of sdbfs and sdb-fakedev
 
 This is an example session that creates, mounts and reads
 an @i{sdbfs} image:
@@ -639,11 +653,17 @@ an @i{sdbfs} image:
 @end smallexample
 
 @c ==========================================================================
+@node Example use of sdb-iomem
+@section Example use of sdb-iomem
+
+FIXME
+
+@c ==========================================================================
 @node Supported kernel versions
 @section Supported kernel versions
 
 The current version is a development version only, and as such it has
-only been developed and run under Linux-3.4. In the future I'll check
+only been built and run under Linux-3.4. In the future I'll check
 backward portability -- but I'm sure something changed at 3.2 times,
 so backward portability will need some work.
 
@@ -689,4 +709,5 @@ trivial because of the relative placement of files within the subdir.
 @bye
 
 @c  LocalWords:  Alessandro Rubini CERN iftex texinfo sdbfs gensdbfs devicesize
-@c  LocalWords:  blocksize fsimg userspace insmod filesystem gateware
+@c  LocalWords:  blocksize fsimg userspace insmod filesystem gateware http ohwr
+@c  LocalWords:  gitorious EEPROM malloc struct
