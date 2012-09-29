@@ -175,6 +175,7 @@ static struct inode *sdbfs_iget(struct super_block *sb, int inum)
 	uint32_t offset;
 	int i, j, n, len;
 	uint8_t *s;
+	int type;
 
 	printk("%s: inum %i\n", __func__, inum);
 	ino = iget_locked(sb, inum);
@@ -196,7 +197,8 @@ static struct inode *sdbfs_iget(struct super_block *sb, int inum)
 	ino->i_mtime.tv_sec = ino->i_atime.tv_sec = ino->i_ctime.tv_sec = 0;
 	ino->i_mtime.tv_nsec = ino->i_atime.tv_nsec = ino->i_ctime.tv_nsec = 0;
 
- 	switch (inode->s_d.sdb_component.product.record_type) {
+	type = inode->s_d.sdb_component.product.record_type;
+	switch (type) {
 	case sdb_type_interconnect:
 		printk("%s: interconnect\n", __func__);
 		ino->i_mode = S_IFDIR  | 0555;
@@ -226,8 +228,20 @@ static struct inode *sdbfs_iget(struct super_block *sb, int inum)
 		ino->i_mode = S_IFREG | 0444;
 		ino->i_fop = &sdbfs_fops;
 		break;
+
+	case sdb_type_bridge:
+		printk("%s: bridge to %llx (unsupported yet)\n", __func__,
+		       ntohll(inode->s_b.sdb_child));
+		break;
+
 	default:
-		BUG();
+		if (type & 0x80) /* informative only */
+			pr_info("%s: ignoring unknown  record 0x%02x\n",
+				__func__, type);
+		else
+			pr_err("%s: unsupported record 0x%02x\n",
+			       __func__, type);
+		break;
 	}
 	unlock_new_inode(ino);
 	return ino;
