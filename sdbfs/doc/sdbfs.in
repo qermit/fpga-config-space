@@ -598,6 +598,15 @@ the module called @i{sdb-iomem.ko} can register those areas to the
 access from user space using named files.
 
 @c ==========================================================================
+@node Supported kernel versions
+@section Supported kernel versions
+
+The current version is a development version only, and as such it has
+only been built and run under Linux-3.4. In the future I'll check
+backward portability -- but I'm sure something changed at 3.2 times,
+so backward portability will need some work.
+
+@c ==========================================================================
 @node sdbfs.ko
 @section sdbfs.ko
 
@@ -653,19 +662,82 @@ an @i{sdbfs} image:
 @end smallexample
 
 @c ==========================================================================
-@node Example use of sdb-iomem
-@section Example use of sdb-iomem
+@node sdb-iomem.ko
+@section sdb-iomem.ko
 
-FIXME
+This module can access a region of I/O registers and show it as an
+@i{sdbfs} object. The user can specify the memory regions to be
+accessed with a module argument.
 
-@c ==========================================================================
-@node Supported kernel versions
-@section Supported kernel versions
+The expected use of this type of filesystem is for driver developers:
+if you are working on an SDB-aware FPGA project, you can mount the
+internal bus of the FPGA and see the internal registers. Once you know
+register offsets, you can ignore the base address of each device
+by accessing it by pathname.
 
-The current version is a development version only, and as such it has
-only been built and run under Linux-3.4. In the future I'll check
-backward portability -- but I'm sure something changed at 3.2 times,
-so backward portability will need some work.
+This module is currently only a trivial example, and a number of
+features are missing. For example, the file-operations for register
+access are not yet defined, and the lack of support for subdirectories
+is a serious problem to be solved soon.  Nonetheless, this approach
+may prove very useful over time.
+
+I envision the following steps for development of I/O acess in @i{sdbfs}:
+
+@itemize @bullet
+@item FPGA projects should be able to register their internal bus.
+@item The names of available @i{sdbfs} devices should appear in @i{sysfs}.
+@item A user-space program should know register names for all devices.
+@item A web service should publish such register layout files.
+@end itemize
+
+Each of these steps is pretty simple in itself, it just takes time to
+implement. As for the last step, the central @i{sdb} registry may
+offer a DNS service, in order for each vendor to be autonomous in
+publishing its own register maps from a vendor-specific host name.
+
+The current implementation does very little, but it is able to
+scan a read SDB device and see the internal devices. The specification
+of each memory area (at most 8 of them are supported) is:
+
+@example
+   <name>@@<hex-address>{-<hex-end>|+<hex-size>}[=<hex-entry>]
+@end example
+
+All numbers are hexadecimal: the area is specified either as
+a range (@code{<addr>-<end>}) or as start-plus-size (@code{<addr>+<size>}).
+If the entry point for SDB information is not zero, it must be passed
+after an equal (@code{=}) sign.
+
+The following example shows what the current @code{sdb-iomem.ko} can
+do, accessing an FPGA driven but the @i{wr-nic} driver (package @i{spec-sw},
+version 2.0):
+
+@smallexample
+   spusa.root# insmod sdb-iomem.ko area=spec0@@0xfd300000+100000=63000
+   spusa.root# mount -t sdbfs spec0 /mnt
+   spusa.root# ls -l /mnt
+   total 0
+   -r--r--r-- 1 root root    256 Jan  1  1970 WB-VIC-Int.Control
+   ?--------- 1 root root 262144 Jan  1  1970 WR-CORE
+   ?--------- 1 root root   4096 Jan  1  1970 WR-DIO-Core
+   -r--r--r-- 1 root root 131072 Jan  1  1970 WR-NIC
+   -r--r--r-- 1 root root    256 Jan  1  1970 WR-TXTSU
+   spusa.root# rmmod sdb-iomem
+   spusa.root# insmod sdb-iomem.ko area=spec0@@0xfd300000+100000=62400
+   spusa.root# mount -t sdbfs spec0 /mnt
+   spusa.root# ls -l /mnt
+   total 0
+   -r--r--r-- 1 root root 256 Jan  1  1970 WB-GPIO-Port
+   -r--r--r-- 1 root root 256 Jan  1  1970 WB-I2C-Master
+   -r--r--r-- 1 root root 256 Jan  1  1970 WR-1Wire-master
+   -r--r--r-- 1 root root 256 Jan  1  1970 WR-DIO-Registers
+@end smallexample
+
+The first listing above shows the overall @i{WishBone} bus of
+the FPGA. The bridge @code{WR-DIO-Core} should be shown as a
+subdirectory. The second listing shows the content of such
+subdirectory, by telling @i{sdb-iomem} to access the SDB records
+for the @i{dio-core} rather than the top-level one.
 
 @c ##########################################################################
 @node Bugs and Missing Features
@@ -681,19 +753,22 @@ priority or complexity:
 @item gensdbfs: more config file options: class and so on.
 
 @item kernel and gensdbfs: support subdirectories. This is not
-trivial because of the relative placement of files within the subdir.
+trivial in gensdbfs because of the relative placement of files
+within the subdir.
 
 @item kernel: add . and .. entries to readdir
 
 @item kernel: support writing to files
 
-@item kernel: support device access (i.e., a real SDB bus)
+@item kernel: complete support for device access
 
 @item kernel: read and write bits are not propagated
 
-@item fakedev: show available images in /sys
+@item core sdbfs: show available images in /sys
 
-@item lib: kernel space and freestanding is missing. Also write support
+@item lib: kernel space and freestanding is not tested
+
+@item lib: write support is missing
 
 @item read-sdb: implement verbose mode and @code{rwxrwxrwx} in long mode
 
