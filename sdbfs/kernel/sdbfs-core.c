@@ -40,28 +40,22 @@ static int sdbfs_readdir(struct file * filp,
 {
 	struct inode *ino = filp->f_dentry->d_inode;
 	struct sdbfs_inode *inode;
-	struct sdb_device *s_d;
+	struct sdbfs_info *info;
 	unsigned long file_off = filp->f_pos;
 	unsigned long offset = ino->i_ino & ~1;
-	int i, j, n;
+	int i, n;
 
 	printk("%s\n", __func__);
 
 	inode = container_of(ino, struct sdbfs_inode, ino);
-	n = be16_to_cpu(inode->s_i.sdb_records) - 1;
+	n = inode->nfiles;
 
 	for (i = file_off; i < n; i++) {
-		char s[20];
 
-		offset += SDB_SIZE;
-		s_d = (struct sdb_device *)inode->files + i;
-		strncpy(s, s_d->sdb_component.product.name, 19);
-		for (j = 19; j; j--) {
-			s[j] = '\0';
-			if (s[j-1] != ' ')
-				break;
-		}
-		if (filldir(dirent, s, j, offset, offset, DT_UNKNOWN) < 0)
+		offset += SDB_SIZE; /* new inode number */
+		info = inode->files + i;
+		if (filldir(dirent, info->name, info->namelen,
+			    offset, offset, DT_UNKNOWN) < 0)
 			return i;
 		filp->f_pos++;
 	}
@@ -86,8 +80,8 @@ static ssize_t sdbfs_read(struct file *f, char __user *buf, size_t count,
 	ssize_t i, done;
 
 	inode = container_of(ino, struct sdbfs_inode, ino);
-	start = be64_to_cpu(inode->s_d.sdb_component.addr_first);
-	size = be64_to_cpu(inode->s_d.sdb_component.addr_last) + 1 - start;
+	start = be64_to_cpu(inode->info.s_d.sdb_component.addr_first);
+	size = be64_to_cpu(inode->info.s_d.sdb_component.addr_last) + 1 - start;
 
 	if (*offp > size)
 		return 0;
@@ -128,18 +122,17 @@ static struct dentry *sdbfs_lookup(struct inode *dir,
 {
 	struct inode *ino = NULL;
 	struct sdbfs_inode *inode = container_of(dir, struct sdbfs_inode, ino);
-	struct sdb_device *s_d;
+	struct sdbfs_info *info;
 	unsigned long inum = dir->i_ino & ~1;
 	int i, n, len;
 
-	n = be16_to_cpu(inode->s_i.sdb_records) - 1;
+	n = inode->nfiles;
+	len = dentry->d_name.len;
 	for (i = 0; i < n; i++) {
-		s_d = (struct sdb_device *)inode->files + i;
-		len = strlen(s_d->sdb_component.product.name);
-		if (len != dentry->d_name.len)
+		info = inode->files + i;
+		if (info->namelen != len)
 			continue;
-		if (!strncmp(s_d->sdb_component.product.name,
-			     dentry->d_name.name, len))
+		if (!strncmp(info->name, dentry->d_name.name, len))
 			break;
 	}
 	if (i != n)
@@ -186,9 +179,9 @@ static struct inode *sdbfs_iget(struct super_block *sb, int inum)
 	struct inode *ino;
 	struct sdbfs_dev *sd = sb->s_fs_info;
 	struct sdbfs_inode *inode;
+	struct sdbfs_info *info;
 	uint32_t offset;
 	int i, j, n, len;
-	uint8_t *s;
 	int type;
 
 	printk("%s: inum %i\n", __func__, inum);
@@ -202,18 +195,18 @@ static struct inode *sdbfs_iget(struct super_block *sb, int inum)
 	offset = inum & ~1;
 	inode = container_of(ino, struct sdbfs_inode, ino);
 
-	n = sd->ops->read(sd, offset, &inode->s_d, SDB_SIZE);
+	n = sd->ops->read(sd, offset, &inode->info.s_d, SDB_SIZE);
 	if (n != SDB_SIZE)
 		return ERR_PTR(-EIO);
-	sdbfs_fix_endian(sd, &inode->s_d, SDB_SIZE);
+	sdbfs_fix_endian(sd, &inode->info.s_d, SDB_SIZE);
 
 	set_nlink(ino, 1);
-	ino->i_size = be64_to_cpu(inode->s_d.sdb_component.addr_last)
-		- be64_to_cpu(inode->s_d.sdb_component.addr_first) + 1;
+	ino->i_size = be64_to_cpu(inode->info.s_d.sdb_component.addr_last)
+		- be64_to_cpu(inode->info.s_d.sdb_component.addr_first) + 1;
 	ino->i_mtime.tv_sec = ino->i_atime.tv_sec = ino->i_ctime.tv_sec = 0;
 	ino->i_mtime.tv_nsec = ino->i_atime.tv_nsec = ino->i_ctime.tv_nsec = 0;
 
-	type = inode->s_d.sdb_component.product.record_type;
+	type = inode->info.s_d.sdb_component.product.record_type;
 	switch (type) {
 	case sdb_type_interconnect:
 		printk("%s: interconnect\n", __func__);
@@ -221,25 +214,33 @@ static struct inode *sdbfs_iget(struct super_block *sb, int inum)
 		ino->i_op = &sdbfs_dir_iops;
 		ino->i_fop = &sdbfs_dir_fops;
 		/* We are an interconnect, so read the other records too */
-		len = be16_to_cpu(inode->s_i.sdb_records) * SDB_SIZE;
-		inode->files = kmalloc(len, GFP_KERNEL);
-		BUG_ON(!inode->files);
+		inode->nfiles = be16_to_cpu(inode->info.s_i.sdb_records);
+		len = inode->nfiles * sizeof(*info);
+		inode->files = kzalloc(len, GFP_KERNEL);
+		if (!inode->files) {
+			/* FIXME: iput? */
+			return ERR_PTR(-ENOMEM);
+		}
 
 		/* FIXME: add dot and dotdot, and maybe named-dot */
-		n = sd->ops->read(sd, offset + SDB_SIZE, inode->files, len);
-		if (n != len)
-			return ERR_PTR(-EIO);
-		sdbfs_fix_endian(sd, inode->files, len);
-
-		for (i = 0; i < len / SDB_SIZE; i++) {
-			/* zero-terminate: the lost type is not a problem */
-			s = (struct sdb_device *)(inode->files)[i]
-				.sdb_component.product.name;
+		for (i = 0; i < inode->nfiles; i++) {
+			offset += SDB_SIZE;
+			info = inode->files + i;
+			n = sd->ops->read(sd, offset, &info->s_d, SDB_SIZE);
+			if (n != SDB_SIZE) {
+				/* FIXME: iput? */
+				kfree(inode->files);
+				return ERR_PTR(-EIO);
+			}
+			sdbfs_fix_endian(sd, &info->s_d, SDB_SIZE);
+			strncpy(info->name,
+				info->s_d.sdb_component.product.name, 19);
 			for (j = 19; j; j--) {
-				s[j] = '\0';
-				if (s[j-1] != ' ')
+				info->name[j] = '\0';
+				if (info->name[j-1] != ' ')
 					break;
 			}
+			info->namelen = j;
 		}
 		break;
 
@@ -252,7 +253,7 @@ static struct inode *sdbfs_iget(struct super_block *sb, int inum)
 
 	case sdb_type_bridge:
 		printk("%s: bridge to %llx (unsupported yet)\n", __func__,
-		       ntohll(inode->s_b.sdb_child));
+		       ntohll(inode->info.s_b.sdb_child));
 		break;
 
 	default:

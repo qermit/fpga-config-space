@@ -12,13 +12,21 @@
 #include <linux/fs.h>
 #include <linux/sdb.h>
 
-struct sdbfs_inode {
+struct sdbfs_info {
+	/* unnamed union to save typing */
 	union {
 		struct sdb_device s_d;
 		struct sdb_interconnect s_i;
 		struct sdb_bridge s_b;
 	};
-	struct sdb_device *files; /* Only used for directories */
+	char name[20]; /* 19 + terminator */
+	int namelen;
+};
+
+struct sdbfs_inode {
+	struct sdbfs_info info;
+	int nfiles;
+	struct sdbfs_info *files; /* for directories */
 	struct inode ino;
 };
 
