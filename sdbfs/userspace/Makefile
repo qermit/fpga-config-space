@@ -24,3 +24,6 @@ $(PROG): ../lib/libsdbfs.a
 
 clean:
 	rm -f $(PROG) *.o *~ core
+
+# add the other unused targets, so the rule in ../Makefile works
+modules install modules_install:

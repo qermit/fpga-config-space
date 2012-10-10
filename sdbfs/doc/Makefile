@@ -56,5 +56,5 @@ terse:
 clean: terse
 	rm -f $(ALL) $(TEXI)
 
-install:
-
+# add the other unused targets, so the rule in ../Makefile works
+modules install modules_install:
