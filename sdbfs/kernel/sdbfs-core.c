@@ -26,7 +26,7 @@ static void sdbfs_fix_endian(struct sdbfs_dev *sd, void *ptr, int len)
 	uint32_t *p = ptr;
 	int i;
 
-	if (!sd->flags & SDBFS_F_FIXENDIAN)
+	if (!(sd->flags & SDBFS_F_FIXENDIAN))
 		return;
 	if (len & 3)
 		return; /* Hmmm... */
