@@ -164,8 +164,8 @@ static void sdbfs_destroy_inode(struct inode *ino)
 {
 	struct sdbfs_inode *inode;
 
-	printk("%s\n", __func__);
 	inode = container_of(ino, struct sdbfs_inode, ino);
+	kfree(inode->files);
 	kmem_cache_free(sdbfs_inode_cache, inode);
 }
 
