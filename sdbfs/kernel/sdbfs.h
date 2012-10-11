@@ -35,6 +35,9 @@ struct sdbfs_dev {
 	unsigned long		entrypoint;
 	struct sdbfs_dev_ops	*ops;
 	struct list_head	list;
+	unsigned long		size;
+	/* Following is private to the FS code */
+	unsigned long		ino_base;
 };
 
 /* flags */

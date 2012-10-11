@@ -62,7 +62,7 @@ static int sdbmem_parse(char *desc, struct sdbmem *d)
 	d->address = ioremap(addr, size);
 	if (!d->address)
 		return -ENOMEM;
-	d->datalen = size;
+	d->sd.size = d->datalen = size;
 	return 0;
 }
 

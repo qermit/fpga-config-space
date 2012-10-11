@@ -77,6 +77,7 @@ static int fakedev_init(void)
 		}
 		d->sd.name = fakedev_fsimg[i];
 		d->sd.blocksize = 64; /* bah! */
+		d->sd.size = d->fw->size;
 		d->sd.ops = &fakedev_ops;
 		if (sdbfs_register_device(&d->sd) < 0) {
 			dev_err(&fakedev_device, "can't register %s\n",
