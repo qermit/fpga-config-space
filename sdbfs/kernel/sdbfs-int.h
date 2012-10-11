@@ -12,12 +12,18 @@
 #include <linux/fs.h>
 #include <linux/sdb.h>
 
+/* This is our mapping of inode numbers */
+#define SDBFS_ROOT		1
+#define SDBFS_INO(offset)	((offset) + 2)
+#define SDBFS_OFFSET(ino)	((ino) & ~15)
+
 struct sdbfs_info {
 	/* unnamed union to save typing */
 	union {
 		struct sdb_device s_d;
 		struct sdb_interconnect s_i;
 		struct sdb_bridge s_b;
+		struct sdb_empty s_e;
 	};
 	char name[20]; /* 19 + terminator */
 	int namelen;
@@ -28,6 +34,9 @@ struct sdbfs_inode {
 	int nfiles;
 	struct sdbfs_info *files; /* for directories */
 	struct inode ino;
+	/* below, the former is the base for relative addresses */
+	unsigned long base_data;
+	unsigned long base_sdb;
 };
 
 /* This is needed to convert endianness. Hoping it is not defined elsewhere */
