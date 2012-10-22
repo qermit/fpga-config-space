@@ -12,10 +12,15 @@
 #include <linux/fs.h>
 #include <linux/sdb.h>
 
+#include "sdbfs.h"
+
 /* This is our mapping of inode numbers */
 #define SDBFS_ROOT		1
 #define SDBFS_INO(offset)	((offset) + 2)
 #define SDBFS_OFFSET(ino)	((ino) & ~15)
+
+#define SDB_SIZE (sizeof(struct sdb_device))
+
 
 struct sdbfs_info {
 	/* unnamed union to save typing */
@@ -54,5 +59,19 @@ static inline uint64_t ntohll(uint64_t ll)
 {
 	return htonll(ll);
 }
+
+/* Material in sdbfs-file.c */
+extern const struct file_operations sdbfs_fops;
+
+/* Material in sdbfs-inode.c */
+struct inode *sdbfs_alloc_inode(struct super_block *sb);
+void sdbfs_destroy_inode(struct inode *ino);
+struct inode *sdbfs_iget(struct sdbfs_inode *parent,
+			 struct super_block *sb, unsigned long inum);
+extern struct kmem_cache *sdbfs_inode_cache;
+
+
+
+
 
 #endif /* __SDBFS_INT_H__ */

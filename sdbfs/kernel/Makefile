@@ -9,8 +9,8 @@ obj-m += sdb-iomem.o
 
 sdbfs-y = sdbfs-core.o
 sdbfs-y += sdbfs-file.o
-sdbfs-y += sdbfs-devmem.o
-sdbfs-y += sdbfs-device.o
+sdbfs-y += sdbfs-inode.o
+sdbfs-y += sdbfs-client.o
 
 all: modules
 
