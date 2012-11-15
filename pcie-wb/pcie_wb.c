@@ -159,7 +159,7 @@ static wb_data_t wb_read(struct wishbone* wb, wb_addr_t addr)
 		if (unlikely(debug)) printk(KERN_ALERT PCIE_WB ": ioread8(0x%x)\n", (addr & ~3) + dev->low_addr);
 		out = ((wb_data_t)ioread8 (window + (addr & WINDOW_LOW) + dev->low_addr)) << dev->shift;
 		break;
-	default: // technically should be unreachable
+	default: /* technically should be unreachable */
 		out = 0;
 		break;
 	}
@@ -199,16 +199,33 @@ static const struct wishbone_operations wb_ops = {
 	.read_cfg   = wb_read_cfg,
 };
 
-#if 0
-static irq_handler_t irq_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t irq_handler(int irq, void *dev_id)
 {
-	return (irq_handler_t)IRQ_HANDLED;
+	struct pcie_wb_dev *dev = dev_id;
+	unsigned char* control;
+	uint32_t ctl;
+	
+	control = dev->pci_res[0].addr;
+	
+	
+	printk(KERN_ALERT "pcie_wb int handler\n");
+	while (1) {
+		ctl = ioread32(control + MASTER_CTL_HIGH);
+		if ((ctl & 0x80000000) == 0) break;
+		
+		printk(KERN_ALERT "pcie_wb from FPGA: %s %08x: %08x\n",
+		  (ctl & 0x40000000) != 0 ? "write" : "read",
+		  ioread32(control + MASTER_ADR_LOW),
+		  ioread32(control + MASTER_DAT_LOW));
+		
+		iowrite32(0, control + MASTER_CTL_HIGH);
+	}
+	
+	return IRQ_HANDLED;
 }
-#endif
 
 static int setup_bar(struct pci_dev* pdev, struct pcie_wb_resource* res, int bar)
 {
-	/*init of pci_res0 */
 	res->start = pci_resource_start(pdev, bar);
 	res->end = pci_resource_end(pdev, bar);
 	res->size = res->end - res->start + 1;
@@ -216,8 +233,10 @@ static int setup_bar(struct pci_dev* pdev, struct pcie_wb_resource* res, int bar
 	if (debug)
 		printk(KERN_ALERT PCIE_WB "/BAR%d  0x%lx - 0x%lx\n", bar, res->start, res->end);
 
-	// is_mem = pci_resource_flags(pdev, 0);
- 	// is_mem = is_mem & IORESOURCE_MEM;
+	if ((pci_resource_flags(pdev, 0) & IORESOURCE_MEM) == 0) {
+		printk(KERN_ALERT PCIE_WB "/BAR%d is not a memory resource\n", bar);
+		return -ENOMEM;
+	}
 
 	if (!request_mem_region(res->start, res->size, PCIE_WB)) {
 		printk(KERN_ALERT PCIE_WB "/BAR%d: request_mem_region failed\n", bar);
@@ -258,10 +277,15 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto fail_out;
 	}
 
+	if (pci_enable_device(pdev) < 0) {
+		printk(KERN_ALERT PCIE_WB ": could not enable device!\n");
+		goto fail_out;
+	}
+	
 	dev = kmalloc(sizeof(struct pcie_wb_dev), GFP_KERNEL);
 	if (!dev) {
 		printk(KERN_ALERT PCIE_WB ": could not allocate memory for pcie_wb_dev structure!\n");
-		goto fail_out;
+		goto fail_disable;
 	}
 	
 	/* Initialize structure */
@@ -276,58 +300,70 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->shift = 0;
 	pci_set_drvdata(pdev, dev);
 	
-	/* enable message signaled interrupts */
-	if (pci_enable_msi(pdev) != 0) {
-		/* resort to legacy interrupts */
-		printk(KERN_ALERT PCIE_WB ": could not enable MSI interrupting\n");
-		goto fail_free;
-	}
-
-	if (setup_bar(pdev, &dev->pci_res[0], 0) < 0) goto fail_msi;
+	if (setup_bar(pdev, &dev->pci_res[0], 0) < 0) goto fail_free;
 	if (setup_bar(pdev, &dev->pci_res[1], 1) < 0) goto fail_bar0;
 	
-	if (wishbone_register(&dev->wb) < 0) {
-		printk(KERN_ALERT PCIE_WB ": could not register wishbone bus\n");
-		goto fail_bar1;
-	}
-	
-	/* Initialize device */
+	/* Initialize device registers */
 	control = dev->pci_res[0].addr;
 	iowrite32(0, control + WINDOW_OFFSET_LOW);
 	iowrite32(0, control + CONTROL_REGISTER_HIGH);
 
-	return pci_enable_device(pdev);
+	pci_set_master(pdev); /* enable bus mastering => needed for MSI */
+	
+	/* enable message signaled interrupts */
+	if (pci_enable_msi(pdev) != 0) {
+		/* resort to legacy interrupts */
+		printk(KERN_ALERT PCIE_WB ": could not enable MSI interrupting\n");
+		goto fail_master;
+	}
+	
+	pci_intx(pdev, 0); /* disable legacy interrupts */
 
-	/* cleaning up */
-fail_bar1:
+	if (request_irq(pdev->irq, irq_handler, 0, "pcie_wb", dev) < 0) {
+		printk(KERN_ALERT PCIE_WB ": could not register interrupt handler\n");
+		goto fail_msi;
+	}
+	
+	if (wishbone_register(&dev->wb) < 0) {
+		printk(KERN_ALERT PCIE_WB ": could not register wishbone bus\n");
+		goto fail_irq;
+	}
+	
+	return 0;
+
+fail_irq:
+	free_irq(dev->pci_dev->irq, dev);
+fail_msi:	
+	pci_intx(pdev, 1);
+	pci_disable_msi(pdev);
+fail_master:
+	pci_clear_master(pdev);
 	destroy_bar(&dev->pci_res[1]);
 fail_bar0:
 	destroy_bar(&dev->pci_res[0]);
-fail_msi:	
-	pci_disable_msi(pdev);
 fail_free:
 	kfree(dev);
+fail_disable:
+	pci_disable_device(pdev);
 fail_out:
 	return -EIO;
 }
 
 static void remove(struct pci_dev *pdev)
 {
-	/* clean up any allocated resources and stuff here.
-	 * like call release_mem_region();
-	 */
-
 	struct pcie_wb_dev *dev;
 	
 	dev = pci_get_drvdata(pdev);
-	wishbone_unregister(&dev->wb);
 	
+	wishbone_unregister(&dev->wb);
+	free_irq(dev->pci_dev->irq, dev);
+	pci_intx(pdev, 1);
+	pci_disable_msi(pdev);
+	pci_clear_master(pdev);
 	destroy_bar(&dev->pci_res[1]);
 	destroy_bar(&dev->pci_res[0]);
-	
-	pci_disable_msi(pdev);
-
 	kfree(dev);
+	pci_disable_device(pdev);
 }
 
 static struct pci_device_id ids[] = {
