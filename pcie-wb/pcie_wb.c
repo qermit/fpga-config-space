@@ -191,35 +191,51 @@ static wb_data_t wb_read_cfg(struct wishbone *wb, wb_addr_t addr)
 	return out;
 }
 
+static int wb_request(struct wishbone *wb, struct wishbone_request *req)
+{
+	struct pcie_wb_dev* dev;
+	unsigned char* control;
+	uint32_t ctl;
+	
+	dev = container_of(wb, struct pcie_wb_dev, wb);
+	control = dev->pci_res[0].addr;
+	
+	ctl        = ioread32(control + MASTER_CTL_HIGH);
+	req->addr  = ioread32(control + MASTER_ADR_LOW);
+	req->data  = ioread32(control + MASTER_DAT_LOW);
+	req->mask  = ctl & 0xf;
+	req->write = (ctl & 0x40000000) != 0;
+	
+	return (ctl & 0x80000000) != 0;
+}
+
+static void wb_reply(struct wishbone *wb, int err, wb_data_t data)
+{
+	struct pcie_wb_dev* dev;
+	unsigned char* control;
+	
+	dev = container_of(wb, struct pcie_wb_dev, wb);
+	control = dev->pci_res[0].addr;
+	
+	iowrite32(data, control + MASTER_DAT_LOW);
+	iowrite32(0, control + MASTER_CTL_HIGH); /* !!! honour err */
+}
+
 static const struct wishbone_operations wb_ops = {
 	.cycle      = wb_cycle,
 	.byteenable = wb_byteenable,
 	.write      = wb_write,
 	.read       = wb_read,
 	.read_cfg   = wb_read_cfg,
+	.request    = wb_request,
+	.reply      = wb_reply,
 };
 
 static irqreturn_t irq_handler(int irq, void *dev_id)
 {
 	struct pcie_wb_dev *dev = dev_id;
-	unsigned char* control;
-	uint32_t ctl;
 	
-	control = dev->pci_res[0].addr;
-	
-	
-	printk(KERN_ALERT "pcie_wb int handler\n");
-	while (1) {
-		ctl = ioread32(control + MASTER_CTL_HIGH);
-		if ((ctl & 0x80000000) == 0) break;
-		
-		printk(KERN_ALERT "pcie_wb from FPGA: %s %08x: %08x\n",
-		  (ctl & 0x40000000) != 0 ? "write" : "read",
-		  ioread32(control + MASTER_ADR_LOW),
-		  ioread32(control + MASTER_DAT_LOW));
-		
-		iowrite32(0, control + MASTER_CTL_HIGH);
-	}
+	wishbone_slave_ready(&dev->wb);
 	
 	return IRQ_HANDLED;
 }
@@ -291,7 +307,6 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Initialize structure */
 	dev->pci_dev = pdev;
 	dev->wb.wops = &wb_ops;
-	strcpy(dev->wb.name, PCIE_WB "%d");
 	dev->wb.parent = &pdev->dev;
 	mutex_init(&dev->mutex);
 	dev->window_offset = 0;

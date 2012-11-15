@@ -166,20 +166,24 @@ static wb_data_t wb_read_cfg(struct wishbone *wb, wb_addr_t addr)
 	return out;
 }
 
+static int wb_request(struct wishbone *wb, struct wishbone_request *req)
+{
+	return 0;
+}
+
+static void wb_reply(struct wishbone *wb, int err, wb_data_t dat)
+{
+}
+
 static const struct wishbone_operations wb_ops = {
 	.cycle      = wb_cycle,
 	.byteenable = wb_byteenable,
 	.write      = wb_write,
 	.read       = wb_read,
 	.read_cfg   = wb_read_cfg,
+	.request    = wb_request,
+	.reply      = wb_reply,
 };
-
-#if 0
-static irq_handler_t irq_handler(int irq, void *dev_id, struct pt_regs *regs)
-{
-	return (irq_handler_t)IRQ_HANDLED;
-}
-#endif
 
 static int setup_bar(struct pci_dev* pdev, struct spec_wb_resource* res, int bar)
 {
@@ -241,7 +245,6 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Initialize structure */
 	dev->pci_dev = pdev;
 	dev->wb.wops = &wb_ops;
-	strcpy(dev->wb.name, SPEC_WB "%d");
 	dev->wb.parent = &pdev->dev;
 	mutex_init(&dev->mutex);
 	dev->window_offset = 0;

@@ -40,7 +40,7 @@ struct pcie_wb_resource {
 struct pcie_wb_dev {
 	struct pci_dev* pci_dev;
 	struct pcie_wb_resource pci_res[2];
-	int    pci_irq[4];
+	int    msi;
 	
 	struct wishbone wb;
 	struct mutex mutex; /* only one user can open a cycle at a time */

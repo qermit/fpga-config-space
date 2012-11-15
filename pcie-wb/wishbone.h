@@ -15,32 +15,52 @@
 #define ETHERBONE_WCA	0x04
 #define ETHERBONE_WFF	0x02
 
+#define WBA_DATA	0x8000
+#define WBA_ERR		0x8004
+
 /* Implementation assumes these have the same size: */
 typedef unsigned int wb_addr_t;
 typedef unsigned int wb_data_t;
 
 struct wishbone;
+struct etherbone_master_context;
+struct etherbone_slave_context;
+
+struct wishbone_request
+{
+	int write; /* 1=write, 0=read */
+	wb_addr_t addr;
+	wb_data_t data;
+	unsigned char mask; /* byte-enable for write */
+};
+
 struct wishbone_operations 
 {
-	void (*cycle)(struct wishbone* wb, int on);
-	void (*byteenable)(struct wishbone* wb, unsigned char mask);
-	void (*write)(struct wishbone* wb, wb_addr_t addr, wb_data_t);
-	wb_data_t (*read)(struct wishbone* wb, wb_addr_t addr);
-	wb_data_t (*read_cfg)(struct wishbone* wb, wb_addr_t addr);
+	/* master operations */
+	void (*cycle)(struct wishbone *wb, int on);
+	void (*byteenable)(struct wishbone *wb, unsigned char mask);
+	void (*write)(struct wishbone *wb, wb_addr_t addr, wb_data_t);
+	wb_data_t (*read)(struct wishbone *wb, wb_addr_t addr);
+	wb_data_t (*read_cfg)(struct wishbone *wb, wb_addr_t addr);
+	
+	/* slave operations */
+	int (*request)(struct wishbone *wb, struct wishbone_request*); /* 1=record filled, 0=none pending */
+	void (*reply)(struct wishbone *wb, int err, wb_data_t dat);
 };
 
 /* One per wishbone backend hardware */
 struct wishbone 
 {
-	char name[32];
 	const struct wishbone_operations* wops;
 	struct device *parent;
 	
-	/* internal: */
-	dev_t dev;
-	struct cdev cdev;
+	/* internal (guarded by global mutex--register/unregister): */
 	struct list_head list;
-	struct device *device;
+	dev_t master_dev, slave_dev;
+	struct cdev master_cdev, slave_cdev;
+	struct device *master_device, *slave_device;
+	struct mutex mutex; /* guards slave below */
+	struct etherbone_slave_context *slave;
 };
 
 #define RING_SIZE	8192
@@ -48,7 +68,7 @@ struct wishbone
 #define RING_POS(x)	((x) & (RING_SIZE*2-1))
 
 /* One per open of character device */
-struct etherbone_context
+struct etherbone_master_context
 {
 	struct wishbone* wishbone;
 	struct fasync_struct *fasync;
@@ -61,6 +81,27 @@ struct etherbone_context
 	unsigned char buf[RING_SIZE]; /* Ring buffer */
 };
 
+struct etherbone_slave_context
+{
+	struct wishbone* wishbone;
+	struct fasync_struct *fasync;
+	struct mutex mutex;
+	wait_queue_head_t waitq;
+	
+	struct wishbone_request request;
+	int ready; /* if request is full */
+	unsigned int pending_err; /* unanswered operations */
+	
+	int negotiated;
+	wb_data_t data;
+
+	unsigned int rbuf_done; /* data remaining to be read: [rbuf_done, sizeof(rbuf)) */
+	unsigned char rbuf[24]; /* 6*4 */
+	
+	unsigned int wbuf_fill; /* data remaining to be processed: [0, wbuf_full) */
+	unsigned char wbuf[2052]; /* (255*2 + 3)*4 */
+};
+
 #define RING_READ_LEN(ctx)   RING_POS((ctx)->processed - (ctx)->sent)
 #define RING_PROC_LEN(ctx)   RING_POS((ctx)->received  - (ctx)->processed)
 #define RING_WRITE_LEN(ctx)  RING_POS((ctx)->sent + RING_SIZE - (ctx)->received)
@@ -68,5 +109,7 @@ struct etherbone_context
 
 int wishbone_register(struct wishbone* wb);
 int wishbone_unregister(struct wishbone* wb);
+
+void wishbone_slave_ready(struct wishbone* wb); /* called when device has data pending */
 
 #endif
