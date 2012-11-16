@@ -95,11 +95,12 @@ struct etherbone_slave_context
 	int negotiated;
 	wb_data_t data;
 
-	unsigned int rbuf_done; /* data remaining to be read: [rbuf_done, sizeof(rbuf)) */
-	unsigned char rbuf[24]; /* 6*4 */
+	unsigned int rbuf_done; /* data remaining to be read: [rbuf_done, rbuf_end) */
+	unsigned int rbuf_end;
+	unsigned char rbuf[sizeof(wb_data_t)*6];
 	
 	unsigned int wbuf_fill; /* data remaining to be processed: [0, wbuf_full) */
-	unsigned char wbuf[2052]; /* (255*2 + 3)*4 */
+	unsigned char wbuf[sizeof(wb_data_t)*(255*2+3)];
 };
 
 #define RING_READ_LEN(ctx)   RING_POS((ctx)->processed - (ctx)->sent)

@@ -167,7 +167,9 @@ static void etherbone_master_process(struct etherbone_master_context* context)
 
 static void etherbone_slave_out_process(struct etherbone_slave_context *context)
 {
-	if (context->rbuf_done != sizeof(context->rbuf)) return;
+	uint8_t *wptr;
+	
+	if (context->rbuf_done != context->rbuf_end) return;
 	
 	if (!context->ready) {
 		if (!context->wishbone->wops->request(context->wishbone, &context->request)) return;
@@ -177,28 +179,41 @@ static void etherbone_slave_out_process(struct etherbone_slave_context *context)
 	context->ready = 0;
 	context->rbuf_done = 0;
 	
-	context->rbuf[0] = ETHERBONE_BCA;
-	context->rbuf[1] = context->request.mask;
+	wptr = &context->rbuf[0];
+	
+	wptr[0] = ETHERBONE_BCA;
+	wptr[1] = context->request.mask;
 	
 	if (context->request.write) {
-		context->rbuf[2] = 1;
-		context->rbuf[3] = 0;
-		eb_from_cpu(context->rbuf + 4, context->request.addr);
-		eb_from_cpu(context->rbuf + 8, context->request.data);
+		wptr[2] = 1;
+		wptr[3] = 0;
+		wptr += sizeof(wb_data_t);
+		eb_from_cpu(wptr, context->request.addr);
+		wptr += sizeof(wb_data_t);
+		eb_from_cpu(wptr, context->request.data);
+		wptr += sizeof(wb_data_t); 
 	} else {
-		context->rbuf[2] = 0;
-		context->rbuf[3] = 1;
-		eb_from_cpu(context->rbuf + 4, WBA_DATA);
-		eb_from_cpu(context->rbuf + 8, context->request.addr);
+		wptr[2] = 0;
+		wptr[3] = 1;
+		wptr += sizeof(wb_data_t); 
+		eb_from_cpu(wptr, WBA_DATA);
+		wptr += sizeof(wb_data_t); 
+		eb_from_cpu(wptr, context->request.addr);
+		wptr += sizeof(wb_data_t); 
 	}
 	
-	context->rbuf[12] = ETHERBONE_CYC /* !!! */ | ETHERBONE_BCA | ETHERBONE_RCA;
-	context->rbuf[13] = 0xf;
-	context->rbuf[14] = 0;
-	context->rbuf[15] = 1;
+	wptr[0] = ETHERBONE_CYC /* !!! */ | ETHERBONE_BCA | ETHERBONE_RCA;
+	wptr[1] = 0xf;
+	wptr[2] = 0;
+	wptr[3] = 1;
+	wptr += sizeof(wb_data_t); 
 	
-	eb_from_cpu(context->rbuf + 16, WBA_ERR);
-	eb_from_cpu(context->rbuf + 20, 4); /* low bits of error status register */
+	eb_from_cpu(wptr, WBA_ERR);
+	wptr += sizeof(wb_data_t); 
+	eb_from_cpu(wptr, 4); /* low bits of error status register */
+	wptr += sizeof(wb_data_t); 
+	
+	context->rbuf_end = wptr - &context->rbuf[0];
 }
 
 static int etherbone_slave_in_process(struct etherbone_slave_context *context)
@@ -206,46 +221,53 @@ static int etherbone_slave_in_process(struct etherbone_slave_context *context)
 	struct wishbone *wb;
 	const struct wishbone_operations *wops;
 	unsigned char flags, be, wcount, rcount;
+	uint8_t *rptr;
+	wb_addr_t base_address;
+	wb_data_t data;
+	unsigned char j;
+	int wff;
 	
 	wb = context->wishbone;
 	wops = wb->wops;
 	
 	/* Process record header */
-	flags  = context->wbuf[0];
-	be     = context->wbuf[1];
-	wcount = context->wbuf[2];
-	rcount = context->wbuf[3];
+	rptr = &context->wbuf[0];
+	flags  = rptr[0];
+	be     = rptr[1];
+	wcount = rptr[2];
+	rcount = rptr[3];
+	rptr += sizeof(wb_data_t);
 	
 	/* Must be a full write to the config space! */
-	if (rcount != 0 || be != 0xf) return -EIO;
+	if (rcount != 0) return -EIO;
+	if (wcount == 0) return 0;
+	
+	if (be != 0xf) return -EIO;
 	if ((flags & ETHERBONE_WCA) == 0) return -EIO;
 	
 	/* Process the writes */
-	if (wcount > 0) {
-		wb_addr_t base_address;
-		wb_data_t data;
-		unsigned char j;
-		int wff = flags & ETHERBONE_WFF;
+	base_address = eb_to_cpu(rptr);
+	rptr += sizeof(wb_data_t);
+	wff = flags & ETHERBONE_WFF;
+	
+	for (j = 0; j < wcount; ++j) {
+		data = eb_to_cpu(rptr);
+		rptr += sizeof(wb_data_t);
 		
-		base_address = eb_to_cpu(context->wbuf + 4);
-		
-		for (j = 0; j < wcount; ++j) {
-			data = eb_to_cpu(context->wbuf + 8 + (j*4));
-			
-			switch (base_address) {
-			case WBA_DATA:
-				context->data = data;
-				break;
-			case WBA_ERR:
-				--context->pending_err;
-				wops->reply(wb, data&1, context->data);
-				break;
-			default:
-				return -EIO;
-			}
-			
-			if (!wff) base_address += sizeof(wb_data_t);
+		switch (base_address) {
+		case WBA_DATA:
+			context->data = data;
+			break;
+		case WBA_ERR:
+			if (context->pending_err == 0) return -EIO;
+			--context->pending_err;
+			wops->reply(wb, data&1, context->data);
+			break;
+		default:
+			return -EIO;
 		}
+		
+		if (!wff) base_address += sizeof(wb_data_t);
 	}
 	
 	return 0;
@@ -463,7 +485,8 @@ static int char_slave_open(struct inode *inode, struct file *filep)
 	context->rbuf[1] = 0x6F;
 	context->rbuf[2] = 0x11; /* V1 probe */
 	context->rbuf[3] = 0x44; /* 32-bit only */
-	memset(&context->rbuf[4], 0, sizeof(context->rbuf)-4);
+	memset(&context->rbuf[4], 0, 4);
+	context->rbuf_end = 8;
 	
 	/* Must hold this lock until slave is fully setup,
 	 * else wishbone_slave_ready could stomp on us.
@@ -493,6 +516,8 @@ static int char_slave_release(struct inode *inode, struct file *filep)
 	mutex_unlock(&context->wishbone->mutex);
 	
 	kfree(context);
+	
+	if (pending) return -EIO;
 	return 0;
 }
 
@@ -507,7 +532,7 @@ static ssize_t char_slave_aio_read(struct kiocb *iocb, const struct iovec *iov, 
 	
 	mutex_lock(&context->mutex);
 	
-	buf_len = sizeof(context->rbuf) - context->rbuf_done;
+	buf_len = context->rbuf_end - context->rbuf_done;
 	if (buf_len > iov_len) {
 		len = iov_len;
 	} else {
@@ -583,7 +608,6 @@ static ssize_t char_slave_aio_write(struct kiocb *iocb, const struct iovec *iov,
 					memcpy_fromiovecend(context->wbuf + context->wbuf_fill, iov, iov_off, len);
 					context->wbuf_fill = 0;
 					if (etherbone_slave_in_process(context) != 0) break;
-					
 				}
 			}
 		}
@@ -604,7 +628,7 @@ static unsigned int char_slave_poll(struct file *filep, poll_table *wait)
 	
 	mutex_lock(&context->mutex);
 	
-	if (context->rbuf_done != sizeof(context->rbuf)) {
+	if (context->rbuf_done != context->rbuf_end) {
 		mask = POLLIN  | POLLRDNORM | POLLOUT | POLLWRNORM;
 	} else {
 		mask = POLLOUT | POLLWRNORM;

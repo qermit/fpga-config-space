@@ -1,4 +1,3 @@
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -42,7 +41,7 @@ static void wb_cycle(struct wishbone* wb, int on)
 	if (unlikely(debug))
 		printk(KERN_ALERT PCIE_WB ": cycle(%d)\n", on);
 	
-	iowrite32(on?0x80000000UL:0, control + CONTROL_REGISTER_HIGH);
+	iowrite32((on?0x80000000UL:0) + 0x40000000UL, control + CONTROL_REGISTER_HIGH);
 	
 	if (!on) mutex_unlock(&dev->mutex);
 }
@@ -206,6 +205,9 @@ static int wb_request(struct wishbone *wb, struct wishbone_request *req)
 	req->mask  = ctl & 0xf;
 	req->write = (ctl & 0x40000000) != 0;
 	
+	iowrite32(1, control + MASTER_CTL_HIGH); /* dequeue operation */
+	
+	if (unlikely(debug)) printk(KERN_ALERT "request %x\n", ctl);
 	return (ctl & 0x80000000) != 0;
 }
 
@@ -217,8 +219,9 @@ static void wb_reply(struct wishbone *wb, int err, wb_data_t data)
 	dev = container_of(wb, struct pcie_wb_dev, wb);
 	control = dev->pci_res[0].addr;
 	
+	if (unlikely(debug)) printk(KERN_ALERT "pushing reply\n");
 	iowrite32(data, control + MASTER_DAT_LOW);
-	iowrite32(0, control + MASTER_CTL_HIGH); /* !!! honour err */
+	iowrite32(err+2, control + MASTER_CTL_HIGH);
 }
 
 static const struct wishbone_operations wb_ops = {
@@ -235,6 +238,8 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 {
 	struct pcie_wb_dev *dev = dev_id;
 	
+	if (unlikely(debug)) printk(KERN_ALERT "posting MSI\n");
+	  
 	wishbone_slave_ready(&dev->wb);
 	
 	return IRQ_HANDLED;
