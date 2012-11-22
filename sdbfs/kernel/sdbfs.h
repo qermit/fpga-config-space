@@ -37,7 +37,9 @@ struct sdbfs_dev {
 	struct list_head	list;
 	unsigned long		size;
 	/* Following is private to the FS code */
+	spinlock_t		lock;
 	unsigned long		ino_base;
+	struct list_head	ino_list;
 };
 
 /* flags */

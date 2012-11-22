@@ -26,29 +26,10 @@ static int sdbfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
 	struct dentry *root;
-	struct sdbfs_dev *sd;
-	uint32_t magic;
 
 	printk("%s\n", __func__);
 
-	/* HACK: this data is really a name */
-	sd = sdbfs_get_by_name(data);
-	if (IS_ERR(sd))
-		return PTR_ERR(sd);
-	sb->s_fs_info = sd;
-
-	/* Check magic number first */
-	sd->ops->read(sd, sd->entrypoint, &magic, 4);
-	if (magic == ntohl(SDB_MAGIC)) {
-		/* all right: we are big endian or byte-level connected */
-	} else if (magic == SDB_MAGIC) {
-		/* looks like we are little-endian on a 32-bit-only bus */
-		sd->flags |= SDBFS_F_FIXENDIAN;
-	} else {
-		printk("%s: wrong magic at 0x%lx (%08x is not %08x)\n",
-		       __func__, sd->entrypoint, magic, SDB_MAGIC);
-		return -EINVAL;
-	}
+	/* The root directory is actually just a placeholder by now */
 
 	/* All of our data is organized as 64-byte blocks */
 	sb->s_blocksize = 64;
@@ -57,11 +38,9 @@ static int sdbfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op = &sdbfs_super_ops;
 
 	/* The root inode is 1. It is a fake bridge and has no parent. */
-	inode = sdbfs_iget(NULL, sb, SDBFS_ROOT);
-	if (IS_ERR(inode)) {
-		sdbfs_put(sd);
+	inode = sdbfs_iget(NULL, sb, SDBFS_ROOT, NULL);
+	if (IS_ERR(inode))
 		return PTR_ERR(inode);
-	}
 
 	/*
 	 * Instantiate and link root dentry. d_make_root only exists
@@ -69,7 +48,6 @@ static int sdbfs_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	root = d_make_root(inode);
 	if (!root) {
-		sdbfs_put(sd);
 		/* FIXME: release inode? */
 		return -ENOMEM;
 	}
@@ -82,29 +60,17 @@ static struct dentry *sdbfs_mount(struct file_system_type *type, int flags,
 			   const char *name, void *data)
 {
 	struct dentry *ret;
-	char *fakedata = (char *)name;
 
-	/* HACK: use "name" as data, to use the mount_single helper */
-	ret = mount_single(type, flags, fakedata, sdbfs_fill_super);
+	ret = mount_single(type, flags, NULL, sdbfs_fill_super);
 	printk("%s: %p\n", __func__, ret);
 	return ret;
-}
-
-static void sdbfs_kill_sb(struct super_block *sb)
-{
-	struct sdbfs_dev *sd = sb->s_fs_info;
-
-	printk("%s\n", __func__);
-	kill_anon_super(sb);
-	if (sd)
-		sdbfs_put(sd);
 }
 
 static struct file_system_type sdbfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "sdbfs",
 	.mount		= sdbfs_mount, /* 2.6.37 and later only */
-	.kill_sb	= sdbfs_kill_sb,
+	.kill_sb	= kill_anon_super,
 };
 
 struct kmem_cache *sdbfs_inode_cache;

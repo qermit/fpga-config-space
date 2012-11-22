@@ -16,8 +16,13 @@
 
 /* This is our mapping of inode numbers */
 #define SDBFS_ROOT		1
-#define SDBFS_INO(offset)	((offset) + 2)
-#define SDBFS_OFFSET(ino)	((ino) & ~15)
+#define SDBFS_FIRST_INO(offset)	((offset) + 2) /* first of a device */
+#define SDBFS_INO(sd, offset)	((sd)->ino_base + (offset) + 3)
+#define SDBFS_OFFSET(sd, inum)	(((inum) & ~15) - (sd)->ino_base)
+#define SDBFS_TYPE(inum)	((inum) & 15)
+
+#define SDBFS_IS_ROOT(inum)	((inum) == SDBFS_ROOT)
+#define SDBFS_IS_FIRST(inum)	(SDBFS_TYPE(inum) == 2)
 
 #define SDB_SIZE (sizeof(struct sdb_device))
 
@@ -37,11 +42,12 @@ struct sdbfs_info {
 struct sdbfs_inode {
 	struct sdbfs_info info;
 	int nfiles;
-	struct sdbfs_info *files; /* for directories */
+	struct sdbfs_info *files;	/* for directories, nfiles long */
 	struct inode ino;
-	/* below, the former is the base for relative addresses */
-	unsigned long base_data;
-	unsigned long base_sdb;
+	unsigned long base_data;	/* base for relative addresses */
+	unsigned long base_sdb;		/* base for record addresses (dirs) */
+	struct sdbfs_dev *sd;
+	struct list_head ino_list;
 };
 
 /* This is needed to convert endianness. Hoping it is not defined elsewhere */
@@ -67,11 +73,11 @@ extern const struct file_operations sdbfs_fops;
 struct inode *sdbfs_alloc_inode(struct super_block *sb);
 void sdbfs_destroy_inode(struct inode *ino);
 struct inode *sdbfs_iget(struct sdbfs_inode *parent,
-			 struct super_block *sb, unsigned long inum);
+			 struct super_block *sb, unsigned long inum,
+			 struct sdbfs_dev *sd);
 extern struct kmem_cache *sdbfs_inode_cache;
 
-
-
-
+/* Material in sdb-client.c */
+struct inode *sdbfs_iget_root(struct super_block *sb, struct inode *ino);
 
 #endif /* __SDBFS_INT_H__ */

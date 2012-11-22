@@ -34,11 +34,11 @@ static void sdbfs_fix_endian(struct sdbfs_dev *sd, void *ptr, int len)
 static int sdbfs_read_whole_dir(struct sdbfs_inode *inode)
 {
 	struct sdbfs_info *info;
-	struct super_block *sb = inode->ino.i_sb;
-	struct sdbfs_dev *sd = sb->s_fs_info;
+	struct sdbfs_dev *sd = inode->sd;
 	unsigned long offset;
 	int i, j, n;
 
+	printk("%s -- %i\n", __func__, inode->nfiles);
 	if (inode->nfiles)
 		return 0;
 
@@ -54,6 +54,7 @@ static int sdbfs_read_whole_dir(struct sdbfs_inode *inode)
 		return -EIO;
 	}
 	sdbfs_fix_endian(sd, &info->s_i, SDB_SIZE);
+	printk("read at offset %li\n", inode->base_sdb);
 
 	if (info->s_i.sdb_magic != htonl(SDB_MAGIC)) {
 		pr_err("%s: wrong magic (%08x) at offset 0x%lx\n", __func__,
@@ -126,6 +127,7 @@ static int sdbfs_readdir(struct file * filp,
 	}
 
 	/* Then our stuff */
+	printk("%s: %i -- inum %li\n", __func__, __LINE__, ino->i_ino);
 	inode = container_of(ino, struct sdbfs_inode, ino);
 	sdbfs_read_whole_dir(inode);
 	offset = inode->base_sdb;
@@ -138,7 +140,8 @@ static int sdbfs_readdir(struct file * filp,
 			type = DT_REG;
 
 		if (filldir(dirent, info->name, info->namelen,
-			    SDBFS_INO(offset), i + 2 /* ? */, type) < 0)
+			    SDBFS_INO(inode->sd, offset),
+			    i + 2 /* ? */, type) < 0)
 			return done;
 		filp->f_pos++;
 		done++;
@@ -174,7 +177,9 @@ static struct dentry *sdbfs_lookup(struct inode *dir,
 	}
 	if (i != n) {
 		offset = offset + SDB_SIZE * i;
-		ino = sdbfs_iget(inode, dir->i_sb,  SDBFS_INO(offset));
+		printk("lookup in inum 0x%lx, sd %p\n", dir->i_ino, inode->sd);
+		ino = sdbfs_iget(inode, dir->i_sb,
+				 SDBFS_INO(inode->sd, offset), inode->sd);
 	}
 	d_add(dentry, ino);
 	return 0;
@@ -194,7 +199,9 @@ struct inode *sdbfs_alloc_inode(struct super_block *sb)
 	if (!inode)
 		return NULL;
 	inode_init_once(&inode->ino);
-	printk("%s: return %p\n", __func__, &inode->ino);
+	inode->files = NULL;
+	if (0)
+		dump_stack();
 	return &inode->ino;
 }
 
@@ -202,17 +209,20 @@ void sdbfs_destroy_inode(struct inode *ino)
 {
 	struct sdbfs_inode *inode;
 
+	printk("%s\n", __func__);
 	inode = container_of(ino, struct sdbfs_inode, ino);
 	kfree(inode->files);
 	kmem_cache_free(sdbfs_inode_cache, inode);
 }
 
-static struct inode *sdbfs_iget_root(struct super_block *sb,
-				     struct inode *ino)
+static struct inode *sdbfs_iget_rootdev(struct super_block *sb,
+					struct inode *ino,
+					struct sdbfs_dev *sd)
 {
-	struct sdbfs_dev *sd = sb->s_fs_info;
 	struct sdbfs_inode *inode = container_of(ino, struct sdbfs_inode, ino);
 	struct sdb_bridge *b = &inode->info.s_b;
+
+	inode->sd = sd;
 
 	/* The root directory is a fake "bridge" structure */
 	memset(b, 0, sizeof(*b));
@@ -222,21 +232,24 @@ static struct inode *sdbfs_iget_root(struct super_block *sb,
 	b->sdb_component.product.record_type = sdb_type_bridge;
 
 	/* So, this is a directory, and it links to the first interconnect */
+	printk("%s inum 0x%lx -- size %li\n", __func__, ino->i_ino, sd->size);
 	inode->base_data = 0;
 	inode->base_sdb = sd->entrypoint;
+	inode->nfiles = 0;
 	ino->i_size = sd->size;
 	ino->i_mode = S_IFDIR  | 0555;
 	ino->i_op = &sdbfs_dir_iops;
 	ino->i_fop = &sdbfs_dir_fops;
 
+	unlock_new_inode(ino);
 	return ino;
 }
 
 struct inode *sdbfs_iget(struct sdbfs_inode *parent,
-			 struct super_block *sb, unsigned long inum)
+			 struct super_block *sb, unsigned long inum,
+			 struct sdbfs_dev *sd)
 {
 	struct inode *ino;
-	struct sdbfs_dev *sd = sb->s_fs_info;
 	struct sdbfs_inode *inode;
 	uint32_t offset;
 	unsigned long size, base_data; /* target offset */
@@ -250,19 +263,21 @@ struct inode *sdbfs_iget(struct sdbfs_inode *parent,
 	if (!(ino->i_state & I_NEW))
 		return ino;
 
-	/* general setup; no link concept: the structure is immutable */
+	/* 1 link because the structure is immutable, who cares */
 	set_nlink(ino, 1);
 	ino->i_mtime.tv_sec = ino->i_atime.tv_sec = ino->i_ctime.tv_sec = 0;
 	ino->i_mtime.tv_nsec = ino->i_atime.tv_nsec = ino->i_ctime.tv_nsec = 0;
 
-	if (unlikely(!parent)) { /* inum == SDBFS_ROOT */
-		sdbfs_iget_root(sb, ino);
-		unlock_new_inode(ino);
-		return ino;
-	}
+	/* Two special cases: root and root of a device */
+	if (unlikely(SDBFS_IS_ROOT(inum)))
+		return sdbfs_iget_root(sb, ino);
+	if (unlikely(SDBFS_IS_FIRST(inum)))
+		return sdbfs_iget_rootdev(sb, ino, sd);
 
+	/* Just a child node, the parent passed sd already */
 	inode = container_of(ino, struct sdbfs_inode, ino);
-	offset = SDBFS_OFFSET(inum);
+	inode->sd = sd;
+	offset = SDBFS_OFFSET(sd, inum);
 
 	n = sd->ops->read(sd, offset, &inode->info.s_d, SDB_SIZE);
 	if (n != SDB_SIZE)
