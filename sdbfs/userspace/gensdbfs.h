@@ -14,6 +14,7 @@ struct sdbf {
 		struct sdb_bridge s_b;
 	};
 	char *fullname;
+	char *basename;
 	unsigned long astart, rstart; /* absolute, relative */
 	unsigned long size;
 	int nfiles, totsize; /* for dirs */

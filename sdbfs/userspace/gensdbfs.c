@@ -42,13 +42,17 @@ static inline unsigned long SDB_ALIGN(unsigned long x)
 }
 
 /* Helpers for scan_input(), which is below */
-static void __fill_dot(struct sdbf *dot)
+static void __fill_dot(struct sdbf *dot, char *dir)
 {
 	struct sdb_interconnect *i = &dot->s_i;
 	struct sdb_component *c = &i->sdb_component;
 	struct sdb_product *p = &c->product;
+	char fn[PATH_MAX];
 
-	dot->fullname = strdup(".");
+	strcpy(fn, dir);
+	strcat(fn, "/.");
+	dot->fullname = strdup(fn);
+	dot->basename = strdup(".");
 	i->sdb_magic = htonl(SDB_MAGIC);
 	i->sdb_version = 1;
 	i->sdb_bus_type = sdb_data;
@@ -74,6 +78,7 @@ static int __fill_file(struct sdbf *f, char *dir, char *fname)
 	strcat(fn, "/");
 	strcat(fn, fname);
 	f->fullname = strdup(fn);
+	f->basename = strdup(fname);
 	if (stat(fn, &f->stbuf) < 0) {
 		fprintf(stderr, "%s: stat(%s): %s\n", prgname, fn,
 			strerror(errno));
@@ -123,11 +128,7 @@ static struct sdbf *find_filename(struct sdbf *tree, char *s)
 
 	for (i = 0; i < n; i++) {
 		f = tree + i;
-		if (!strcmp(s, f->fullname))
-			return f;
-		/* "fullname" includes the leading "./", but ease the user */
-		if (!strncmp(f->fullname, "./", 2)
-		    && !strcmp(s, f->fullname + 2))
+		if (!strcmp(s, f->basename))
 			return f;
 	}
 	return NULL;
@@ -214,13 +215,18 @@ static struct sdbf *scan_input(char *name, struct sdbf *parent, FILE **cfgf)
 		tree[n].de = *de;
 		if (!strcmp(de->d_name, ".")) {
 			tree[0].de = *de;
-			__fill_dot(tree);
+			__fill_dot(tree, name);
 			continue;
 		}
 		if (!strcmp(de->d_name, ".."))
 			continue; /* no dot-dot */
 		if (!strcmp(de->d_name, CFG_NAME)) {
-			*cfgf = fopen(de->d_name, "r");
+			char s[PATH_MAX];
+
+			strcpy(s, name);
+			strcat(s, "/");
+			strcat(s, de->d_name);
+			*cfgf = fopen(s, "r");
 			if (!*cfgf)
 				fprintf(stderr, "%s: open(%s): %s\n",
 					prgname, CFG_NAME, strerror(errno));
@@ -290,7 +296,8 @@ static struct sdbf *scan_config(struct sdbf *tree, FILE *f)
 			/* line starts in column 0: new file name */
 			current = find_filename(tree, s);
 			if (!current) {
-				fprintf(stderr, "%s: %s:%i: \"%s\" not found\n",
+				fprintf(stderr, "%s: Warning: %s:%i: "
+					"\"%s\" not found\n",
 					prgname, CFG_NAME, lineno, s);
 			}
 			continue;
@@ -410,7 +417,7 @@ int main(int argc, char **argv)
 {
 	int c;
 	struct stat stbuf;
-	FILE *fcfg, *fout;
+	FILE *fcfg = NULL, *fout;
 	char *rest;
 	struct sdbf *tree;
 
