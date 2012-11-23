@@ -33,7 +33,7 @@ static ssize_t fakedev_read(struct sdbfs_dev *sd, uint32_t begin, void *buf,
 	struct fakedev *fd;
 	int len;
 
-	printk("%s: %08x - %i\n", __func__, (int)begin, count);
+	pr_debug("%s: %08x - %i\n", __func__, (int)begin, count);
 	fd = container_of(sd, struct fakedev, sd);
 	len = fd->fw->size;
 	if (begin > len)
@@ -75,10 +75,14 @@ static int fakedev_init(void)
 			       fakedev_fsimg[i]);
 			continue;
 		}
+		dev_dbg(&fakedev_device, "loaded %s to %p , size %li\n",
+			fakedev_fsimg[i], d, (long)d->fw->size);
 		d->sd.name = fakedev_fsimg[i];
 		d->sd.blocksize = 64; /* bah! */
 		d->sd.size = d->fw->size;
 		d->sd.ops = &fakedev_ops;
+		dev_dbg(&fakedev_device, "%s: size %li\n",
+			  d->sd.name, d->sd.size);
 		if (sdbfs_register_device(&d->sd) < 0) {
 			dev_err(&fakedev_device, "can't register %s\n",
 			       fakedev_fsimg[i]);
