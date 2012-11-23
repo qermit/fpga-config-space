@@ -228,12 +228,25 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * register char dev
 	 */
 	u8 revision;
+	u16 vendor;
 	struct spec_wb_dev *dev;
 
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &revision);
-	if (revision != 0x03) {
-		printk(KERN_ALERT SPEC_WB ": revision ID wrong!\n");
-		goto fail_out;
+	pci_read_config_word(pdev, PCI_VENDOR_ID, &vendor);
+	
+	switch (vendor) {
+	case SPEC1_WB_VENDOR_ID:
+		if (revision != SPEC1_WB_REVISION_ID) {
+			printk(KERN_ALERT SPEC_WB ": SPECv1 revision ID wrong!\n");
+			goto fail_out;
+		}
+		break;
+	case SPEC4_WB_VENDOR_ID:
+		if (revision != SPEC4_WB_REVISION_ID) {
+			printk(KERN_ALERT SPEC_WB ": SPECv4 revision ID wrong!\n");
+			goto fail_out;
+		}
+		break;
 	}
 
 	dev = kmalloc(sizeof(struct spec_wb_dev), GFP_KERNEL);
@@ -307,7 +320,8 @@ static void remove(struct pci_dev *pdev)
 }
 
 static struct pci_device_id ids[] = {
-	{ PCI_DEVICE(SPEC_WB_VENDOR_ID, SPEC_WB_DEVICE_ID), },
+	{ PCI_DEVICE(SPEC1_WB_VENDOR_ID, SPEC1_WB_DEVICE_ID), },
+	{ PCI_DEVICE(SPEC4_WB_VENDOR_ID, SPEC4_WB_DEVICE_ID), },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, ids);

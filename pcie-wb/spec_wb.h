@@ -6,8 +6,13 @@
 #define SPEC_WB "spec_wb"
 #define SPEC_WB_VERSION	"0.1"
 
-#define SPEC_WB_VENDOR_ID	0x10dc
-#define	SPEC_WB_DEVICE_ID	0x018d
+#define SPEC1_WB_VENDOR_ID	0x1a39
+#define	SPEC1_WB_DEVICE_ID	0x0004
+#define	SPEC1_WB_REVISION_ID	0x0001
+
+#define SPEC4_WB_VENDOR_ID	0x10dc
+#define	SPEC4_WB_DEVICE_ID	0x018d
+#define	SPEC4_WB_REVISION_ID	0x0003
 
 #define WB_BAR		0
 #define WB_OFFSET	0x80000
