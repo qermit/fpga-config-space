@@ -34,7 +34,7 @@
 
 @setchapternewpage off
 
-@set update-month September 2012
+@set update-month November 2012
 
 @finalout
 
@@ -118,13 +118,15 @@ understand how the library is meant to be used.
 @node The Filesystem Structure
 @section The Filesystem Structure
 
-Users of the library must have @code{-I} to find @file{libsdbfs.h}
+Users of the library must use the compiler option @code{-I} to find @file{libsdbfs.h}
 (which includes other files from the same directory where it lives).
 Similarly, they must link @file{libsdbfs.a} from the same
 directory.
 
 Everything in the library refers to @code{struct sdbfs} and library
-users can register more than one such filesystems.  A freestanding
+users can register more than one such structures: each of them will
+appear as a first-level subdirectory of the overall @i{sdbfs} mount
+point..  A freestanding
 application will most likely have a static structure in its data
 section, initialized at compile time.  Some of the fields
 in the structure are library-private; this is the list of
@@ -134,11 +136,12 @@ the public fields:
 
 @item char *name;
 
-	The device name is optional; it is only used by @i{sdbfs_dev_find()}.
+	The device name is mandatory: it is used by @i{sdbfs_dev_find()}
+        and as the directory name for this file tree.
 
 @item void *drvdata;
 
-	The field is there for library users to store their data, if they
+	The field is there for library users to store their data, in case they
         register more than one filesystem and implement the methods
         listed here below.
 
@@ -149,7 +152,7 @@ the public fields:
 @item unsigned long entrypoint;
 
 	The offset of the first @i{sdb} record in the device. For example,
-        for FMC EEPROM devices we'll have an entry point of 256 because
+        for FMC EEPROM devices we'll have an entry point at 256 or 512, because
         the FMC standard mandates the content of the leading part of the
         flash device.
 
@@ -172,6 +175,8 @@ the public fields:
 
 	These methods are defined but not yet used as of this version.
 
+@c FIXME: write support
+
 @end table
 
 @c ==========================================================================
@@ -179,8 +184,11 @@ the public fields:
 @section Library functions
 
 The library defines the following functions to act on a @i{sdb} storage
-device.  All functions returning integer will return a negative
+device.  All functions returning integer return a negative
 number in case of error, within the @i{errno} range (e.g. @code{-ENOENT}).
+The library can be compiled to run in user space, in kernel space
+or as part of a microcontroller program (i.e., without an operating
+system).
 
 @table @code
 @item int sdbfs_dev_create(struct sdbfs *fs, int verbose);
@@ -211,8 +219,9 @@ number in case of error, within the @i{errno} range (e.g. @code{-ENOENT}).
         several files feature tha same identifiers (or name) the library
         will return the first it finds.  Keeping the @i{open} file
         within the data structure is clearly limiting over more modern
-        approaches, but it allows keeping down the footprint of both the
-        library and user code.
+        approaches, but it is a mandatory requirement to fit the
+        constraints of microcontroller programs (i.e., no @i{malloc}
+        available).
 
 @item struct sdb_device *sdbfs_scan(struct sdbfs *fs, int newscan);
 
@@ -240,6 +249,7 @@ number in case of error, within the @i{errno} range (e.g. @code{-ENOENT}).
 @item int sdbfs_fwrite(struct sdbfs *fs, int offset, char *buf, int count);
 
 	This is not yet implemented.
+@c FIXME: write support
 
 @item uint64_t htonll(uint64_t ll);
 @itemx uint64_t ntohll(uint64_t ll);
@@ -584,9 +594,11 @@ and @i{gensdbfs.c} has been over-allocated as a 64kB area.
 
 Kernel support is in the form of a module, which allows drivers to
 register (and unregister) storage devices. Each storage device
-declares a set of operations to it, so the filesystem can read, erase,
+declares a set of operations to act on itself, so the filesystem can read, erase,
 write data independently of the actual storage.  See @i{sdbfs.h} about
-data structures and methods. 
+data structures and methods. (@b{Note}: write support is not yet
+implemented).
+@c FIXME: write support
 
 To test without real hardware at hand, the module called
 @i{sdb-fakedev.ko} can load to kernel space one or more image files,
@@ -610,11 +622,13 @@ so backward portability will need some work.
 @node sdbfs.ko
 @section sdbfs.ko
 
-The filesystem currently only works in read-only mode, and there is no
-support for subdirectories.  The @i{name} argument you pass to the
-@code{mount} command must match one of the device names that have already
-been registered to the filesystem using @code{sdbfs_register_device}.
-The available names should appear in @i{sysfs} but this is not yet implemented.
+@c FIXME: write support
+The filesystem currently only works in read-only mode. Each @i{sdb} object
+you register using @code{sdbfs_register_device}
+appears as a subdirectory of the mount point, and may have
+further subdirectories inside. If your name is duplicate, registration
+fails, so I suggest to use unique identifiers in the name, such as
+the PCI slot number where an FPGA is plugged.
 
 @c ==========================================================================
 @node sdb-fakedev.ko
@@ -629,6 +643,7 @@ Such images are expected to be the output of @i{gensdbfs}, but currently
 the entry point must be at offset zero (we'd need another module argument
 to specify where the entry point is).
 
+@c FIXME: offset support for fakedev
 After mount, you'll see the files hosted in the image. See
 @ref{Example use of sdbfs and sdb-fakedev}
 
@@ -639,6 +654,7 @@ After mount, you'll see the files hosted in the image. See
 This is an example session that creates, mounts and reads
 an @i{sdbfs} image:
 
+@c FIXME: the example of fakedev
 @smallexample
     # ls -l userspace
     total 44
@@ -665,7 +681,7 @@ an @i{sdbfs} image:
 @node sdb-iomem.ko
 @section sdb-iomem.ko
 
-This module can access a region of I/O registers and show it as an
+This module can access up to 8 regions of I/O registers and show each as an
 @i{sdbfs} object. The user can specify the memory regions to be
 accessed with a module argument.
 
@@ -675,6 +691,7 @@ internal bus of the FPGA and see the internal registers. Once you know
 register offsets, you can ignore the base address of each device
 by accessing it by pathname.
 
+@c FIXME: file operations for devices.
 This module is currently only a trivial example, and a number of
 features are missing. For example, the file-operations for register
 access are not yet defined, and the lack of support for subdirectories
@@ -685,19 +702,18 @@ I envision the following steps for development of I/O acess in @i{sdbfs}:
 
 @itemize @bullet
 @item FPGA projects should be able to register their internal bus.
-@item The names of available @i{sdbfs} devices should appear in @i{sysfs}.
 @item A user-space program should know register names for all devices.
 @item A web service should publish such register layout files.
 @end itemize
 
-Each of these steps is pretty simple in itself, it just takes time to
+Each of the step above is pretty simple in itself, it just takes time to
 implement. As for the last step, the central @i{sdb} registry may
 offer a DNS service, in order for each vendor to be autonomous in
 publishing its own register maps from a vendor-specific host name.
 
 The current implementation does very little, but it is able to
-scan a read SDB device and see the internal devices. The specification
-of each memory area (at most 8 of them are supported) is:
+scan a real SDB I/O area and see the internal devices. The specification
+of each memory area in the module paramter is:
 
 @example
    <name>@@<hex-address>{-<hex-end>|+<hex-size>}[=<hex-entry>]
@@ -712,6 +728,7 @@ The following example shows what the current @code{sdb-iomem.ko} can
 do, accessing an FPGA driven but the @i{wr-nic} driver (package @i{spec-sw},
 version 2.0):
 
+@c FIXME: the iomem example
 @smallexample
    spusa.root# insmod sdb-iomem.ko area=spec0@@0xfd300000+100000=63000
    spusa.root# mount -t sdbfs spec0 /mnt
@@ -758,13 +775,11 @@ within the subdir.
 
 @item kernel: add . and .. entries to readdir
 
-@item kernel: support writing to files
+@item kernel: support for writing to files
 
 @item kernel: complete support for device access
 
 @item kernel: read and write bits are not propagated
-
-@item core sdbfs: show available images in /sys
 
 @item lib: kernel space and freestanding is not tested
 
@@ -774,7 +789,7 @@ within the subdir.
 
 @item general: factorize some common procedures
 
-@item general: the various FIXME for details in the code itself
+@item general: the various FIXME about details in the code itself
 
 @item general: too many printk still in the code
 
