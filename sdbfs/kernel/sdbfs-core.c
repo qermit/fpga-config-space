@@ -20,6 +20,7 @@
 static const struct super_operations sdbfs_super_ops = {
 	.alloc_inode    = sdbfs_alloc_inode,
 	.destroy_inode  = sdbfs_destroy_inode,
+	.drop_inode     = generic_delete_inode,
 };
 
 static int sdbfs_fill_super(struct super_block *sb, void *data, int silent)
