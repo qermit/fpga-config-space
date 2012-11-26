@@ -45,25 +45,19 @@ static int sdbfs_read_whole_dir(struct sdbfs_inode *inode)
 	printk("%s\n", __func__);
 
 	/* Get the interconnect and see how many */
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
+	info = &inode->info;
 	n = sd->ops->read(sd, inode->base_sdb, &info->s_i, SDB_SIZE);
-	if (n != SDB_SIZE) {
-		kfree(info);
+	if (n != SDB_SIZE)
 		return -EIO;
-	}
 	sdbfs_fix_endian(sd, &info->s_i, SDB_SIZE);
 	printk("read at offset %li\n", inode->base_sdb);
 
 	if (info->s_i.sdb_magic != htonl(SDB_MAGIC)) {
 		pr_err("%s: wrong magic (%08x) at offset 0x%lx\n", __func__,
 		       info->s_i.sdb_magic, inode->base_sdb);
-		kfree(info);
 		return -EINVAL;
 	}
 	inode->nfiles = be16_to_cpu(info->s_i.sdb_records);
-	kfree(info);
 
 	printk("nfiles %i\n", inode->nfiles);
 
@@ -177,7 +171,7 @@ static struct dentry *sdbfs_lookup(struct inode *dir,
 	}
 	if (i != n) {
 		offset = offset + SDB_SIZE * i;
-		printk("lookup in inum 0x%lx, sd %p\n", dir->i_ino, inode->sd);
+		printk("lookup in inum 0x%lx\n", dir->i_ino);
 		ino = sdbfs_iget(inode, dir->i_sb,
 				 SDBFS_INO(inode->sd, offset), inode->sd);
 	}
@@ -284,7 +278,6 @@ struct inode *sdbfs_iget(struct sdbfs_inode *parent,
 		return ERR_PTR(-EIO);
 	sdbfs_fix_endian(sd, &inode->info.s_d, SDB_SIZE);
 
-
 	base_data = be64_to_cpu(inode->info.s_d.sdb_component.addr_first);
 	size = be64_to_cpu(inode->info.s_d.sdb_component.addr_last)
 		- base_data + 1;
@@ -294,8 +287,18 @@ struct inode *sdbfs_iget(struct sdbfs_inode *parent,
 	case sdb_type_interconnect:
 	case sdb_type_device:
 		/* You can access internal registers/data */
-		ino->i_fop = &sdbfs_fops; /* FIXME: Which bus type? */
-		ino->i_mode = S_IFREG | 0444;
+
+		switch(parent->info.s_i.sdb_bus_type) {
+		case sdb_data:
+			ino->i_fop = &sdbfs_fops;
+			ino->i_mode = S_IFREG | 0444;
+			/* FIXME: write support using SDB_DATA_WRITE */
+			break;
+		case sdb_wishbone:
+		default:
+			ino->i_fop = &sdbfs_fops;
+			ino->i_mode = S_IFREG | 0664;
+		}
 		ino->i_size = size;
 		inode->base_data = parent->base_data + base_data;
 		break;
