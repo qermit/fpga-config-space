@@ -85,6 +85,24 @@ static ssize_t sdbmem_read(struct sdbfs_dev *sd, uint32_t begin, void *buf,
 	return count;
 }
 
+static ssize_t sdbmem_write(struct sdbfs_dev *sd, uint32_t begin,
+			    const void *buf, size_t count)
+{
+	struct sdbmem *fd;
+	size_t len;
+
+	printk("%s: %08x - %i\n", __func__, (int)begin, count);
+	fd = container_of(sd, struct sdbmem, sd);
+	len = fd->datalen;
+	if (begin > len)
+		return -EINVAL;
+	if (begin + count > len)
+		count = len - begin;
+	memcpy_toio(fd->address + begin, buf, count);
+	return count;
+}
+
+
 static struct sdbfs_dev_ops sdbmem_ops = {
 	.owner = THIS_MODULE,
 	.erase = NULL,
