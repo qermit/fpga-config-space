@@ -122,6 +122,7 @@ void sdbfs_unregister_device(struct sdbfs_dev *sd)
 			break;
 	if (osd == sd) {
 		list_del(&sd->list);
+		/* FIXME: d_drop or d_put it all */
 		sdbfs_free_inodes(sd);
 	}
 	spin_unlock(&sdbfs_devlock);
