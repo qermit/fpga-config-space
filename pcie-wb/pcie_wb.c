@@ -9,6 +9,7 @@
 #include <linux/cdev.h>
 #include <linux/aer.h>
 #include <linux/sched.h> 
+#include <linux/version.h>
 #include <linux/miscdevice.h>
 
 #include <asm/io.h>
@@ -27,6 +28,24 @@
 #endif
 
 static unsigned int debug = 0;
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,28)
+
+/* Missing in 2.6.28. Present in 2.6.29. */
+static void compat_pci_clear_master(struct pci_dev *dev)
+{
+	u16 old_cmd, cmd;
+	
+	pci_read_config_word(dev, PCI_COMMAND, &old_cmd);
+	cmd = old_cmd & ~PCI_COMMAND_MASTER;
+	pci_write_config_word(dev, PCI_COMMAND, cmd);
+	dev->is_busmaster = false;
+}
+
+/* Override with backwards compatible version */
+#define pci_clear_master compat_pci_clear_master
+#endif
+
 
 static void wb_cycle(struct wishbone* wb, int on)
 {

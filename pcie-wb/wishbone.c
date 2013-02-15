@@ -13,6 +13,7 @@
 #include <linux/socket.h>
 #include <linux/device.h>
 #include <linux/sched.h>
+#include <linux/version.h>
 
 #include "wishbone.h"
 
@@ -26,6 +27,66 @@ static struct class *wishbone_master_class;
 static struct class *wishbone_slave_class;
 static dev_t wishbone_master_dev_first;
 static dev_t wishbone_slave_dev_first;
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,30)
+
+/* missing 'const' in 2.6.30. present in 2.6.31. */
+static int compat_memcpy_fromiovecend(unsigned char *kdata, const struct iovec *iov,
+                        int offset, int len)
+{
+        /* Skip over the finished iovecs */
+        while (offset >= iov->iov_len) {
+                offset -= iov->iov_len;
+                iov++;
+        }
+
+        while (len > 0) {
+                u8 __user *base = iov->iov_base + offset;
+                int copy = min_t(unsigned int, len, iov->iov_len - offset);
+
+                offset = 0;
+                if (copy_from_user(kdata, base, copy))
+                        return -EFAULT;
+                len -= copy;
+                kdata += copy;
+                iov++;
+        }
+
+        return 0;
+}
+
+
+/* does not exist in 2.6.30. does in 2.6.31. */
+static int compat_memcpy_toiovecend(const struct iovec *iov, unsigned char *kdata,
+                       int offset, int len)
+ {
+         int copy;
+         for (; len > 0; ++iov) {
+                 /* Skip over the finished iovecs */
+                 if (unlikely(offset >= iov->iov_len)) {
+                         offset -= iov->iov_len;
+                         continue;
+                 }
+                 copy = min_t(unsigned int, iov->iov_len - offset, len);
+                 if (copy_to_user(iov->iov_base + offset, kdata, copy))
+                         return -EFAULT;
+                 offset = 0;
+                 kdata += copy;
+                 len -= copy;
+         }
+
+         return 0;
+}
+
+/* Over-ride with compatible versions */
+#define memcpy_toiovecend   compat_memcpy_toiovecend
+#define memcpy_fromiovecend compat_memcpy_fromiovecend
+#endif
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,26)
+/* Older linux versions do not have the drvdata 'a' parameter. >= 2.6.37 present. */
+#define device_create(c, p, d, a, f, x) device_create(c, p, d, f, x)
+#endif
 
 /* Compiler should be able to optimize this to one inlined instruction */
 static inline wb_data_t eb_to_cpu(unsigned char* x)
