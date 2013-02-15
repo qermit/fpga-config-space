@@ -330,6 +330,7 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	
 	/* Initialize structure */
 	dev->pci_dev = pdev;
+	dev->msi = 1;
 	dev->wb.wops = &wb_ops;
 	dev->wb.parent = &pdev->dev;
 	mutex_init(&dev->mutex);
@@ -352,11 +353,14 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* enable message signaled interrupts */
 	if (pci_enable_msi(pdev) != 0) {
 		/* resort to legacy interrupts */
-		printk(KERN_ALERT PCIE_WB ": could not enable MSI interrupting\n");
-		goto fail_master;
+		printk(KERN_ALERT PCIE_WB ": could not enable MSI interrupting (using legacy)\n");
+		dev->msi = 0;
 	}
 	
-	pci_intx(pdev, 0); /* disable legacy interrupts */
+	if (dev->msi) {
+		/* disable legacy interrupts when using MSI */
+		pci_intx(pdev, 0); 
+	}
 
 	if (request_irq(pdev->irq, irq_handler, 0, "pcie_wb", dev) < 0) {
 		printk(KERN_ALERT PCIE_WB ": could not register interrupt handler\n");
@@ -373,10 +377,13 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 fail_irq:
 	free_irq(dev->pci_dev->irq, dev);
 fail_msi:	
-	pci_intx(pdev, 1);
-	pci_disable_msi(pdev);
-fail_master:
+	if (dev->msi) {
+		pci_intx(pdev, 1);
+		pci_disable_msi(pdev);
+	}
+/*fail_master:*/
 	pci_clear_master(pdev);
+/*fail_bar1:*/
 	destroy_bar(&dev->pci_res[1]);
 fail_bar0:
 	destroy_bar(&dev->pci_res[0]);
@@ -396,8 +403,10 @@ static void remove(struct pci_dev *pdev)
 	
 	wishbone_unregister(&dev->wb);
 	free_irq(dev->pci_dev->irq, dev);
-	pci_intx(pdev, 1);
-	pci_disable_msi(pdev);
+	if (dev->msi) {
+		pci_intx(pdev, 1);
+		pci_disable_msi(pdev);
+	}
 	pci_clear_master(pdev);
 	destroy_bar(&dev->pci_res[1]);
 	destroy_bar(&dev->pci_res[0]);
