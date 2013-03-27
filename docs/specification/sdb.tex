@@ -31,11 +31,11 @@
 \makesavenoteenv{tabular}
 
 \title{Self-Describing Bus (SDB) Specification\\
-for Logic Cores -- Version 1.0}
+for Logic Cores -- proposed Version 1.1}
 \author{Alessandro Rubini (Consultant for CERN)\\
 Wesley Terpstra (GSI),\\
 Manohar Vanga (CERN, BE/CO/HT)}
-\date{July 19th 2012}
+\date{March 27th 2013}
 \begin{document}
 
 \maketitle
@@ -48,12 +48,12 @@ Manohar Vanga (CERN, BE/CO/HT)}
 
 \section*{Bugs}
 
-Even though we blessed this version as 1.0, there are still some
+Even though we already reached 1.0 and are proceeding, there are still some
 things that ought to be changed or added:
 
 \begin{itemize}
-\item We should clarify that in nested buses addresses are relative to the sub-bus;
-\item The type description should get a more prominent place than the
+\item We should clarify that  addresses in nested buses are relative to the sub-bus;
+\item The description of the record type should get a more prominent place than the
   current description in the \textit{product} structure;
 \item We need a policy for designers adding class etc, and it must be described;
 \item Wishbone-specific flags deserve a subsection;
@@ -62,7 +62,7 @@ things that ought to be changed or added:
 
 \section*{Versioning}
 
-This is version 1.0, and describes version 1 of the data
+This document describes a post-1.0 (But pre-1.1) status. It describes version 1 of the data
 structures. All future \textbf{compatible} releases of this
 specification will be blessed 1.\textit{x}, for some ever-increasing
 version of \textit{x}.  A compatible specification is one that
@@ -82,9 +82,9 @@ structures).
 
 This document describes a specification for a series of self description
 structures that can be used to provide metadata about logic blocks. This metadata
-should be provided by the logic cores, like PCI or USB description records,
+should be provided by the logic cores, like PCI or USB description records do,
 so device drivers and other software can automatically discover the blocks and
-configure them during runtime.
+configure them at runtime.
 
 \subsection{History and Rationale}
 
@@ -165,8 +165,8 @@ suggest to pick a random 64 bit number and set the most significant
 bit (as an alternative, you can paste the bit ``1'' in front of
 a random 63 bit number).
 
-If you want to implement your own data structures, similar to ours
-but different in some way, please change the magic number, to avoid
+If you want to implement your own self-description ROM, because you like
+this idea but want to do it differently, please change the magic number, so to avoid
 headaches if both bus implementation are instantiated within the same host
 computer or network.
 
@@ -180,8 +180,8 @@ system for quasi-static information in flash memory
 
 To keep variety to a minimum, this standard defines the concept of
 \textit{product}, which is anything that has been \textit{done}, and thus has
-its own identifiers, name, version and date.  This includes
-meta-information, for example a record of the final build of the
+its own identifiers, name, version and date.  This includes some of
+the meta-information structures, for example a record of the final build of the
 FPGA binary.
 
 Every \textit{product} that lives in some address range is called a
@@ -190,7 +190,7 @@ Every \textit{product} that lives in some address range is called a
 
 Within the bus memory area, the address space available to bus masters
 is usually decoded into several blocks using the high address bits, so
-that the space is divided into several blocks, usually they are sized
+that the space is divided into address areas. Usually the areas are sized
 as powers of two, but this is not mandatory -- some designers may use
 individual address lines to select blocks, to easily get a sparsely
 populated address space.  The designer of the address demultiplexer
@@ -220,8 +220,11 @@ SDB entry point is stored; an \textit{Etherbone} bus master will
 comply to its own packet-format standard, so it can as well know
 where to start enumerating the remote bus from.
 
-We can therefore define the following terms to build the
-self-description framework:
+We can therefore define a number of terms to build the
+self-description framework. What follows is the list of data
+structures and sub-structures defined by SDB. Each
+structure represents a specific abstraction: the name of the
+structure matches the SDB definition of the respective term:
 
 \begin{description}
 \item[Product] \hfill \\
@@ -233,11 +236,11 @@ name.
 A component is a \textit{product} with an associated address range. Its
 structure lists the first and last valid addresses within
 the encompassing address space and includes a \textit{product}
-structure.
+structure. The addresses are relative to the hosting \textit{interconnect}.
 
 \item[Interconnect] \hfill \\
 The \textit{interconnect} is a \textit{component} representing an address demultiplexer.
-The associated data structure heads an array of \textit{product} descriptions;
+The associated data structure is the first in an array of \textit{product} descriptions;
 its specific fields are magic number, bus type, version and the number of
 structures in the array.
 
@@ -249,7 +252,7 @@ its class, ABI version and bus-specific flags.
 The \textit{bridge} component marks a memory area leading to a lower-level
 address demultiplexer (i.e. an \textit{interconnect}). Its data
 structure declares the address where the self-description for the
-sub-bus is to be found.
+sub-bus is to be found, relative to the hosting \textit{interconnect}.
 
 \item[Integration] \hfill \\
 The optional \textit{integration} product describes an aggregate bus.
@@ -261,6 +264,12 @@ For example, if an expansion card uses a number of stock devices
 combined with a stock interconnect, its driver can nonetheless recognize
 the aggregate device by the integration record.
 
+\end{description}
+
+The other term we need to to define is \textit{controller},
+which is listed separately because it doesn't match any data structure:
+
+\begin{description}
 \item[Controller] \hfill \\
 The \textit{controller} is a software abstraction, used in the host
 computer driving the bus (if any). The controller defines the
@@ -308,7 +317,7 @@ long as the binary representation of the data matches this one.
 
 This sections describes the plans for integration of SDB in the Linux
 Kernel environment.  The uninterested reader can skip over to the next
-section where we get back to the actual structures.
+chapter where we get back to the actual structures.
 
 In our plans this self-description standard is tightly related with
 Linux device drivers, because most of our FPGA devices are going to be
@@ -325,71 +334,73 @@ is is directly used by the soft-core within the synthesized binary.
 
 \subsection{Wb-core and Enumeration}
 
-For the time being, let's call the bus \textit{Wishbone} (this will
-definitely be the first implementation we are using, and some specifics
-of byte-wide access will need to be dealt with, so let's ignore
-generality at this point).
+For the time being, let's call the bus \textit{Wishbone}. This is
+definitely the first implementation we are using, and some specifics
+of byte-wide access need to be dealt with; so let's ignore
+generality in this description for the sake of completeness in a
+real use case (which, however, is still under development as I write this).
 
-The bus management code will be part of a kernel module called
+The bus management code is part of a kernel module called
 \texttt{wb-core}. The core includes bus scanning and enumeration
 logic, as well as the \textit{match} function that mates devices and
-drivers, like every other Linux bus is doing.
+drivers, like every other Linux bus does.
 
-When some piece of code detects a new bus, it will register the new
-bus instance, claiming to be the associated controller.  In addition,
-registration specifies the address where SDB records live. The bus and
+When some piece of code detects a new bus, it registers the new
+bus instance, claiming to be the associated \textit{controller}.  In addition,
+the controller specifies the address where SDB records live.  The bus and
 controller can be removed at any time, like you can remove a USB hub
 or a \textit{Compact-PCI} bridge.
 
-Such bus creation and removal will typically happen when the PCI
-driver finds its own FPGA carrier board, or when the user tells the system
-that at some network address the Etherbone protocol is
-supported.
+Such bus creation and removal typically happens when the PCI
+driver finds its own FPGA carrier board, or when the user notifies the system
+about a network address where the Etherbone protocol is supported.
 
-The wishbone core will start enumerating the bus, using
+The wishbone core starts enumerating the bus, using
 controller-provided operations for the individual I/O transactions;
-such enumeration begins at the known address the controller declared.
+such enumeration begins at the known address that the controller declared.
 The controller implements such transactions in the proper way, by
-direct reads/writes to PCI or VME memory, or by sending Etherbone frames,
+directly reading or writing PCI or VME memory, or by sending Etherbone frames,
 or whatever.
 
 The first SDB record must be an \textit{interconnect} record: thus,
 the first bytes at the SDB address are the magic number. If the magic number is not found,
-enumeration is aborted.  The \textit{interconnect} record is the first
+enumeration is aborted.
+
+The \textit{interconnect} record is the first
 in an array of SDB structures, and it declares how long the array is;
-each device then declares its own address range.  The system is
+each device then declares its own address range.  SDB scanning is
 designed to never generate invalid memory accesses, but the first
 address must be externally provided, and the controller is responsible
 for providing a valid address for its own bus; then, non-SDB buses are
 handled by simply not finding the magic number (in this case we assume
-the bus designer willingly placed another value at that address, by
-knowing the host controller is SDB-aware).
+the bus designer willingly placed another value at that address, because
+the host controller is expected to be SDB-aware).
 
-During enumeration, all SDB structures are scanned, and the core will
-register a device for each and any of those items.  If a driver exists
-for the associated device, its own probe function is called, in the
+During enumeration, all SDB structures are scanned, and the core
+registers a device for each and any of those items.  If a driver exists
+for the associated device, the kernel calls its own probe function, in the
 usual way.  As an alternative, the driver may appear at a later time,
 or can be automatically loaded when the device is detected. Again, these
-operations follow sound Linux tradition and are well known and safe.
+operations follow sound Linux tradition: they are renown and safe.
 
 As a special case, the probe function for a Wishbone driver can tell
 the controller to stop scanning the bus, by
-returning a specific non-zero value.  When this happens, the core will stop
+returning a specific non-zero value.  When this happens, the core stops
 enumerating the bus -- but the driver itself is allowed to register
 further devices or ask to scan sub-buses.
 
 This feature is designed to allow multi-device blocks to be handled as
 a whole.  If the FPGA design is a single complex object, with its own
-CPU inside and internally-driven peripheral, the Linux driver for the
+CPU inside and internally-driven peripherals, the Linux driver for the
 associated \textit{interconnect} or \textit{integration} record will
-get ownership of everything.  This prevents generic GPIO or UART
-drivers to be probed for by the Linux host, while
-still allowing generic logic blocks to be used in the internal design.
+get ownership of everything.  This prevents the Linux host to
+probe for generic GPIO or UART drivers for the internal cores, even
+if the designer of the outer logic block used generic cores internally.
 
-Whenever this logic multi-device complex is embedded in an outer bus, where
-host-accessible drivers live, such request to stop scanning will not
-prevent outer devices to have their own Linux driver loaded.  Finally,
-if the driver for the logic complex wants to export some inner block
+Whenever this multi-device logic core is embedded in an outer bus, where
+host-accessible drivers live, such request to stop scanning only affects
+internal sub-devices; sibling cores are still normally enumerated.  Finally,
+if the driver for the complex core wants to export some inner block
 to a host device driver (e.g., an internal GPIO block), it can still
 register some internal SDB records and keep other ones private,
 according to internal policies.
@@ -401,7 +412,7 @@ After the controller registered its own self-described bus and
 \texttt{wb-core} is done scanning and probing drivers, applications
 need a way to access those resources.
 
-Whenever a driver has taken ownership of a device, it also takes
+Whenever a driver has acquired ownership of a device, it also takes
 care of user access. Whether it registered GPIO pins, a tty device
 or a network interface, device access is not a problem of \texttt{wb-core}.
 
@@ -416,16 +427,16 @@ default.  A \texttt{wb-core} system-wide parameter can be used to always
 create the char device, and even always granting whole-bus access
 without scanning and registering devices.
 
-Unless it owns the whole bus, the char device will return \texttt{EBUSY} for
+Unless it owns the whole bus, the char device returns \texttt{EBUSY} for
 all I/O operations that fall in an address space that belongs to a
 device driver. This is consistent with the user-space interfaces of
 \textit{I2C-char} and \textit{libgpio}; it is a good policy to prevent
 unexpected race conditions or other inconsistencies.
 
-When user-space requests access to the whole bus, this will force
+When user-space requests access to the whole bus, this forces
 unbinding of all the device drivers that are active over the bus.
 This is a shortcut over individually unbinding all drivers using
-\textit{sysfs} device attributes. The system will also support
+\textit{sysfs} device attributes. The system also supports
 a user-access mode by which the whole bus is available to
 user space without passing through the unbinding phase; this is
 meant as a debugging tool and must be used with great care.
@@ -444,16 +455,19 @@ Another use for SDB is a simple yet
 effective flash storage organization.  SDB records can be used as a
 very simple file-system-like interface that can be parsed by a
 soft-core CPU with very little overhead.
+Use cases for such a storage file-system are almost read-only, but not completely:
+sometimes users need to update FPGA binary images or some
+calibration parameters.  Such use doesn't require a complex
+filesystem with wear-leveling capabilities.
 
-Such a file-system is mostly-read and requires no wear-leveling;
-still, we sometimes need to update FPGA binary images or some
-calibration parameters.  In our search for the state of the art, we
-didn't find small and simple filesystems that allow in-place
-replacement of files, without touching nearby files or layout
-information.
+In our search for the state of the art, we didn't find small and
+simple filesystems that allow in-place replacement of files.  We thus
+used SDB for that.  In SDBFS, a file within a storage medium is just
+like a peripheral device within an address space.  It can be
+read and written, but not moved or resized.
 
-If the idea will fly, we'll define storage as a bus type, where each
-record describes a file, with both a name and easily-searched device
+Thus, SDB defines storage as a bus type, where each
+record describes a file, with both a name and a numeric device
 or class identifier.  Within SDB, bridge devices lend themselves to be
 used to represent directories, if needed, without any semantic change.
 This approach allows serious memory savings in soft-core programs that
@@ -463,23 +477,27 @@ other board-dependent parameters.
 
 Another special use of this filesystem is for FMC flash devices: the
 standard mandates that the leading part of the flash includes IPMI
-information for the card; the driver for the carrier board will thus
-be able to scan the trailing part of the device for the SDB magic and
+information for the card; the driver for the carrier board is thus
+able to scan the trailing part of the device for the SDB magic and
 then register a filesystem that only spans the needed part of the
 flash, as defined at manufacture time (or by device-specific
 software).
 
-Applications will create the SDB filesytem as an image file, will
-write them using normal char-device MTD operations and will be able to
-mount it with as a specific filesystem driver. When mounted,
-individual files will be replaceable in place using the normal Unix
-tools and system calls.
+A user-space program creates the SDB filesytem as an image file, it
+writes it using normal char-device MTD operations or other tools
+to move binary data.  The filesystem can then be accessed on the storage
+medium by either user code or kernel code. Or by the microcontroller
+that lives inside the FPGA.
 
+The current \textit{libsdbfs} can be built for either user-space,
+kernel-space or freestanding environments, and it costs around
+1kB of compiled code on microcontrollers -- though lacking support
+for subdirectories at this point.
 
 
 \section{SDB Structures}
 
-This section defines the structures that are to be embedded in the
+This chapter defines the structures that are to be embedded in the
 address space of the target bus.  The words \textbf{shall},
 \textbf{must}, \textbf{should}, \textbf{may}, \textbf{can} have the
 usual normative meaning when used in bold face.
@@ -509,14 +527,14 @@ of the array before accessing any other location in the array.
 
 \item[Record Type] \hfill \\
 The last byte of every SDB structure (offset 0x3f) represents its type.
-When reading any SDB structures, unless it is the first in an array,
+When reading any SDB structure, unless it is the first in an array,
 software \textbf{must} check the \textit{record type} before making sense
 of other fields.  Designers \textbf{may} extend this specification with
-new record types, and software \textbf{must} ignore those structures
-whose type is not known.
+new record types, and software \textbf{must} ignore the structures
+whose type is not known to it.
 
 \item[SDB Product] \hfill \\
-A data structure hosted within some SDB records. All currently defined
+A data structure hosted within some SDB records. Most currently defined
 record types are \textit{products}.
 
 \item[SDB Component] \hfill \\
@@ -529,7 +547,7 @@ The following sections define the details of each structure.
 
 \subsection{SDB Product Structure}
 
-The product is embedded in all currently-defined non-empty data structures.
+The product is embedded in most currently-defined data structures.
 All multi-byte fields \textbf{must} be stored in big-endian byte order.
 
 \begin{figure}[h]
@@ -559,10 +577,10 @@ All multi-byte fields \textbf{must} be stored in big-endian byte order.
 \begin{description}
 \item[vendor\_id] \hfill \\
 This field provides a 64 bit field that identifies the vendor of the device. The vendor may
-be an company, organization or an individual. The vendor name space is split in two halves;
+be a company, an organization or an individual. The vendor name space is split in two halves;
 anybody \textbf{can} pick a vendor ID in the upper half (first bit set), and the
 63 bits \textbf{must} be picked as a random number and \textbf{should} be used consistently
-in all the vendor's designs.
+in all designs by this vendor.
 
 A registry is still needed to prevent collisions when using community developed designs from
 multiple sources, and one should be set up as you read this.
@@ -574,13 +592,13 @@ registry \textbf{should} reject numbers smaller than 12 bits, and \textbf{may} r
 according to policies other than collisions with other vendors.
 
 \item[device\_id] \hfill \\
-This field specifies a manufacturer defined device ID for the device being described.
+This field specifies a vendor-defined device ID for the device being described.
 Vendors are free to manage these 32 bits as they like, but they \textbf{should} use
 the same identifier for fully compatible implementations, using other fields like \textit{version}
 and \textit{date} to differentiate them.
 
 \item[version] \hfill \\
-This field specifies a manufacturer defined version number for the device. Vendors
+This field specifies a vendor-defined version number for the device. Vendors
 \textbf{can} use the bits as they wish; for example, this \textbf{may} be used sequentially
 or \textbf{may} be derived from the information provided by the source code management in use
 for gateware source code.
@@ -603,8 +621,8 @@ Since the product structure is at the end of the SDB record, it includes the
 type field. You can access the field from any SDB record, because all records feature
 the type byte at offset 0x3f.  Software \textbf{must} verify this field before trying to
 make sense of any other field in the SDB record.
-There is a record type for each kind
-of SDB record, and the header file gives it a symbolic name through \texttt{enum}.
+There is a record type for each different
+SDB record, and the header file gives it a symbolic name through \texttt{enum}.
 The currently defined record types are listed in Table \ref{record_type}.  New
 record types will most likely enter this specification over time, without the need
 to change the SDB version or overall layout.  Users adding new record types \textbf{must}
@@ -665,14 +683,14 @@ component it describes.
 \begin{description}
 \item[addr\_first] \hfill \\
 The field \textbf{must} represent the first byte address that belongs to this component,
-withing the encompassing bus. If the address bits in the bus are less than 64, the
+within the encompassing bus. If the address bits in the bus are less than 64, the
 unused most significant bits must be cleared. (e.g.: 0x0000.0000.0400.0000)
 
 \item[addr\_last] \hfill \\
 The field \textbf{must} represent the last byte address that belongs to this component,
-withing the encompassing bus. If the address bits in the bus are less than 64, the
+within the encompassing bus. If the address bits in the bus are less than 64, the
 unused most significant bits must be cleared. (e.g.: 0x0000.0000.0400.ffff).
-Thus \textbf{must not} represent the first invalid address (e.g.: 0x0000.0000.0401.0000).
+This field \textbf{must not} represent the first invalid address (e.g.: 0x0000.0000.0401.0000).
 
 \item[product] \hfill \\
 This is the embedded 40 byte product info structure as described in Table \ref{sdb_product}.
@@ -729,7 +747,7 @@ this very record in the count, and the whole address range (this number multplie
 
 \item[sdb\_version] \hfill \\
 This is the record format version. In the current version of the specification this is the
-value 0x1. If software finds an unknown version number it \textbf{must} abort enumeration.
+value 0x01. If software finds an unknown version number it \textbf{must} abort enumeration.
 
 \item[sdb\_bus\_type] \hfill \\
 This field specifies the bus type. This field is used when decoding the bus specific information
@@ -805,7 +823,7 @@ record type for an integration record is 0x80.
 This record type describes a single device or logic block mapped into the memory of the
 bus. In a compliant implementation, one device record \textbf{should} exist for each device that is
 connected to the bus. Users \textbf{may} choose to aggregate a complex device under a single
-description record. The structure of the device record structure is shown below in Table
+description record. The structure of the device record is shown below in Table
 \ref{sdb_device}.
 
 \begin{figure}[h]
@@ -836,7 +854,7 @@ description record. The structure of the device record structure is shown below 
 The ABI class, if not 0, tells the kind of standard interface that the device provides. This
 allows a single driver to deal with compatible devices designed by different vendors, not unlikely
 PCI or USB classes.  Currently, no ABI class is defined. Designers \textbf{should} use 0 here,
-at this point in time.
+until an official SDB class registry exists.
 
 \item[abi\_ver\_major] \hfill \\
 This is the major version number of the ABI class. Standard interfaces are not compatible between
@@ -849,8 +867,8 @@ This is the minor version number of the ABI class. Standard interfaces are compa
 minor version changes. Again, if the class is 0, developers \textbf{can} set this field for internal use.
 
 \item[bus\_specific] \hfill \\
-This is a 4-byte field that holds bus-specific information, most likely flags. Currently, only
-Wishbone flags are defined; please refer to header files for details.
+This is a 4-byte field that holds bus-specific information, most likely flags. For current
+values, please refer to header files.
 
 \item[component] \hfill \\
 This is a standard \textit{component} structure (see Table \ref{sdb_component}). The record type
@@ -887,8 +905,14 @@ The structure of the bridge record is shown in Table \ref{sdb_bridge}.
 \begin{description}
 \item[sdb\_child] \hfill \\
 This field gives the location of the nested bus' SDB table. This address is a relative address
-with respect to the start of the nested bus' address space (stored in the component info structure).
+with respect to the start of the this address space -- not the nested one. In other words,
+all addresses in this SDB array are relative to the same base address; this ensures consistency
+within each SDB array and allows the ROM area that describes a sub-interconnect to be
+outside the interconnect itself.  Designers can thus describe the internals of legacy logic
+cores without the need to change them.
 The value \textbf{must} point to an SDB array that begins with an \textit{interconnect} record.
+\textbf{Note}: version 1.0 of the specification
+got this point wrong, contrary to all existent implementations.
 
 \item[component] \hfill \\
 An embedded component info structure, where the type is 0x01 See Table \ref{sdb_component}.
@@ -1038,3 +1062,5 @@ printed the table of devices shown above).  The project is at
 \texttt{http://www.ohwr.org/projects/etherbone-core} .
 
 \end{document}
+
+% LocalWords:  metadata FPGA gateware CERN
