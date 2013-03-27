@@ -178,6 +178,178 @@ this idea but want to do it differently, please change the magic number, so to a
 headaches if both bus implementation are instantiated within the same host
 computer or network.
 
+
+\subsection{Interrupts}
+
+This version of SDB doesn't describe interrupts.  Lack of interrupt
+description is a design choice (that may change in the future,
+though), and here we try to explain it.
+
+SDB was born as a description of address spaces. Access to address
+spaces is usually done through \textit{bus} signals, according to the
+bus specification: signal lines, protocols, timings.  Interrupts
+strictly-speaking are not part of the bus: they are a sort of a
+``parallel'' bus, whereas one signal line connects one core to the
+``interrupt controller'' core.  The same applies to the so-called
+``DMA channels'' used in some designs: there a FIFO and the
+request/ack signals connect a slave-only core to the DMA controller
+that can act as a master on behalf of the slave.
+
+We currently don't offer such descriptions because we really think
+designs should be converted to the concept of MSI interrupts, and
+this section summarizes the reasoning.
+
+% From now on this is Wesley's message to the list, only slightly edited.
+
+A bus lets you control slave
+devices from master devices. This communication is always initiated by
+the master, a request-response messaging pattern. Then one day you have
+a slave device which needs to initiate communication.
+The traditional answer has been interrupt lines, that
+let you reuse the bus lines.  Your
+slave card just needs to "wake-up" the master, who can then use the
+usual bus lines to find out what's the matter and take appropriate
+action. So, for the cost of a single line, they enable two-way
+communication.
+
+Unfortunately, this simple solution comes at a significant cost. The
+core problem is that you've actually introduced a completely new (albeit
+superficially simple) bus to your system. All of the following problems
+stem from this  change:
+
+\begin{itemize}
+\item like in a normal bus protocol, an interrupt needs to be
+acknowledged. This is typically done by writing some register on the
+slave device which causes it lower the interrupt line when you've dealt
+with all the things that needed processing;
+
+\item like in a normal bus protocol, you need flow control. Maybe the
+master is busy and wants to deal with some critical section code before
+it gets around to dealing with your interrupt. This is why interrupt
+systems need enable flags, mask registers, and so on;
+
+\item like in a normal bus protocol, you need addressing. The master
+should be able to tell what the interrupt was about. Usually you use
+multiple interrupt lines, a one-hot addressing scheme. Interrupt 1 means
+NIC is ready and interrupt 2 means the printer is burning;
+
+\item like in a normal bus protocol, you need routing/arbitration.
+With interrupts, the master/slave relationship is inverted. Here the
+slaves send requests to the masters. So you need to decide which master
+receives the interrupt from a given slave. Unlike the preceding points,
+this doesn't really have a standard solution. Every system is different.
+If you have one master, it's simple. Once you have multiple masters you
+need to decide how the interrupts are wired to the masters. Often you
+need this to be reconfigurable at runtime. For example, the NIC might be
+handled by the LM32 in-chip or the host CPU off-chip;
+
+\item like in a normal bus protocol, you need a description language.
+When your software starts up it needs to determine which slave is
+connected to which master
+
+\item you lose plugability with the original bus protocol: interrupts
+are a completely distinct bus and they cannot be plugged together with
+devices that just use the vanilla bus protocol.
+\end{itemize}
+
+Recently,  the PCI SIG decided to obsolete "legacy interrupts" and
+replace them with "message-signalled interrupts". MSI is a procedure for
+using the existing PCIe bus for sending interrupts. It essentially says:
+if you need a slave to talk to a master just send requests as a
+master yourself.
+
+This approach has a few advantages: it allows an unlimited
+number of interrupt lines (addressing), without the need to share lines. It
+makes possible for all participants on the PCIe bus to receive
+interrupts if they desired (routing). There is a performance
+benefit since it requires less messaging than legacy interrupts
+(acknowledgement). Indeed, now that PCIe uses a message-oriented
+protocol, the pin count advantage of legacy interrupts is gone.
+Finally, legacy interrupts can be implemented on top of the
+MSI scheme.
+
+FPGA designers face exactly the same decision that the PCI SIG faced:
+they are designing a SoC. Pin count is not an issue because synthesis
+eliminates any pins that are not used, and inside the chip there is plenty of
+freedom.
+
+In the core that is expected to handle the ``interrupt'',
+we can add a bus slave interface instead of a "raise
+interrupt" pin.  At first this may seem just a clever hack that
+saves some time. However, we realized this brings in more and more
+advantages:
+
+\begin{itemize}
+
+\item acknowledgements are handled just like normal bus acknowledgment.
+For Wishbone, for example, when the host
+system is done processing the interrupt, it raises the ack line. This
+means interrupts are discrete, like in MSI. You can say "I have 5 things
+for you to do" and not have to squish them into a "I raise this line
+until you do everything I want". This means you can choose to handle
+some of events that generated interrupts, but delay processing the
+others. If the master stops handling interrupts, acks stop flowing
+and no code is needed.
+
+\item there's no need for special interrupt masking etc. If the
+master doesn't 
+want to process an interrupt right now, it just lets the stall line go high.
+From the software side, this requires nothing special at all. If the master
+is not reading, the queue fills and the line goes high. Again no node
+is needed;
+
+\item there is an unlimited number of interrupts. Each address+data
+pair can be interpreted differently;
+
+\item nothing special at all is needed to route interrupts. They
+are just another master on the crossbar. If a master wants to receive
+interrupts from a particular slave, it just writes its address to a
+register on the device. When that slave generates an interrupt, it is a
+write to the specified address and the master gets the interrupt. This completely
+solves the problem of determining which of multiple slaves
+raises which interrupts;
+
+\item by using the same protocol for interrupts as for the normal bus,
+modularity is improved. For example we can make software bus slaves and
+hardware masters can read/write
+memory from software programs in userspace on the host system;
+
+\item since interrupts are generated by bus writes, they are compatible
+with a remote protocol like Etherbone or other ones.
+You can remotely trigger an interrupt on any device in the
+network.
+\end{itemize}
+
+The only argument we can see in favour of legacy interrupts on a SoC is
+that they are "simpler". A slave just needs to write a '1' or a '0' to
+an output as opposed to adding a bus master interface. However,
+this ``simplicity'' argument ignores the costs that happen once you have
+enough of these devices, once the
+interrupt bus becomes non-trivial. To keep the code simple, one could
+easily imagine a small VHDL component that takes an address register and
+a generates a write upon request.
+
+To use MSI and achieve compatibility with a legacy master like
+a soft-core with an ``interrupt'' input line, you just need an
+"interrupt unit" which is a bus slave that raises different pins when it
+is written to at different offsets. In other words, just like in PCIe,
+implement legacy interrupts using the MSI approach is pretty simple.
+
+
+% This ends the text Wesley sent to the list.
+
+To summarize: interrupt lines are not strictly in the scope of SDB and
+we currently don't offer such description because we really think FPGA
+designs should be converted to the concept of MSI interrupts -- which need
+no description support within SDB as a side effect.
+
+On the other hand, it may make sense to define SDB structures to
+describe this special wiring, to help existing ``legacy'' projects to
+benefit from SDB and avoid doping the software source code with static
+information about device wiring.  Maybe future releases of this specification
+will allow description of legacy interrupts.
+
+
 \subsection{The Overall System Structure}
 
 The bus described by the structures defined herein is set up as a
