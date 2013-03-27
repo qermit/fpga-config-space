@@ -208,6 +208,39 @@
     0 2 8 (....reserved....) name
 } def
 
+/repourl {
+    frame
+    .2 .2 .2 setrgbcolor
+    0 3 16 (..............repo_url..............) name
+    0 2 16 (..............repo_url..............) name
+    0 1 16 (..............repo_url..............) name
+    0 0 15 (..............repo_url............) name
+    colempty 15 0 byte
+    15 0 1 (T) name
+} def    
+
+/synthesis {
+    frame
+    % overwrite the frame with a different color for line 1
+    colgray1 0 3 word
+    colgray1 4 3 word
+    colgray1 8 3 word
+    colgray1 12 3 word
+    colgray1 0 1 word
+    colgray1 4 1 word
+    colgray2 8 1 word
+    colgray1 12 1 word
+    .2 .2 .2 setrgbcolor
+    0 3 16 (..............syn_name..............) name
+    0 2 16 (.............commit_id.............) name
+    0 1  8 (tool_name) name
+    8 1  4 (tool_ver) name
+   12 1  4 (date) name
+    0 0 15 (..............user_name..........) name
+    colempty 15 0 byte
+    15 0 1 (T) name
+} def    
+
 /empty {
     frame
     .2 .2 .2 setrgbcolor
