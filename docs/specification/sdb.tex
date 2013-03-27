@@ -778,48 +778,6 @@ The \textit{type} field in the component is 0x00.
 \end{center}
 
 
-\subsubsection{Integration Record}
-
-An integration record is a \textit{product} record (not a \textit{component}, because
-it has no associated address range).
-The structure provides meta-data about the aggregate product of the bus or bus subset.
-For example, consider
-a manufacturer that takes components from various vendors and combines them with a standard bus
-interconnect. This aggregate product can be described by an SDB integration record, claiming
-a vendor ID, the release date and the other \textit{product} information.
-The integrator record is is described in Table \ref{sdb_integrator}.
-
-\begin{figure}[h]
-\centering%
-\includegraphics[width=100mm]{img/sdb-integration.ps}
-\caption{The Integration Structure}
-\label{fig:FigureIntegration}
-\end{figure}
-
-\begin{center}
-  \begin{savenotes}
-    \begin{table}[!ht]\footnotesize
-      \caption{SDB Integrator Record (64 bytes, type 0x80)}\label{sdb_integrator}\centering
-        \begin{tabular}{| c | c | c | l | c | p{5cm} |} \hline
-        First & Last & Size & Name & Value & Description \\ \hline
-        0x00 & 0x1f & 24 & reserved & - & Reserved/unused space \\ \hline
-        0x18 & 0x3f & 40 & product & - & SDB Product Info structure \\ \hline
-        \end{tabular}
-    \end{table}
-  \end{savenotes}
-\end{center}
-
-\begin{description}
-\item[reserved] \hfill \\
-The initial field in this record is unused, because all needed information is
-part of the product structure. Users \textbf{should} fill this area with all bits
-clear or all bit set.
-
-\item[product] \hfill \\
-This is the \textit{product} structure described in Table \ref{sdb_product}. The
-record type for an integration record is 0x80.
-\end{description}
-
 \subsubsection{Device Record}
 
 This record type describes a single device or logic block mapped into the memory of the
@@ -918,6 +876,48 @@ got this point wrong, contrary to all existent implementations.
 
 \item[component] \hfill \\
 An embedded component info structure, where the type is 0x01 See Table \ref{sdb_component}.
+\end{description}
+
+\subsubsection{Integration Record}
+
+An integration record is a \textit{product} record (not a \textit{component}, because
+it has no associated address range).
+The structure provides meta-data about the aggregate product of the bus or bus subset.
+For example, consider
+a manufacturer that takes components from various vendors and combines them with a standard bus
+interconnect. This aggregate product can be described by an SDB integration record, claiming
+a vendor ID, the release date and the other \textit{product} information.
+The integrator record is is described in Table \ref{sdb_integrator}.
+
+\begin{figure}[h]
+\centering%
+\includegraphics[width=100mm]{img/sdb-integration.ps}
+\caption{The Integration Structure}
+\label{fig:FigureIntegration}
+\end{figure}
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{SDB Integrator Record (64 bytes, type 0x80)}\label{sdb_integrator}\centering
+        \begin{tabular}{| c | c | c | l | c | p{5cm} |} \hline
+        First & Last & Size & Name & Value & Description \\ \hline
+        0x00 & 0x1f & 24 & reserved & - & Reserved/unused space \\ \hline
+        0x18 & 0x3f & 40 & product & - & SDB Product Info structure \\ \hline
+        \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\begin{description}
+\item[reserved] \hfill \\
+The initial field in this record is unused, because all needed information is
+part of the product structure. Users \textbf{should} fill this area with all bits
+clear or all bit set.
+
+\item[product] \hfill \\
+This is the \textit{product} structure described in Table \ref{sdb_product}. The
+record type for an integration record is 0x80.
 \end{description}
 
 \section{Simple Real-World Examples}
