@@ -1,5 +1,5 @@
 /*
- * This is a modified version 1.0 of sdb.h, not the official spec version
+ * This is the proposed version 1.1 of sdb.h, still not official
  */
 #ifndef __SDB_H__
 #define __SDB_H__
@@ -47,11 +47,13 @@ struct sdb_component {
 
 /* Type of the SDB record */
 enum sdb_record_type {
-	sdb_type_interconnect = 0x00,
-	sdb_type_device       = 0x01,
-	sdb_type_bridge       = 0x02,
-	sdb_type_integration  = 0x80,
-	sdb_type_empty        = 0xFF,
+	sdb_type_interconnect	= 0x00,
+	sdb_type_device		= 0x01,
+	sdb_type_bridge		= 0x02,
+	sdb_type_integration	= 0x80,
+	sdb_type_repo_url	= 0x81,
+	sdb_type_synthesis	= 0x82,
+	sdb_type_empty		= 0xFF,
 };
 
 /* Type 0: interconnect (first of the array)
@@ -100,6 +102,29 @@ struct sdb_bridge {
 struct sdb_integration {
 	uint8_t			reserved[24];	/* 0x00-0x17 */
 	struct sdb_product	product;	/* 0x08-0x3f */
+};
+
+/* Type 0x81: Top module repository url
+ *
+ * again, an informative field that software can ignore
+ */
+struct sdb_repo_url {
+	uint8_t			repo_url[63];	/* 0x00-0x3e */
+	uint8_t			record_type;	/* 0x3f */
+};
+
+/* Type 0x82: Synthesis tool information
+ *
+ * this informative record
+ */
+struct sdb_synthesis {
+	uint8_t			syn_name[16];	/* 0x00-0x0f */
+	uint8_t			commit_id[16];	/* 0x10-0x1f */
+	uint8_t			tool_name[8];	/* 0x20-0x27 */
+	uint32_t		tool_version;	/* 0x28-0x2b */
+	uint32_t		date;		/* 0x2c-0x2f */
+	uint8_t			user_name[15];	/* 0x30-0x3e */
+	uint8_t			record_type;	/* 0x3f */
 };
 
 /* Type 0xff: empty

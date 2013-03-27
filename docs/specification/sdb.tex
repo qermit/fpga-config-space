@@ -646,8 +646,10 @@ unknown record type in the range 0x00-0x7f is found; unknown records in the rang
         sdb\_type\_bridge & 0x02 & Bridge to a sub-bus \\ \hline
         & 0x03-0x6f & Reserved for future types \\ \hline
         & 0x70-0x7f & Local/temporary use \\ \hline
-        sdb\_type\_integration & 0x80 & Informative integration structure \\ \hline
-        & 0x81-0xef & Reserved for future informative records \\ \hline
+        sdb\_type\_integration & 0x80 & Informative: integration structure \\ \hline
+        sdb\_type\_repo\_url & 0x81 & Informative: repository location \\ \hline
+        sdb\_type\_synthesis & 0x80 & Informative: synthesis details \\ \hline
+        & 0x83-0xef & Reserved for future informative records \\ \hline
         & 0xf0-0xfef & Local/temporary use \\ \hline
         sdb\_type\_empty & 0xFF & Empty record \\ \hline
         \end{tabular}
@@ -887,7 +889,7 @@ For example, consider
 a manufacturer that takes components from various vendors and combines them with a standard bus
 interconnect. This aggregate product can be described by an SDB integration record, claiming
 a vendor ID, the release date and the other \textit{product} information.
-The integrator record is is described in Table \ref{sdb_integrator}.
+The integration record is is described in Table \ref{sdb_integrator}.
 
 \begin{figure}[h]
 \centering%
@@ -918,6 +920,133 @@ clear or all bit set.
 \item[product] \hfill \\
 This is the \textit{product} structure described in Table \ref{sdb_product}. The
 record type for an integration record is 0x80.
+\end{description}
+
+\subsubsection{Repository-Url Record}
+
+This record is not a \textit{product}; it is laid out as a simple 63-byte string
+that reports the URL of the repository used to driver this synthesis.
+This record is optional like all other informational structures, but we think it's
+useful for designers to have a standardized way to allow tracing the design.
+Actually, this data structure is already implemented in one ADC design.
+
+\begin{figure}[h]
+\centering%
+\includegraphics[width=100mm]{img/sdb-url.ps}
+\caption{The Repository-Url Structure}
+\label{fig:FigureUrl}
+\end{figure}
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{SDB Repository-Url Record (64 bytes, type 0x81)}\label{sdb_url}\centering
+        \begin{tabular}{| c | c | c | l | c | p{5cm} |} \hline
+        First & Last & Size & Name & Value & Description \\ \hline
+        0x00 & 0x3e & 63 & repo\_url & - & Repository for this design \\ \hline
+        0x3f & 0x3f & 1 & record\_type & 0x81 & Type of this record \\ \hline
+        \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\begin{description}
+\item[repo\_url] \hfill \\
+This a string, encoded in  UTF-8, with trailing spaces and no terminating 0.
+It is expected to name the top-level repository
+used to build this design, as a \texttt{git://} or \texttt{http://} form or
+anything appropriate for the revision control system being used.
+
+\item[record\_type] \hfill \\
+The record type for this structures is 0x81.
+\end{description}
+
+\subsubsection{Synthesis Record}
+
+This record, like the previous one, is not a \textit{product}.
+This record is optional like all other informational structures, but it reveals
+useful to provide information about the specific synthesis in a known format.
+Not all designers want to provide such detailed information, but when they
+do they  \textbf{should} use this format.
+
+Please note that the information in this record is pretty volatile, as
+it represents the actual synthesis; if the record is used, developers
+must be careful to update (or remove) it when they rebuild the
+project.  Even though the information may seem too detailed, sometimes
+such high-precision tracking is actually needed in practice; all
+unused fields can be left empty, but all used fields should be updated
+with great care (otherwise, the would-be detailed tracking of builds just collapses).
+
+\begin{figure}[h]
+\centering%
+\includegraphics[width=100mm]{img/sdb-synthesis.ps}
+\caption{The Synthesis Structure}
+\label{fig:FigureSynthesis}
+\end{figure}
+
+\begin{center}
+  \begin{savenotes}
+    \begin{table}[!ht]\footnotesize
+      \caption{SDB Synthesis Record (64 bytes, type 0x82)}\label{sdb_synthesis}\centering
+        \begin{tabular}{| c | c | c | l | c | p{5cm} |} \hline
+        First & Last & Size & Name & Value & Description \\ \hline
+        0x00 & 0x0f & 16 & syn\_name & - & Name of this project/synthesis \\ \hline
+        0x10 & 0x1f & 16 & commit\_id & - & Identifier of the build commit \\ \hline
+        0x20 & 0x27 & 8 & tool\_name & - & Name of the synthesis tool \\ \hline
+        0x28 & 0x2b & 4 & tool\_version & - & Version of the synthesis tool \\ \hline
+        0x2c & 0x2f & 4 & date & - & Date of synthesis \\ \hline
+        0x30 & 0x3e & 15 & user\_name & - & Name of the user who did the synthesis \\ \hline
+        0x3f & 0x3f & 1 & record\_type & 0x82 & Type of this record \\ \hline
+        \end{tabular}
+    \end{table}
+  \end{savenotes}
+\end{center}
+
+\begin{description}
+\item[syn\_name] \hfill \\
+This a string, encoded in  UTF-8, with trailing spaces and no terminating 0;
+it should represent a human-readable name for this synthesis. Like all other
+fields in this structures, it is meant to be useful for the designers, to help
+tracking what is currently installed in the various systems.  Thus, this may
+be a generic name of the project or a more specific string, according to local
+needs.
+
+\item[commit\_id] \hfill \\
+This field represents the binary identifier of the top-level commit used
+to build this gateware image. If the identifier is more than 128 bits long
+(e.g., \textit{git}), the field includes the leading bits. If the commit ID is numeric
+(e.g., SVN), the representation is bit-endian binary. For repositories using
+non-binary version numbers, the representation is let to the ingenuity of the
+developer, to properly convey the informations. For example, a CVS version
+like ``1.20.1.4'' can either be ASCII-encoded or represented as 4 32-bit big-endian
+fields.  Clearly, the commit\_id field raises a ``chicken-and-egg'' problem: once
+you commit the change, your commit identifier changes, maybe in unpredictable
+ways. Representing the ``previous'' commit, and then committing and sdb-only
+change is a sensible workaround.  The filed \textbf{should} be 0 if not used.
+
+
+\item[tool\_name] \hfill \\
+This a string, encoded in  UTF-8, with trailing spaces and no terminating 0;
+it represents a human-readable name for the synthesis tool used to build this
+very binary gateware file.
+
+\item[tool\_version] \hfill \\
+The version of the synthesis tool, in a human-readable way. For example,
+it can be used as two 16-bit fields, but this really depends on how the specific
+tool names its versions.
+
+\item[date] \hfill \\
+The date of synthesis.  This \textbf{must} be either 0 (unspecified) or a 32-bit hex
+format number in the format 0xYYYYMMDD. For example, 0x20130327.
+
+\item[user\_name] \hfill \\
+This a string, encoded in  UTF-8, with trailing spaces and no terminating 0;
+it states who is the user who built the binary gateware.  This name is expected
+to be unique among the development group, so a Unix username or a nickname are good
+choices that fit the allowed space of 15 bytes.
+
+\item[record\_type] \hfill \\
+The record type for this structures is 0x82.
 \end{description}
 
 \section{Simple Real-World Examples}
