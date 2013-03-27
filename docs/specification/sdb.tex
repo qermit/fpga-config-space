@@ -545,6 +545,8 @@ includes a \textit{product} structure and defines an address range.
 
 The following sections define the details of each structure.
 
+\pagebreak 
+
 \subsection{SDB Product Structure}
 
 The product is embedded in most currently-defined data structures.
@@ -657,6 +659,8 @@ unknown record type in the range 0x00-0x7f is found; unknown records in the rang
   \end{savenotes}
 \end{center}
 
+\pagebreak 
+
 \subsection{SDB Component Structure}
 
 The SDB Component is described by a data structure that includes \textit{product}
@@ -708,6 +712,8 @@ structures must be instantiated by designers for each logic block in their desig
 a contiguous SDB table, placed at a known address in the bus memory.  Most of these structures
 include a \textit{component} structure or a \textit{product} structure, and the rules for the
 respective fields apply.
+
+\pagebreak 
 
 \subsubsection{SDB Interconnect}
 
@@ -780,6 +786,8 @@ The \textit{type} field in the component is 0x00.
 \end{center}
 
 
+\pagebreak 
+
 \subsubsection{Device Record}
 
 This record type describes a single device or logic block mapped into the memory of the
@@ -837,6 +845,8 @@ This is a standard \textit{component} structure (see Table \ref{sdb_component}).
 for a device is 0x01.
 \end{description}
 
+\pagebreak 
+
 \subsubsection{Bridge Record}
 
 A bridge record is used to describe a nested bus within the same address space. This is different from
@@ -880,6 +890,8 @@ got this point wrong, contrary to all existent implementations.
 An embedded component info structure, where the type is 0x01 See Table \ref{sdb_component}.
 \end{description}
 
+\pagebreak 
+
 \subsubsection{Integration Record}
 
 An integration record is a \textit{product} record (not a \textit{component}, because
@@ -922,6 +934,8 @@ This is the \textit{product} structure described in Table \ref{sdb_product}. The
 record type for an integration record is 0x80.
 \end{description}
 
+\pagebreak 
+
 \subsubsection{Repository-Url Record}
 
 This record is not a \textit{product}; it is laid out as a simple 63-byte string
@@ -960,6 +974,8 @@ anything appropriate for the revision control system being used.
 \item[record\_type] \hfill \\
 The record type for this structures is 0x81.
 \end{description}
+
+\pagebreak 
 
 \subsubsection{Synthesis Record}
 
@@ -1048,6 +1064,8 @@ choices that fit the allowed space of 15 bytes.
 \item[record\_type] \hfill \\
 The record type for this structures is 0x82.
 \end{description}
+
+\pagebreak 
 
 \section{Simple Real-World Examples}
 
