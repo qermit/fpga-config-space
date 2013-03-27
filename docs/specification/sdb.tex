@@ -849,8 +849,7 @@ for a device is 0x01.
 
 \subsubsection{Bridge Record}
 
-A bridge record is used to describe a nested bus within the same address space. This is different from
-a bus controller which provides access to an entirely different address space altogether. Bus
+A bridge record is used to describe a nested bus within the same address space.  Bus
 structures with nested interconnects are typical in complex projects.
 The structure of the bridge record is shown in Table \ref{sdb_bridge}.
 
@@ -980,18 +979,16 @@ The record type for this structures is 0x81.
 \subsubsection{Synthesis Record}
 
 This record, like the previous one, is not a \textit{product}.
-This record is optional like all other informational structures, but it reveals
-useful to provide information about the specific synthesis in a known format.
+The record is optional, but it reveals
+useful to stanrdadize the way to provide information about the specific synthesis.
 Not all designers want to provide such detailed information, but when they
 do they  \textbf{should} use this format.
 
 Please note that the information in this record is pretty volatile, as
 it represents the actual synthesis; if the record is used, developers
 must be careful to update (or remove) it when they rebuild the
-project.  Even though the information may seem too detailed, sometimes
-such high-precision tracking is actually needed in practice; all
-unused fields can be left empty, but all used fields should be updated
-with great care (otherwise, the would-be detailed tracking of builds just collapses).
+project.  All unused fields can be left empty, but all non-empty fields should be updated
+with great care or the initial effort to provided detailed tracking is voided.
 
 \begin{figure}[h]
 \centering%
