@@ -644,8 +644,10 @@ unknown record type in the range 0x00-0x7f is found; unknown records in the rang
         sdb\_type\_interconnect & 0x00 & Interconnect record, first of a table \\ \hline
         sdb\_type\_device & 0x01 & Device definition \\ \hline
         sdb\_type\_bridge & 0x02 & Bridge to a sub-bus \\ \hline
+        & 0x03-0x6f & Reserved for future types \\ \hline
         & 0x70-0x7f & Local/temporary use \\ \hline
         sdb\_type\_integration & 0x80 & Informative integration structure \\ \hline
+        & 0x81-0xef & Reserved for future informative records \\ \hline
         & 0xf0-0xfef & Local/temporary use \\ \hline
         sdb\_type\_empty & 0xFF & Empty record \\ \hline
         \end{tabular}
