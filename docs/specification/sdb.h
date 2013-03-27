@@ -18,7 +18,7 @@
  * magic number at the head of the interconnect record
  */
 
-/* Product, 40 bytes at offset 24, 8-byte alignmed
+/* Product, 40 bytes at offset 24, 8-byte aligned
  *
  * device_id is vendor-assigned; version is device-specific,
  * date is hex (e.g 0x20120501), name is UTF-8, blank-filled
@@ -34,7 +34,7 @@ struct sdb_product {
 };
 
 /*
- * Component, 56 bytes at offset 8, 8-byte aligned 
+ * Component, 56 bytes at offset 8, 8-byte aligned
  *
  * The address range is first to last, inclusive
  * (for example 0x100000 - 0x10ffff)
@@ -57,7 +57,7 @@ enum sdb_record_type {
 /* Type 0: interconnect (first of the array)
  *
  * sdb_records is the length of the table including this first
- *  record, version is 1. The bus type is enumerated later.
+ * record, version is 1. The bus type is enumerated later.
  */
 #define				SDB_MAGIC 	0x5344422d /* "SDB-" */
 struct sdb_interconnect {
@@ -105,7 +105,7 @@ struct sdb_integration {
 /* Type 0xff: empty
  *
  * this allows keeping empty slots during development,
- * so they can be filled later with miminal efforts and
+ * so they can be filled later with minimal efforts and
  * no misleading description is ever shipped -- hopefully.
  * It can also be used to pad a table to a desired length.
  */
@@ -120,13 +120,12 @@ enum sdb_bus_type {
 	sdb_data     = 0x01,
 };
 
-#define SDB_WB_WIDTH_MASK		0x0f
-#define SDB_WB_ACCESS8		0x01
-#define SDB_WB_ACCESS16		0x02
-#define SDB_WB_ACCESS32		0x04
-#define SDB_WB_ACCESS64		0x08
-
-#define SDB_WB_LITTLE_ENDIAN		0x80
+#define SDB_WB_WIDTH_MASK	0x0f
+#define SDB_WB_ACCESS8			0x01
+#define SDB_WB_ACCESS16			0x02
+#define SDB_WB_ACCESS32			0x04
+#define SDB_WB_ACCESS64			0x08
+#define SDB_WB_LITTLE_ENDIAN	0x80
 
 #define SDB_DATA_READ		0x04
 #define SDB_DATA_WRITE		0x02
