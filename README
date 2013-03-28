@@ -1,11 +1,32 @@
-Wishbone Bus
-Author: Manohar Vanga
-Email: manohar dot vanga at cern dot ch
 
-This is the specification and software for the self-describing Wishbone bus
-specification.
+FPGA Configuration Space, a.k.a. Self Describing Bus
+----------------------------------------------------
 
-The package should contain two folders:
+[Updated as of 2013-03, right before release 1.1 of the specification]
 
-docs  : The documentation about the self-describing Wishbone bus specification.
-driver: The Wishbone bus driver with sample drivers
+This project hosts the SDB specification and related material:
+
+docs/specification: the actual specification for SDB. The generated pdf
+     for official releases is always placed in the "Files" tab of the ohwr
+     project (http://www.ohwr.org/projects/fpga-config-space/files)
+
+pcie-wb: a driver by Wesley, for two different FPGA carriers. It was
+     born as a separate project and then merged here, since it's very
+     relevant to SDB.
+
+sdbfs: sdb "filesystem" work. Includes "gensdbfs", to generate rom images.
+     sdbfs/doc includes documentation for this project.  Again, it used
+     to be a separate project, but it's now merged.
+
+
+
+
+We kept some previous work:
+
+historic/fosdem2012: the presentation by Manohar Vanga, made at
+    FOSDEM.  The current data structures are very different from what
+    was planned back then, so this is mainly of historical value.
+
+historic/driver: previous work by Manohar, most likely to be removed
+    at this point because it is based on the older data structures,
+    that were not implemented in gateware.
