@@ -1,0 +1,788 @@
+\input texinfo    @c -*-texinfo-*-
+%
+% sdbfs.in - main file for the documentation
+%
+%%%%
+
+%------------------------------------------------------------------------------
+%
+%                         NOTE FOR THE UNAWARE USER
+%                         =========================
+%
+%    This file is a texinfo source. It isn't the binary file of some strange
+%    editor of mine. If you want ASCII, you should "make sdbfs.txt".
+%
+%------------------------------------------------------------------------------
+
+%
+% This is not a conventional info file...
+% I use three extra features:
+%   - The '%' as a comment marker, if at beginning of line ("\%" -> "%")
+%   - leading blanks are allowed (this is something I can't live without)
+%   - braces are automatically escaped when they appear in example blocks
+%
+
+@comment %**start of header
+@documentlanguage en
+@setfilename sdbfs.info
+@settitle sdbfs
+@iftex
+@afourpaper
+@end iftex
+@paragraphindent none
+@comment %**end of header
+
+@setchapternewpage off
+
+@set update-month September 2012
+
+@finalout
+
+@titlepage
+@title SDBFS
+@subtitle @value{update-month}
+@subtitle A Flash File-system based on SDB data structures
+@author Alessandro Rubini for CERN (BE-CO-HT)
+@end titlepage
+@headings single
+
+@c ##########################################################################
+@iftex
+@contents
+@end iftex
+
+@c ##########################################################################
+@node Top
+@top Introduction
+
+This package implements and describes a file-system based on the SDB
+data structures defined by the Open Hardware Repository project called
+@i{FPGA Configuration Space}. The official SDB specification at the time
+of this writing is @url{http://www.ohwr.org/attachments/1487/sdb-1.0.pdf}.
+
+The SDB data structures are designed to describe the address space
+covered by a bus, which is split in memory regions belonging to
+different devices. This project reuses the same structures to describe
+a storage address space, exploiting the simple design. While the structures
+are not simple to generate, they are very simple to parse, which allows
+an embedded processor (like a soft-core running on an FPGA) to access
+this filesystem with a minimal amount of code.
+
+@i{sdbfs} is read-only as far as the structure is concerned, but
+individual files may be modified if so configured to.  The filesystem
+is aware of the concept of block size, so it can be placed on flash
+memory, but doesn't do wear-leveling or any other fancy thing to
+preserver simplicity.
+
+Currently, the repository is hosted at Gitorious:
+@code{git://gitorious.org/rubi/sdbfs.git} but it will likely be merged
+into the OHWR project (thus:
+@code{git://ohwr.org/hdl-core-lib/fpga-config-space.git}. If you are reading
+this document and look for the latest version, if the Gitorious repository
+doesn't exist, please try the @i{fpga-config-space} in the OHWR project.
+
+@c ##########################################################################
+@node Library Support
+@chapter Library Support
+
+This package offers a library of functions to access the filesystem,
+but not to create it -- creation is performed by @file{gensdbfs} which
+has no code to be shared with actual access to the filesystem.
+
+The library is designed to be used in three different environments:
+Posix user space, Linux kernel space and freestanding environments.
+The last environment is going to be verified with the LM32 processor,
+because we need to access @i{sdbfs} from that very soft-core in our
+FPGA devices.
+
+In order to be suitable to constrained freestanding environments, the
+library is designed not to use external functions that may weight over
+the final footprint:
+
+@itemize @bullet
+
+@item No @i{malloc} is ever called by the library;
+
+@item The library keeps internal status to avoid too much token passing;
+
+@item Every function is compiled to its own ELF section;
+
+@item Endian conversion is left out of the library as far as possible.
+
+@end itemize
+
+The user space programs that use this library can be used to better
+understand how the library is meant to be used.
+
+@c ==========================================================================
+@node The Filesystem Structure
+@section The Filesystem Structure
+
+Users of the library must have @code{-I} to find @file{libsdbfs.h}
+(which includes other files from the same directory where it lives).
+Similarly, they must link @file{libsdbfs.a} from the same
+directory.
+
+Everything in the library refers to @code{struct sdbfs} and library
+users can register more than one such filesystems.  A freestanding
+application will most likely have a static structure in its data
+section, initialized at compile time.  Some of the fields
+in the structure are library-private; this is the list of
+the public fields:
+
+@table @code
+
+@item char *name;
+
+	The device name is optional; it is only used by @i{sdbfs_dev_find()}.
+
+@item void *drvdata;
+
+	The field is there for library users to store their data, if they
+        register more than one filesystem and implement the methods
+        listed here below.
+
+@item int blocksize;
+
+	The erase block size for the device.
+
+@item unsigned long entrypoint;
+
+	The offset of the first @i{sdb} record in the device. For example,
+        for FMC EEPROM devices we'll have an entry point of 256 because
+        the FMC standard mandates the content of the leading part of the
+        flash device.
+
+@item void *data;
+
+	If the filesystem is directly mapped, the user may fill this
+        pointer and avoid declaring the @i{read} method described next.
+
+@item unsigned long datalen;
+
+	The length of the mapped area.
+
+@item int (*read)(struct sdbfs *fs, int offset, void *buf, int count);
+
+	The method is used to read raw data from the storage device.
+        It is called by the library if the @i{data} field is NULL.
+
+@item int (*write)(struct sdbfs *fs, int offset, void *buf, int count);
+@itemx int (*erase)(struct sdbfs *fs, int offset, int count);
+
+	These methods are defined but not yet used as of this version.
+
+@end table
+
+@c ==========================================================================
+@node Library functions
+@section Library functions
+
+The library defines the following functions to act on a @i{sdb} storage
+device.  All functions returning integer will return a negative
+number in case of error, within the @i{errno} range (e.g. @code{-ENOENT}).
+
+@table @code
+@item int sdbfs_dev_create(struct sdbfs *fs, int verbose);
+@itemx int sdbfs_dev_destroy(struct sdbfs *fs);
+
+	Register and unregister a device. Each library user can register
+        more than one device if needed. Please note that the device must
+        be preallocated by the caller, as the library doesn't use
+        @i{malloc} internally, as a design choice.  The @i{create} function
+        fails with @code{ENOTDIR} if no @i{sdb} magic number is found
+        at the specified entry point (field @code{entrypoint}). All
+        fields that are not used by the caller must be zeroed before
+        calling the @i{create} function.
+
+@item struct sdbfs *sdbfs_dev_find(const char *name);
+
+	If the user registered more than one device, this function
+        can be used to scan the list of devices and return one according
+        to its own @code{name} field.
+
+@item int sdbfs_open_name(struct sdbfs *fs, const char *name);
+@itemx int sdbfs_open_id(struct sdbfs *fs, uint64_t vid, uint32_t did);
+@itemx int sdbfs_close(struct sdbfs *fs);
+
+	The library has the concept of @i{currently-open} file for each
+        @i{sdb} device. The user can open a file according to its
+        name or its vendor/device identifiers. Please note that if
+        several files feature tha same identifiers (or name) the library
+        will return the first it finds.  Keeping the @i{open} file
+        within the data structure is clearly limiting over more modern
+        approaches, but it allows keeping down the footprint of both the
+        library and user code.
+
+@item struct sdb_device *sdbfs_scan(struct sdbfs *fs, int newscan);
+
+	The function can be used to get a listing of the @i{sdb}
+        device. If @code{newscan} is not-zero the library starts a
+        fresh new scan; otherwise it continues the ongoing scan.
+        The return value is the pointer to an @i{sdb} structure
+        representing the file, which is only valid up to the next
+        library call.  After the last valid file the function returns
+        @code{NULL}.  The function uses internal storage, so it
+        can only be called when no file is currently open.
+
+@item int sdbfs_fstat(struct sdbfs *fs, struct sdb_device *record_return);
+
+	The function copies the @i{sdb} record for the currently-open
+        file to a user-provided data area. The user will then be able
+        to collect information about the file.
+
+@item int sdbfs_fread(struct sdbfs *fs, int offset, char *buf, int count);
+
+	Read from the currently-open file. If the @code{offset} argument
+        is less than zero the file is read sequentially; if it is zero or
+        positive it represents the offset from the beginning of the file.
+
+@item int sdbfs_fwrite(struct sdbfs *fs, int offset, char *buf, int count);
+
+	This is not yet implemented.
+
+@item uint64_t htonll(uint64_t ll);
+@itemx uint64_t ntohll(uint64_t ll);
+
+	The functions are provided by library headers to convert 64-bit
+        values between host byte order and @i{sdb} byte order -- which is
+        the same as network byte order. For 32-bit and 16-bit please use
+        the standard functions for network byte order.
+
+@end table
+
+@c ##########################################################################
+@node User-Space Tools
+@chapter User-Space Tools
+
+The @file{userspace} subdirectory of this package includes a few
+user-space tools to create @i{sdbfs} images and access them.  All tools
+but @i{gensdbfs} are base on the @i{sdbfs} library and their source
+can be used as an example and best practice of library use.
+
+@c ==========================================================================
+@node gensdbfs
+@section gensdbfs
+
+The tool receives two arguments: the directory to copy into an @i{sdbfs}
+image and the name of the image file to be generated.
+
+It accepts the following command line arguments:
+
+@table @code
+
+@item -b <blocksize>
+
+	The block size to be used in generating the file. All files
+        and directories are currently aligned to the block size, but
+        later versions will not aligned read-only files, to save storage
+        space.  The default block size is 64 bytes.
+
+@item -s <devicesize>
+
+	The device size by default is unlimited, internally
+        represented by 0. If you specify a device size, @i{gensdbfs} will
+        verify that data fits the requested size, and will return an error
+        if it doesn't.
+
+@end table
+
+The tool creates an image file that includes the following SDB structures:
+
+@table @i
+
+@item sdb_interconnect
+
+	The structure is used as the first SDB structure of each directory,
+        so to include the magic number and the size of the directory. The
+        bus type is defined as @i{sdb_data}, with identifier 1. This
+        type is not yet part of the official SDB specification.
+
+@item sdb_device
+
+	Every file is instantiated as a device. By being hosted in a
+        bus of type @i{sdb_data}, the device is known to be a storage area.
+
+@item sdb_bridge (not yet implemented)
+
+	The @i{bridge} structure is used to represent a subdirectory.
+
+@end table
+
+
+@c --------------------------------------------------------------------------
+@node Use of SDB fields in sdbfs
+@subsection Use of SDB fields in sdbfs
+
+The individual fields of the SDB structure are filled in the following way:
+
+@table @code
+
+@item sdb_magic
+
+	In interconnect records, the magic is the standard SDB magic number.
+	
+@item sdb_version
+
+	1, because this is the SDB version used here.
+
+@item sdb_bus_type
+
+	@code{sdb_data} (added to SDB specification after version 1.0
+        of the spec itself).
+
+@item vendor_id
+
+	0x46696c6544617461LL (i.e. @code{"FileData"}). It may be changed
+        by the configuration file.
+
+@item device_id
+
+	The first 4 bytes of the file name.  It may be changed
+        by the configuration file.
+
+@item version
+
+	Currently 1. Should be the @i{sdbfs} version (git commit).
+
+@item date
+
+	Currently not set. Should be the date when @i{gensdbfs} generated
+        the image, in the SDB suggested format.
+
+@item name
+
+	The name is the first 19 character of the original file name,
+        padded with blanks (0x20) as per SDB specification. You can't change
+        the name using the configuration file.
+
+@item record_type
+
+	@code{sdb_type_interconnect}, for the current directory,
+        @code{sdb_type_device} for files and in
+        the future @code{sdb_type_bridge} for subdirectories.
+
+@item addr_first
+
+	For a file this is the first byte address where data is found.
+        This is currently an absolute address, which makes sense since
+        we have no subdirectories yet. However, some use cases require
+        the directory information not to live at offset 0, while referring
+        to a file that is at the beginning of the storage. SDB mandates
+        relative addresses because it's designed for gateware crossbars,
+        so we'll have to understand how to deal with this when we have
+        subdirectories.   For the directory itself, addr_first is the
+        address of the directory -- again, data-before-dir is not cleanly
+        handled.
+
+@itemx addr_last
+
+	This is the last allocated byte for files. If the configuration
+        file requested extra size for the file, it is accounted here.
+        The trailing space is filled with zeroes by @file{gensdbfs} but
+        later the configuration file will be able to specify a filler value.
+        For directories, this is the last byte written by any files
+        within the directory itself.
+
+@item 
+@end table
+
+@c --------------------------------------------------------------------------
+@node Customizing gensdbfs
+@subsection Customizing gensdbfs
+
+If @file{gensdbfs} finds a @code{--SDB-CONFIG--} file in
+the toplevel directory, it opens it as a configuration file. Subdirectories
+can't have configuration files, as configuration is filesystem-wide.
+
+The file is a text file, line-oriented. Empty lines and comment lines
+are ignored. All lines that begin with the hash (@code{#}) are
+considered comments (this means that you can't configure a filename
+that begins with the hash, but I think this is not a problem.
+
+Configuration values are specified per-file.  Lines that begin with
+non-space characters refer to file names. Later indented lines
+specify parameters for the current file name.
+
+The following options are supported
+
+@table @code
+
+@item  vendor = <number>
+
+	Change the default vendor value. The value is a 64-bit number and
+        can be specified as decimal, hexadecimal or octal.
+
+@item device = <number>
+
+	Change the default device value (the default device is the first
+        4 bytes of the file name). The value is a 32-bit number and
+        can be specified as decimal, hexadecimal or octal.
+
+@item write = 1
+
+	By default, only world-writable files are generated as writable
+        in the filesystem image. This option allows to create a modifiable
+        file in the sdb filesystem image without giving over permissions on
+        the host filesystem. (You can also use @code{write = 0} to turn
+        off write permission).
+
+@item maxsize = <number>
+
+	Specifies the maximum file size. This allows a writeable file to
+        be extended in the filesystem image, for later overwriting with
+        different data. The program doesn't
+        check whether @i{maxsize} is smaller than the current size.
+@c FIXME: the maxsize/size issue 
+
+@item position = <number>
+
+	Force the data to be placed at a specific address in the
+        filesystem image. For directories, this is the address where
+        you'll find the SDB records, whose first 4 bytes are the magic
+        number. For files this is the placement of the associated data.
+        For all files where @i{position} is not specified, @file{gensdbfs}
+        will allocate storage sequentially after the directory itself,
+        respecting block alignment.  It's not possible, currently, to
+        request all files to be stored sequentially at a specific address
+
+@end table
+
+This package includes a working example in the @file{userspace} directory.
+You can thus test the configuration file by running @file{gensdbfs} over
+its own source directory.
+
+This is the current content of the file:
+
+@example
+   .  
+        vendor = 0x123456789abcdef
+        device = 257
+        position = 0x1000
+
+   Makefile
+        position = 0
+
+   gensdbfs.c
+        write = 1
+        maxsize = 0x10000
+@end example
+
+The resulting @i{sdbfs} image will have @code{Makefile} at offset 0,
+the directory itself at offset 0x1000 and an area of 64kB of storage
+reserved for @code{gensdbfs.c}. The leading part of such are is filled
+with the current contents of the file (which is shorter than 64kB).
+
+@c ==========================================================================
+@node sdb-read
+@section sdb-read
+
+The @i{sdb-read} program can be used to access an @i{sdbfs} image
+stored in a disk file.  It works both as @i{ls} (to list the files
+included in the image) and as @i{cat} (to print to its own @i{stdout}
+one of the files that live in the binary image).
+
+The program can be used in three ways:
+
+@table @code
+
+@item sdb-read [options] <image-file>
+
+	This invocation lists the contents of the image. With @code{-l}
+        the listing is @i{long}, including more information than the
+        file name.
+
+@item sdb-read [options] <image-file> <filename>
+
+	When called with two arguments, the program prints to @i{stdout}
+        the content of the named file, extracted from the image. Please
+        note that if the file has been over-sized at creation time,
+        the whole allocated data area is printed to standard output.
+
+@item sdb-read [options] <image-file> <hex-vendor>:<hex-device>
+
+	If the second argument is built as two hex numbers separated
+        by a colon, then the program uses them as vendor-id and device-id
+        to find the file.  If more than one file have the same identifiers,
+        the @i{first} of them is printed.
+
+@end table
+
+The following option flags are supported:
+
+@table @code
+
+@item -l
+
+	For listing, use @i{long} format. A @i{verbose} format will
+        be added later.
+
+@item -e <entrypoint>
+
+	Specify the offset of the magic number in the image file.
+
+@item -r
+
+	Register the device with a @i{read} method instead of the @i{data}
+        pointer (@ref{The Filesystem Structure}). In this way the
+        tool can be used to test the library with either access method.
+
+@end table
+
+
+The following examples are based on the @i{sdb} image of the
+@i{userspace} directory of this package, using the
+@code{--SDB-CONFIG--} file part of the package, described and included
+for reference in @ref{Customizing gensdbfs}. You can see how the
+entry point is at 0x1000, the @i{Makefile} is stored at offset 0
+and @i{gensdbfs.c} has been over-allocated as a 64kB area.
+
+@smallexample
+   morgana% ./gensdbfs . /tmp/userspace.sdb
+
+   morgana% ./sdb-read /tmp/userspace.sdb
+   ./sdb-read: sdbfs_dev_create(): Not a directory
+           (wrong entry point 0x00000000?)
+
+   morgana% ./sdb-read -e 0x1000 /tmp/userspace.sdb
+   .
+   gensdbfs.c
+   gensdbfs
+   .gitignore
+   sdb-read
+   sdb-read.c
+   gensdbfs.h
+   Makefile
+
+   morgana% ./sdb-read -e 0x1000 -l /tmp/userspace.sdb
+   ./sdb-read: listing format is to be defined
+   0123456789abcdef:00000101 @@ 00001000-0001de55 .
+   46696c6544617461:67656e73 @@ 00001200-000111ff gensdbfs.c
+   46696c6544617461:67656e73 @@ 00011200-00016e21 gensdbfs
+   46696c6544617461:2e676974 @@ 00016e40-00016e51 .gitignore
+   46696c6544617461:7364622d @@ 00016e80-0001c90f sdb-read
+   46696c6544617461:7364622d @@ 0001c940-0001db29 sdb-read.c
+   46696c6544617461:67656e73 @@ 0001db40-0001de55 gensdbfs.h
+   46696c6544617461:4d616b65 @@ 00000000-0000024b Makefile
+
+   morgana% ./sdb-read -e 0x1000 /tmp/userspace.sdb gensdbfs.c | wc -c
+   65536
+
+   morgana% md5sum Makefile
+   e38de09fe2bd0dab3ff7ebcab300977e  Makefile
+
+   morgana% ./sdb-read -e 0x1000 /tmp/userspace.sdb Makefile | md5sum
+   e38de09fe2bd0dab3ff7ebcab300977e  -
+
+   morgana% ./sdb-read -e 0x1000 /tmp/userspace.sdb 46696c6544617461:4d616b65 | md5sum
+   e38de09fe2bd0dab3ff7ebcab300977e  -
+@end smallexample
+
+@c ##########################################################################
+@node Kernel Support
+@chapter Kernel Support
+
+Kernel support is in the form of a module, which allows drivers to
+register (and unregister) storage devices. Each storage device
+declares a set of operations to it, so the filesystem can read, erase,
+write data independently of the actual storage.  See @i{sdbfs.h} about
+data structures and methods. 
+
+To test without real hardware at hand, the module called
+@i{sdb-fakedev.ko} can load to kernel space one or more image files,
+and offer their data for mounting.
+
+If your host can access an SDB-described FPGA device in I/O memory,
+the module called @i{sdb-iomem.ko} can register those areas to the
+@i{sdbfs} module, so you can mount the FPGA and perform register
+access from user space using named files.
+
+@c ==========================================================================
+@node Supported kernel versions
+@section Supported kernel versions
+
+The current version is a development version only, and as such it has
+only been built and run under Linux-3.4. In the future I'll check
+backward portability -- but I'm sure something changed at 3.2 times,
+so backward portability will need some work.
+
+@c ==========================================================================
+@node sdbfs.ko
+@section sdbfs.ko
+
+The filesystem currently only works in read-only mode, and there is no
+support for subdirectories.  The @i{name} argument you pass to the
+@code{mount} command must match one of the device names that have already
+been registered to the filesystem using @code{sdbfs_register_device}.
+The available names should appear in @i{sysfs} but this is not yet implemented.
+
+@c ==========================================================================
+@node sdb-fakedev.ko
+@section sdb-fakedev.ko
+
+The module receives an array of strings as a parameter called @code{fsimg}.
+It supports up to 8 strings: for each of them it calls @code{request_firmware}
+and in case of success it registers an @i{sdb} device with the name of
+the firmware file.
+
+Such images are expected to be the output of @i{gensdbfs}, but currently
+the entry point must be at offset zero (we'd need another module argument
+to specify where the entry point is).
+
+After mount, you'll see the files hosted in the image. See
+@ref{Example use of sdbfs and sdb-fakedev}
+
+@c ==========================================================================
+@node Example use of sdbfs and sdb-fakedev
+@section Example use of sdbfs and sdb-fakedev
+
+This is an example session that creates, mounts and reads
+an @i{sdbfs} image:
+
+@smallexample
+    # ls -l userspace
+    total 44
+    -rw-rw-r-- 1 rubini staff   458 Aug 17 11:33 Makefile
+    -rwxrwxr-x 1 rubini staff 20630 Aug 30 13:55 gensdbfs
+    -rw-rw-r-- 1 rubini staff  9259 Aug 30 13:55 gensdbfs.c
+    -rw-rw-r-- 1 rubini staff   776 Aug 18 06:54 gensdbfs.h
+    # userspace/gensdbfs -b 1024 userspace /lib/firmware/stuff.sdb
+    # insmod kernel/sdbfs.ko
+    # insmod kernel/sdb-fakedev.ko fsimg=stuff.sdb
+    # mount -t sdbfs stuff.sdb /mnt
+    # ls -l /mnt
+    total 0
+    -r--r--r-- 1 root root   458 Jan  1  1970 Makefile
+    -r--r--r-- 1 root root 20630 Jan  1  1970 gensdbfs
+    -r--r--r-- 1 root root  9259 Jan  1  1970 gensdbfs.c
+    -r--r--r-- 1 root root   776 Jan  1  1970 gensdbfs.h
+    # md5sum /mnt/Makefile userspace/Makefile
+    e87991b1c4ac1664327ef388aac4bd71  /mnt/Makefile
+    e87991b1c4ac1664327ef388aac4bd71  userspace/Makefile
+@end smallexample
+
+@c ==========================================================================
+@node sdb-iomem.ko
+@section sdb-iomem.ko
+
+This module can access a region of I/O registers and show it as an
+@i{sdbfs} object. The user can specify the memory regions to be
+accessed with a module argument.
+
+The expected use of this type of filesystem is for driver developers:
+if you are working on an SDB-aware FPGA project, you can mount the
+internal bus of the FPGA and see the internal registers. Once you know
+register offsets, you can ignore the base address of each device
+by accessing it by pathname.
+
+This module is currently only a trivial example, and a number of
+features are missing. For example, the file-operations for register
+access are not yet defined, and the lack of support for subdirectories
+is a serious problem to be solved soon.  Nonetheless, this approach
+may prove very useful over time.
+
+I envision the following steps for development of I/O acess in @i{sdbfs}:
+
+@itemize @bullet
+@item FPGA projects should be able to register their internal bus.
+@item The names of available @i{sdbfs} devices should appear in @i{sysfs}.
+@item A user-space program should know register names for all devices.
+@item A web service should publish such register layout files.
+@end itemize
+
+Each of these steps is pretty simple in itself, it just takes time to
+implement. As for the last step, the central @i{sdb} registry may
+offer a DNS service, in order for each vendor to be autonomous in
+publishing its own register maps from a vendor-specific host name.
+
+The current implementation does very little, but it is able to
+scan a read SDB device and see the internal devices. The specification
+of each memory area (at most 8 of them are supported) is:
+
+@example
+   <name>@@<hex-address>{-<hex-end>|+<hex-size>}[=<hex-entry>]
+@end example
+
+All numbers are hexadecimal: the area is specified either as
+a range (@code{<addr>-<end>}) or as start-plus-size (@code{<addr>+<size>}).
+If the entry point for SDB information is not zero, it must be passed
+after an equal (@code{=}) sign.
+
+The following example shows what the current @code{sdb-iomem.ko} can
+do, accessing an FPGA driven but the @i{wr-nic} driver (package @i{spec-sw},
+version 2.0):
+
+@smallexample
+   spusa.root# insmod sdb-iomem.ko area=spec0@@0xfd300000+100000=63000
+   spusa.root# mount -t sdbfs spec0 /mnt
+   spusa.root# ls -l /mnt
+   total 0
+   -r--r--r-- 1 root root    256 Jan  1  1970 WB-VIC-Int.Control
+   ?--------- 1 root root 262144 Jan  1  1970 WR-CORE
+   ?--------- 1 root root   4096 Jan  1  1970 WR-DIO-Core
+   -r--r--r-- 1 root root 131072 Jan  1  1970 WR-NIC
+   -r--r--r-- 1 root root    256 Jan  1  1970 WR-TXTSU
+   spusa.root# rmmod sdb-iomem
+   spusa.root# insmod sdb-iomem.ko area=spec0@@0xfd300000+100000=62400
+   spusa.root# mount -t sdbfs spec0 /mnt
+   spusa.root# ls -l /mnt
+   total 0
+   -r--r--r-- 1 root root 256 Jan  1  1970 WB-GPIO-Port
+   -r--r--r-- 1 root root 256 Jan  1  1970 WB-I2C-Master
+   -r--r--r-- 1 root root 256 Jan  1  1970 WR-1Wire-master
+   -r--r--r-- 1 root root 256 Jan  1  1970 WR-DIO-Registers
+@end smallexample
+
+The first listing above shows the overall @i{WishBone} bus of
+the FPGA. The bridge @code{WR-DIO-Core} should be shown as a
+subdirectory. The second listing shows the content of such
+subdirectory, by telling @i{sdb-iomem} to access the SDB records
+for the @i{dio-core} rather than the top-level one.
+
+@c ##########################################################################
+@node Bugs and Missing Features
+@chapter Bugs and Missing Features
+
+While the general idea is flying, there are a lot of details that are
+still missing. This is just a quick list of things, just off the top
+of my head (while looking at the code), sorted by field rather than
+priority or complexity:
+
+@itemize
+
+@item gensdbfs: more config file options: class and so on.
+
+@item kernel and gensdbfs: support subdirectories. This is not
+trivial in gensdbfs because of the relative placement of files
+within the subdir.
+
+@item kernel: add . and .. entries to readdir
+
+@item kernel: support writing to files
+
+@item kernel: complete support for device access
+
+@item kernel: read and write bits are not propagated
+
+@item core sdbfs: show available images in /sys
+
+@item lib: kernel space and freestanding is not tested
+
+@item lib: write support is missing
+
+@item read-sdb: implement verbose mode and @code{rwxrwxrwx} in long mode
+
+@item general: factorize some common procedures
+
+@item general: the various FIXME for details in the code itself
+
+@item general: too many printk still in the code
+
+@end itemize
+
+
+@bye
+
+@c  LocalWords:  Alessandro Rubini CERN iftex texinfo sdbfs gensdbfs devicesize
+@c  LocalWords:  blocksize fsimg userspace insmod filesystem gateware http ohwr
+@c  LocalWords:  gitorious EEPROM malloc struct

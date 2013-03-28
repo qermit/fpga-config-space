@@ -1,0 +1,29 @@
+
+This is an implementation of the SDB filesystem. Such thing is a
+flash-based filesystem meant to be accessed both by a soft-core
+running on the FPGA and the host computer (but not at the same time).
+
+The structure of the filesystem is read-only, but each individual file
+may be read-write, based on alignment restrictions of the hosting
+device.
+
+The thing is split in three parts
+
+    kernel/
+
+	includes the kernel driver (filesystem and sample hw support).
+
+    lib/
+
+	includes the library that the soft-core can use to access its
+	own flash memory.
+
+    userspace/
+
+	includes the gensdbfs tool and other user-space stuff that uses
+	the library above.
+
+
+Since SDB is used to self-describe a bus, you can even mount sdbfs
+over a real bus. In this case however only mmap is allowed on the
+individual files (no read or write method is there).
