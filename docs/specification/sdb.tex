@@ -48,7 +48,7 @@ Manohar Vanga (CERN, BE/CO/HT)}
 
 \section*{Bugs}
 
-Even though we already reached 1.0 and are proceeding, there are still some
+Even though the project already passed the 1.0 milestone, there are still some
 things that ought to be changed or added:
 
 \begin{itemize}
@@ -56,8 +56,7 @@ things that ought to be changed or added:
 \item The description of the record type should get a more prominent place than the
   current description in the \textit{product} structure;
 \item We need a policy for designers adding class etc, and it must be described;
-\item Wishbone-specific flags deserve a subsection;
-\item Filesystem-specific flags must be defined and documented.
+\item A reference implementation exists, but it is not described here.
 \end{itemize}
 
 \section*{Versioning}
@@ -189,11 +188,11 @@ SDB was born as a description of address spaces. Access to address
 spaces is usually done through \textit{bus} signals, according to the
 bus specification: signal lines, protocols, timings.  Interrupts
 strictly-speaking are not part of the bus: they are a sort of a
-``parallel'' bus, whereas one signal line connects one core to the
-``interrupt controller'' core.  The same applies to the so-called
-``DMA channels'' used in some designs: there a FIFO and the
-request/ack signals connect a slave-only core to the DMA controller
-that can act as a master on behalf of the slave.
+``secondary'' bus, where only one signal line connects one core to the
+``interrupt controller'' core.  The same applies to the out-of-band
+DMA channels used in some designs, where two devices are connected via
+a path not part of the normal bus interconnect fabric.
+In that case the DMA controller can act as a master on behalf of the slave.
 
 We currently don't offer such descriptions because we really think
 designs should be converted to the concept of MSI interrupts, and
@@ -326,7 +325,7 @@ an output as opposed to adding a bus master interface. However,
 this ``simplicity'' argument ignores the costs that happen once you have
 enough of these devices, once the
 interrupt bus becomes non-trivial. To keep the code simple, one could
-easily imagine a small VHDL component that takes an address register and
+easily imagine a small HDL component that takes an address register and
 a generates a write upon request.
 
 To use MSI and achieve compatibility with a legacy master like
@@ -832,8 +831,8 @@ unknown record type in the range 0x00-0x7f is found; unknown records in the rang
         sdb\_type\_repo\_url & 0x81 & Informative: repository location \\ \hline
         sdb\_type\_synthesis & 0x80 & Informative: synthesis details \\ \hline
         & 0x83-0xef & Reserved for future informative records \\ \hline
-        & 0xf0-0xfef & Local/temporary use \\ \hline
-        sdb\_type\_empty & 0xFF & Empty record \\ \hline
+        & 0xf0-0xfe & Local/temporary use \\ \hline
+        sdb\_type\_empty & 0xff & Empty record \\ \hline
         \end{tabular}
     \end{table}
   \end{savenotes}
@@ -1145,7 +1144,7 @@ Actually, this data structure is already implemented in one ADC design.
 
 \begin{description}
 \item[repo\_url] \hfill \\
-This a string, encoded in  UTF-8, with trailing spaces and no terminating 0.
+This is a string, encoded in  UTF-8, with trailing spaces and no terminating 0.
 It is expected to name the top-level repository
 used to build this design, as a \texttt{git://} or \texttt{http://} form or
 anything appropriate for the revision control system being used.
@@ -1197,7 +1196,7 @@ with great care or the initial effort to provided detailed tracking is voided.
 
 \begin{description}
 \item[syn\_name] \hfill \\
-This a string, encoded in  UTF-8, with trailing spaces and no terminating 0;
+This is a string, encoded in  UTF-8, with trailing spaces and no terminating 0;
 it should represent a human-readable name for this synthesis. Like all other
 fields in this structures, it is meant to be useful for the designers, to help
 tracking what is currently installed in the various systems.  Thus, this may
@@ -1219,7 +1218,7 @@ change is a sensible workaround.  The filed \textbf{should} be 0 if not used.
 
 
 \item[tool\_name] \hfill \\
-This a string, encoded in  UTF-8, with trailing spaces and no terminating 0;
+This is a string, encoded in  UTF-8, with trailing spaces and no terminating 0;
 it represents a human-readable name for the synthesis tool used to build this
 very binary gateware file.
 
@@ -1233,7 +1232,7 @@ The date of synthesis.  This \textbf{must} be either 0 (unspecified) or a 32-bit
 format number in the format 0xYYYYMMDD. For example, 0x20130327.
 
 \item[user\_name] \hfill \\
-This a string, encoded in  UTF-8, with trailing spaces and no terminating 0;
+This is a string, encoded in  UTF-8, with trailing spaces and no terminating 0;
 it states who is the user who built the binary gateware.  This name is expected
 to be unique among the development group, so a Unix username or a nickname are good
 choices that fit the allowed space of 15 bytes.
