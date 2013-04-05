@@ -14,6 +14,8 @@
 #include <linux/usb/serial.h>
 #include <linux/uaccess.h>
 
+#define GSI_VENDOR_OPENCLOSE 0xB0
+
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1D50, 0x6062, 0xFF, 0xFF, 0xFF) },
 	{ },
@@ -28,6 +30,48 @@ static struct usb_driver usb_wb_driver = {
 	.no_dynamic_id =	1,
 };
 
+static int usb_wb_open(struct tty_struct *tty, struct usb_serial_port *port)
+{
+	struct usb_device *dev = port->serial->dev;
+	int result;
+	
+	result = usb_control_msg(
+		dev, 
+		usb_sndctrlpipe(dev, 0), /* Send to EP0OUT */
+		GSI_VENDOR_OPENCLOSE,
+		USB_DIR_OUT|USB_TYPE_VENDOR|USB_RECIP_INTERFACE,
+		1,     /* wValue (2..3) = device is open */
+		port->serial->interface->cur_altsetting->desc.bInterfaceNumber,
+		0, 0,  /* no data stage */
+		5000); /* timeout */
+	
+	if (result < 0)
+		dev_err(&dev->dev, "Could not mark device as open (result = %d)\n", result);
+	
+	return usb_serial_generic_open(tty, port);
+}
+
+static void usb_wb_close(struct usb_serial_port *port)
+{
+	struct usb_device *dev = port->serial->dev;
+	int result;
+	
+	result = usb_control_msg(
+		dev, 
+		usb_sndctrlpipe(dev, 0), /* Send to EP0OUT */
+		GSI_VENDOR_OPENCLOSE,
+		USB_DIR_OUT|USB_TYPE_VENDOR|USB_RECIP_INTERFACE,
+		0,     /* wValue (2..3) = device is closed */
+		port->serial->interface->cur_altsetting->desc.bInterfaceNumber,
+		0, 0,  /* no data stage */
+		5000); /* timeout */
+	
+	if (result < 0)
+		dev_err(&dev->dev, "Could not mark device as closed (result = %d)\n", result);
+	
+	return usb_serial_generic_close(port);
+}                
+
 static struct usb_serial_driver usb_wb_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -36,6 +80,8 @@ static struct usb_serial_driver usb_wb_device = {
 	.id_table =		id_table,
 	.usb_driver =		&usb_wb_driver,
 	.num_ports =		1,
+	.open =			&usb_wb_open,
+	.close =		&usb_wb_close,
 };
 
 static int __init usb_wb_init(void)
