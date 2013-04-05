@@ -17,7 +17,7 @@
 KERNELVER ?= `uname -r`
 KERNELDIR ?= /lib/modules/$(KERNELVER)/build
 ifneq ($(KERNELRELEASE),)
-	obj-m	:= pcie_wb.o wishbone.o spec_wb.o
+	obj-m	:= pcie_wb.o wishbone.o spec_wb.o usb_wb.o
 else
 	KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 	PWD       := $(shell pwd)
