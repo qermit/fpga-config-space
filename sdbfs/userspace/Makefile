@@ -13,7 +13,7 @@ CFLAGS = -Wall -ggdb
 CFLAGS += -I../lib -I../include -I../include/linux
 LDFLAGS = -L../lib -lsdbfs
 
-PROG = gensdbfs sdb-read
+PROG = gensdbfs sdb-read sdb-extract
 
 all: $(PROG)
 

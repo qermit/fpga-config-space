@@ -582,6 +582,48 @@ and @i{gensdbfs.c} has been over-allocated as a 64kB area.
    e38de09fe2bd0dab3ff7ebcab300977e  -
 @end smallexample
 
+@c ==========================================================================
+@node sdb-extract
+@section sdb-extract
+
+The @i{sdb-extract} tool is a program that opens an SDBFS file and creates
+a directory with the contents of the filesystem and a the associated
+configuration file.  Running  @i{gensdbfs} for this output directory would
+create the exact same SDBFS image you started from.
+
+The tool is meant to help retrieving information from already-built
+EEPROM images, and possibly change them before rebuilding an image file.
+
+The program refuses to change existing directories and extracts the
+SDB filesystem to a newly-created directory.  It receives two
+arguments: the output directory and the input SDB file (i.e., the same
+arguments you would pass to @i{gensdbfs}).
+
+The optional @t{-f} command line option forces @i{sdb-extract} to add
+files to an existing directory. In this case the program creates a
+configuration file (called @t{--SDB-CONFIG--}) only if it doesn't exist
+in the output directory.
+
+This is an example run of the program, using the @i{doc} directory
+of this package as data set:
+
+@example
+   % ./gensdbfs ../doc /tmp/doc.sdb
+   % ./sdb-extract /tmp/doc-extracted /tmp/doc.sdb
+   % ./gensdbfs /tmp/doc-extracted /tmp/doc2.sdb
+   % diff -ur ../doc /tmp/doc-extracted/
+   Only in /tmp/doc-extracted/: --SDB-CONFIG--
+@end example
+
+In general, if you re-run @i{gensdbfs} on the extracted directory, the
+generated SDBFS image will be different, because the order of the
+files is unpredictable.
+
+Another point to keep in mind is the use of @t{maxsize =} directive
+for @i{gensdbfs}.  SDB has no concept of ``current'' and ``max'' size,
+so a file allocated with @t{maxsize =} will be extracted at its maximum
+size, and no @t{maxsize =} is generated in the output @t{--SDB-CONFIG--}.
+
 @c ##########################################################################
 @node Kernel Support
 @chapter Kernel Support
