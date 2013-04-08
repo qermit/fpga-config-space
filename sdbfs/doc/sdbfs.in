@@ -34,7 +34,7 @@
 
 @setchapternewpage off
 
-@set update-month September 2012
+@set update-month April 2013
 
 @finalout
 
@@ -55,7 +55,14 @@
 @node Top
 @top Introduction
 
-This package implements and describes a file-system based on the SDB
+SDBFS was born in 2012 as a stand-alone project, but it is now part of
+@i{fpga-config-space}, hosted at @t{ohwr.org}.  The
+@i{fpga-config-space} project is the home project of SDB, so the
+associated filesystem is naturally hosted in that project.  Still,
+sometimes this manual uses the clause ``this package'' to refer
+to the SDBFS subset of the overall package.
+
+SDBFS is a filesystem based on the SDB
 data structures defined by the Open Hardware Repository project called
 @i{FPGA Configuration Space}. The official SDB specification at the time
 of this writing is @url{http://www.ohwr.org/attachments/1487/sdb-1.0.pdf}.
@@ -74,12 +81,9 @@ is aware of the concept of block size, so it can be placed on flash
 memory, but doesn't do wear-leveling or any other fancy thing to
 preserver simplicity.
 
-Currently, the repository is hosted at Gitorious:
-@code{git://gitorious.org/rubi/sdbfs.git} but it will likely be merged
-into the OHWR project (thus:
-@code{git://ohwr.org/hdl-core-lib/fpga-config-space.git}. If you are reading
-this document and look for the latest version, if the Gitorious repository
-doesn't exist, please try the @i{fpga-config-space} in the OHWR project.
+The repository for this code (and documentation) is
+@code{git://ohwr.org/hdl-core-lib/fpga-config-space.git}; SDBFS lives
+in the @t{sdbfs} subdirectory.
 
 @c ##########################################################################
 @node Library Support
