@@ -1,5 +1,5 @@
 /*
- * This is the proposed version 1.1 of sdb.h, still not official
+ * This is the official version 1.1 of sdb.h
  */
 #ifndef __SDB_H__
 #define __SDB_H__
@@ -61,7 +61,7 @@ enum sdb_record_type {
  * sdb_records is the length of the table including this first
  * record, version is 1. The bus type is enumerated later.
  */
-#define				SDB_MAGIC 	0x5344422d /* "SDB-" */
+#define				SDB_MAGIC	0x5344422d /* "SDB-" */
 struct sdb_interconnect {
 	uint32_t		sdb_magic;	/* 0x00-0x03 */
 	uint16_t		sdb_records;	/* 0x04-0x05 */
