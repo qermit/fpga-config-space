@@ -30,12 +30,12 @@
 \parskip10pt
 \makesavenoteenv{tabular}
 
-\title{Self-Describing Bus (SDB) Specification\\
-for Logic Cores -- proposed Version 1.1}
+\title{Self-Describing Bus (SDB)\\
+Specification for Logic Cores -- Version 1.1}
 \author{Alessandro Rubini (Consultant for CERN)\\
 Wesley Terpstra (GSI),\\
 Manohar Vanga (CERN, BE/CO/HT)}
-\date{March 28th 2013}
+\date{April 11th 2013}
 \begin{document}
 
 \maketitle
@@ -69,7 +69,8 @@ The mailing list is part of the project
 with the same name on \texttt{ohwr.org}. The direct
 link is \texttt{http://www.ohwr.org/projects/fpga-config-space} .
 
-This document describes a post-1.0 (But pre-1.1) status. It describes version 1 of the data
+This document is the official 1.1 version of the specification.
+It describes version 1 of the data
 structures. All future \textbf{compatible} releases of this
 specification will be blessed 1.\textit{x}, for some ever-increasing
 version of \textit{x}.  A compatible specification is one that
@@ -196,7 +197,7 @@ Neither of these is strictly in the scope of SDB; but especially as
 far as interrupts are concerned, we really think FPGA designs should
 be converted to the concept of MSI interrupts. Message-signalled
 interrupts have a number of advantages over legacy interrupts, and
-don't even need any description besides what SDB already offers.
+they don't even need any description besides what SDB already offers.
 
 A more complete discussion of this is in the wiki page of the project:
 
@@ -1245,7 +1246,8 @@ offsets and must be accessed as big endian.
 The \textit{Etherbone} project, is an early adopter of SDB;
 it includes also a number
 of tools that work with SDB structures (including \texttt{eb-ls} that
-printed the table of devices shown above).  The project is at
+printed the table of devices shown above).\\
+The project lives at
 \texttt{http://www.ohwr.org/projects/etherbone-core} .
 
 The \textit{sdbfs} work started as a separate project but it is now
