@@ -92,7 +92,7 @@ int main(int argc, char **argv)
 	void *mapaddr;
 	char *fsname, *dirname;
 	struct dirent **namelist;
-	int pagesize = getpagesize();
+	int i, pagesize = getpagesize();
 
 	prgname = argv[0];
 
@@ -127,9 +127,19 @@ int main(int argc, char **argv)
 	stbuf.st_size &= ~(pagesize - 1);
 	mapaddr = mmap(0, stbuf.st_size, PROT_READ, MAP_PRIVATE, fileno(f), 0);
 	if (mapaddr == MAP_FAILED) {
-		fprintf(stderr, "%s: mmap(%s): %s\n", prgname, fsname,
-			strerror(errno));
-		exit(1);
+		/* I used to complain, but sysfs doesn't allow mmapping... */
+		mapaddr = malloc(stbuf.st_size);
+		if (!mapaddr) {
+			fprintf(stderr, "%s: out of memory reading \"%s\"\n",
+				argv[0], fsname);
+			exit(1);
+		}
+		i = fread(mapaddr, 1, stbuf.st_size, f);
+		if (i < stbuf.st_size) {
+			fprintf(stderr, "%s: %s: short read\n",
+				argv[0], fsname);
+			exit(1);
+		}
 	}
 
 	/* Check output dir is empty, open config file */
