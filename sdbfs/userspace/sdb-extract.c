@@ -109,7 +109,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
-	if (optind < argc - 2) {
+	if (optind != argc - 2) {
 		fprintf(stderr, "%s: Use: \"%s [-f] [-e <entry>] "
 			"<output-dir> <sdb-file>\n", prgname, prgname);
 		exit(1);
