@@ -6,8 +6,8 @@
 #define PCIE_WB "pcie_wb"
 #define PCIE_WB_VERSION	"0.1"
 
-#define PCIE_WB_VENDOR_ID	0x1172
-#define	PCIE_WB_DEVICE_ID	0x0004
+#define PCIE_WB_VENDOR_ID	0x10dc
+#define	PCIE_WB_DEVICE_ID	0x019a
 
 #define CONTROL_REGISTER_HIGH	0
 #define CONTROL_REGISTER_LOW	4
