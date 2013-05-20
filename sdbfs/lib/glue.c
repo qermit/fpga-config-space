@@ -74,6 +74,8 @@ static struct sdb_device *sdbfs_readentry(struct sdbfs *fs,
 	 */
 	if (fs->data)
 		return (struct sdb_device *)(fs->data + offset);
+	if (!fs->read)
+		return NULL;
 	fs->read(fs, offset, &fs->current_record, sizeof(fs->current_record));
 	return &fs->current_record;
 }
