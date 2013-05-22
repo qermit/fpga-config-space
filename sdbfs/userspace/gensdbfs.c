@@ -41,6 +41,25 @@ static inline unsigned long SDB_ALIGN(unsigned long x)
 	return (x + (blocksize - 1)) & ~(blocksize - 1);
 }
 
+static void __fill_product(struct sdb_product *p, char *name, time_t t,
+			   int record_type)
+{
+	int len = strlen(name);
+
+	if (len > sizeof(p->name)) {
+		fprintf(stderr, "%s: truncating filename \"%s\"\n",
+			prgname, name);
+		len = sizeof(p->name);
+	}
+	memset(p->name, ' ', sizeof(p->name));
+	memcpy(p->name, name, len);
+	memcpy(&p->device_id, p->name, sizeof(p->device_id));
+	p->vendor_id = DEFAULT_VENDOR; /* changed by config, possibly */
+	p->version = htonl(1); /* FIXME: version of gensdbfs */
+	/* FIXME: date */
+	p->record_type = record_type;
+}
+
 /* Helpers for scan_input(), which is below */
 static void __fill_dot(struct sdbf *dot, char *dir)
 {
@@ -57,13 +76,7 @@ static void __fill_dot(struct sdbf *dot, char *dir)
 	i->sdb_version = 1;
 	i->sdb_bus_type = sdb_data;
 	/* c->addr_first/last to be filled later */
-	p->vendor_id = htonll(0x46696c6544617461LL); /* "FileData" */
-	p->version = htonl(1); /* FIXME: version of gensdbfs */
-	/* FIXME: date */
-	memset(p->name, ' ', sizeof(p->name));
-	p->name[0] = '.';
-	memcpy(&p->device_id, p->name, 4);
-	p->record_type = sdb_type_interconnect;
+	__fill_product(p, ".", 0 /* date */, sdb_type_interconnect);
 }
 
 static int __fill_file(struct sdbf *f, char *dir, char *fname)
@@ -72,7 +85,7 @@ static int __fill_file(struct sdbf *f, char *dir, char *fname)
 	struct sdb_device *d = &f->s_d;
 	struct sdb_component *c = &d->sdb_component;
 	struct sdb_product *p = &c->product;
-	int flags, len;
+	int flags;
 
 	strcpy(fn, dir);
 	strcat(fn, "/");
@@ -108,20 +121,7 @@ static int __fill_file(struct sdbf *f, char *dir, char *fname)
 	if (f->stbuf.st_mode & S_IXOTH) flags |= SDB_DATA_EXEC;
 	d->bus_specific = htonl(flags);
 	/* c->addr_first/last to be filled later */
-	p->vendor_id = htonll(0x46696c6544617461LL); /* "FileData" */
-	p->version = htonl(1); /* FIXME: version of gensdbfs */
-	/* FIXME: date */
-	memset(p->name, ' ', sizeof(p->name));
-	len = strlen(fname);
-	if (len > sizeof(p->name)) {
-		fprintf(stderr, "%s: truncating filename \"%s\"\n",
-			prgname, fname);
-		len = sizeof(p->name);
-	}
-	memcpy(p->name, fname, len);
-	memcpy(&p->device_id, p->name, 4);
-	p->record_type = sdb_type_device;
-
+	__fill_product(p, f->basename, f->stbuf.st_mtime, sdb_type_device);
 	return 1;
 }
 

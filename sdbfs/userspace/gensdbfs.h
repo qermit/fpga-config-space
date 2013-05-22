@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #define CFG_NAME "--SDB-CONFIG--"
+#define DEFAULT_VENDOR htonll(0x46696c6544617461LL) /* "FileData" */
 
 /* We need to keep track of each file as both unix and sdb entity*/
 struct sdbf {
