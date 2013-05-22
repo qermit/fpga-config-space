@@ -84,8 +84,13 @@ static int __fill_file(struct sdbf *f, char *dir, char *fname)
 			strerror(errno));
 		return -1;
 	}
-	if (!S_ISREG(f->stbuf.st_mode)) {
+	if (S_ISDIR(f->stbuf.st_mode)) {
 		/* FIXME: support subdirs */
+		fprintf(stderr, "%s: ignoring subdirectory \"%s\"\n",
+			prgname, fn);
+		return 0;
+	}
+	if (!S_ISREG(f->stbuf.st_mode)) {
 		fprintf(stderr, "%s: ignoring non-regular \"%s\"\n",
 			prgname, fn);
 		return 0;
@@ -202,7 +207,9 @@ static struct sdbf *scan_input(char *name, struct sdbf *parent, FILE **cfgf)
 		fprintf(stderr, "%s: out of memory\n", prgname);
 		return NULL;
 	}
-	tree->nfiles = n;
+	tree->nfiles = n; /* FIXME: increase this nfile according to cfg */
+	if (parent)
+		tree->level = parent->level + 1;
 
 	/* second loop: fill it */
 	d = opendir(name);
@@ -296,6 +303,7 @@ static struct sdbf *scan_config(struct sdbf *tree, FILE *f)
 			/* line starts in column 0: new file name */
 			current = find_filename(tree, s);
 			if (!current) {
+				/* FIXME: possibly increase nfile here */
 				fprintf(stderr, "%s: Warning: %s:%i: "
 					"\"%s\" not found\n",
 					prgname, CFG_NAME, lineno, s);
@@ -401,7 +409,38 @@ static struct sdbf *write_sdb(struct sdbf *tree, FILE *out)
 	return tree;
 }
 
+/*
+ * This is the main procedure for each directory, called recursively
+ * from scan_input() above
+ */
+static struct sdbf *prepare_dir(char *name, struct sdbf *parent)
+{
+	FILE *fcfg = NULL;
+	struct sdbf *tree;
 
+	/* scan the whole input tree and save the information */
+	tree = scan_input(name, parent, &fcfg);
+	if (!tree)
+		return NULL;
+
+	/* read configuration file and save its info for each file */
+	if (fcfg)
+		tree = scan_config(tree, fcfg);
+	if (!tree)
+		return NULL;
+
+	/* allocate space in the storage */
+	tree = alloc_storage(tree);
+	if (!tree)
+		return NULL;
+
+	if (getenv("VERBOSE"))
+		dump_tree(tree);
+
+	return tree;
+}
+
+/* From now on, it's trivial main program management */
 static int usage(char *prgname)
 {
 	fprintf(stderr, "%s: Use \"%s [<options>] <inputdir> <output>\"\n",
@@ -417,7 +456,7 @@ int main(int argc, char **argv)
 {
 	int c;
 	struct stat stbuf;
-	FILE *fcfg = NULL, *fout;
+	FILE *fout;
 	char *rest;
 	struct sdbf *tree;
 
@@ -452,6 +491,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	if (!S_ISDIR(stbuf.st_mode)) {
+		/* Recursively fill the directory */
 		fprintf(stderr, "%s: %s: not a directory\n", prgname,
 			argv[optind]);
 		exit(1);
@@ -463,26 +503,11 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* scan the whole input tree and save the information */
-	tree = scan_input(argv[optind], NULL /* parent */, &fcfg);
+	tree = prepare_dir(argv[optind], NULL /* parent */);
 	if (!tree)
 		exit(1);
 
-	/* read configuration file and save its info for each file */
-	if (fcfg)
-		tree = scan_config(tree, fcfg);
-	if (!tree)
-		exit(1);
-
-	/* allocate space in the storage */
-	tree = alloc_storage(tree);
-	if (!tree)
-		exit(1);
-
-	if (getenv("VERBOSE"))
-		dump_tree(tree);
-
-	/* write out the whole tree */
+	/* write out the whole tree, recusively */
 	tree = write_sdb(tree, fout);
 	if (!tree)
 		exit(1);

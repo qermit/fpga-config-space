@@ -15,12 +15,13 @@ struct sdbf {
 	};
 	char *fullname;
 	char *basename;
-	unsigned long astart, rstart; /* absolute, relative */
+	unsigned long astart, rstart;	/* absolute, relative */
 	unsigned long size;
-	int nfiles, totsize; /* for dirs */
-	struct sdbf *dot; /* for files, pointer to owning dir */
-	struct sdbf *parent; /* for dirs, current dir in ../ */
-	int userpos;
+	int nfiles, totsize;		/* for dirs */
+	struct sdbf *dot;		/* for files, pointer to owning dir */
+	struct sdbf *parent;		/* for dirs, current dir in ../ */
+	int level;			/* subdir level */
+	int userpos;			/* only allowed at level 0 */
 };
 
 static inline uint64_t htonll(uint64_t ll)
