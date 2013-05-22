@@ -16,11 +16,12 @@ struct sdbf {
 	};
 	char *fullname;
 	char *basename;
-	unsigned long astart, rstart;	/* absolute, relative */
-	unsigned long size;
+	unsigned long ustart, rstart;	/* user (mandated), relative */
+	unsigned long base, size;	/* base is absolute, for output */
 	int nfiles, totsize;		/* for dirs */
 	struct sdbf *dot;		/* for files, pointer to owning dir */
 	struct sdbf *parent;		/* for dirs, current dir in ../ */
+	struct sdbf *subdir;		/* for files that are dirs */
 	int level;			/* subdir level */
 	int userpos;			/* only allowed at level 0 */
 };
@@ -35,5 +36,7 @@ static inline uint64_t htonll(uint64_t ll)
 	res |= (uint64_t)(htonl((uint32_t)ll)) << 32;
 	return res;
 }
+
+#define ntohll htonll
 
 #endif /* __GENSDBFS_H__ */
