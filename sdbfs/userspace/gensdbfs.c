@@ -344,6 +344,7 @@ static struct sdbf *scan_config(struct sdbf *tree, FILE *f)
 static struct sdbf *alloc_storage(struct sdbf *tree)
 {
 	int i, n;
+	unsigned long subsize;
 	unsigned long rpos; /* the next expected relative position */
 	unsigned long l, last; /* keep track of last, for directory record */
 	struct sdbf *f, *sub;
@@ -357,13 +358,7 @@ static struct sdbf *alloc_storage(struct sdbf *tree)
 
 	for (i = 1; i < n; i++) {
 		f = tree + i;
-		if (f->userpos) { /* user-specified position (level 0) */
-			f->s_d.sdb_component.addr_first = htonll(f->ustart);
-			l = f->ustart + f->size - 1;
-			f->s_d.sdb_component.addr_last = htonll(l);
-			if (l > last) last = l;
-			continue;
-		}
+
 		/* If a directory, make it allocate itself */
 		if (f->subdir) {
 			f->subdir->base = tree->base + rpos;
@@ -373,9 +368,21 @@ static struct sdbf *alloc_storage(struct sdbf *tree)
 					prgname, f->fullname);
 				return NULL;
 			}
-			f->size = ntohll(sub->s_i.sdb_component.addr_last);
+			/* this size may have been set by the user */
+			subsize = ntohll(sub->s_i.sdb_component.addr_last);
+			if (subsize > f->size)
+				f->size = subsize;
 			f->s_b.sdb_child = htonll(rpos);
 		}
+
+		if (f->userpos) { /* user-specified position (level 0) */
+			f->s_d.sdb_component.addr_first = htonll(f->ustart);
+			l = f->ustart + f->size - 1;
+			f->s_d.sdb_component.addr_last = htonll(l);
+			if (l > last) last = l;
+			continue;
+		}
+
 		/* position not mandated: go sequential from previous one */
 		f->rstart = rpos;
 		f->s_d.sdb_component.addr_first = htonll(rpos);
@@ -490,8 +497,8 @@ static int usage(char *prgname)
 		prgname, prgname);
 	fprintf(stderr, "  -b <number> : block size (default 64)\n");
 	fprintf(stderr, "  -s <number> : device size (default: as needed)\n");
-	fprintf(stderr, "  a file called \"" CFG_NAME "\", in the root of\n"
-		"  <inputdir> is used as configuration file\n");
+	fprintf(stderr, "  a file called \"" CFG_NAME "\", in each "
+		"subdir is used as configuration file\n");
 	exit(1);
 }
 
