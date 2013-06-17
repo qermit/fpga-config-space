@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #define CFG_NAME "--SDB-CONFIG--"
+#define DEFAULT_VENDOR htonll(0x46696c6544617461LL) /* "FileData" */
 
 /* We need to keep track of each file as both unix and sdb entity*/
 struct sdbf {
@@ -15,12 +16,14 @@ struct sdbf {
 	};
 	char *fullname;
 	char *basename;
-	unsigned long astart, rstart; /* absolute, relative */
-	unsigned long size;
-	int nfiles, totsize; /* for dirs */
-	struct sdbf *dot; /* for files, pointer to owning dir */
-	struct sdbf *parent; /* for dirs, current dir in ../ */
-	int userpos;
+	unsigned long ustart, rstart;	/* user (mandated), relative */
+	unsigned long base, size;	/* base is absolute, for output */
+	int nfiles, totsize;		/* for dirs */
+	struct sdbf *dot;		/* for files, pointer to owning dir */
+	struct sdbf *parent;		/* for dirs, current dir in ../ */
+	struct sdbf *subdir;		/* for files that are dirs */
+	int level;			/* subdir level */
+	int userpos;			/* only allowed at level 0 */
 };
 
 static inline uint64_t htonll(uint64_t ll)
@@ -33,5 +36,7 @@ static inline uint64_t htonll(uint64_t ll)
 	res |= (uint64_t)(htonl((uint32_t)ll)) << 32;
 	return res;
 }
+
+#define ntohll htonll
 
 #endif /* __GENSDBFS_H__ */

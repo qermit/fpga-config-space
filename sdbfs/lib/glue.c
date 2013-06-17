@@ -74,41 +74,97 @@ static struct sdb_device *sdbfs_readentry(struct sdbfs *fs,
 	 */
 	if (fs->data)
 		return (struct sdb_device *)(fs->data + offset);
+	if (!fs->read)
+		return NULL;
 	fs->read(fs, offset, &fs->current_record, sizeof(fs->current_record));
 	return &fs->current_record;
+}
+
+/* Helper for scanning: we enter a new directory, and we must validate */
+static struct sdb_device *scan_newdir(struct sdbfs *fs, int depth)
+{
+	struct sdb_device *dev;
+	struct sdb_interconnect *intercon;
+
+	dev = fs->currentp = sdbfs_readentry(fs, fs->this[depth]);
+	if (dev->sdb_component.product.record_type != sdb_type_interconnect)
+		return NULL;
+
+	intercon = (typeof(intercon))dev;
+	if (ntohl(intercon->sdb_magic) != SDB_MAGIC)
+		return NULL;
+
+	fs->nleft[depth] = ntohs(intercon->sdb_records) - 1;
+	fs->this[depth] += sizeof(*intercon);
+	fs->depth = depth;
+	return dev;
 }
 
 struct sdb_device *sdbfs_scan(struct sdbfs *fs, int newscan)
 {
 	/*
-	 * This returns a pointer to the next sdb record, or a new one.
-	 * Subdirectories are not supported. Uses all internal fields
+	 * This returns a pointer to the next sdb record, or the first one.
+	 * Subdirectories (bridges) are returned before their contents.
+	 * It only uses internal fields.
 	 */
-	struct sdb_device *ret;
-	struct sdb_interconnect *i;
+	struct sdb_device *dev;
+	struct sdb_bridge *bridge;
+	int depth, type, newdir = 0; /* check there's the magic */
 
 	if (newscan) {
-		fs->f_offset = fs->entrypoint;
-	} else {
-		fs->f_offset += sizeof(struct sdb_device);
-		if (!fs->nleft)
+		fs->base[0] = 0;
+		fs->this[0] = fs->entrypoint;
+		depth = fs->depth = 0;
+		newdir = 1;
+		goto scan;
+	}
+
+	/* If we already returned a bridge, go inside it (check type) */
+	depth = fs->depth;
+	type = fs->currentp->sdb_component.product.record_type;
+
+	if (type == sdb_type_bridge && depth + 1 < SDBFS_DEPTH) {
+		bridge = (typeof(bridge))fs->currentp;
+		fs->this[depth + 1] = fs->base[depth]
+			+ ntohll(bridge->sdb_child);
+		fs->base[depth + 1] = fs->base[depth]
+			+ ntohll(bridge->sdb_component.addr_first);
+		depth++;
+		newdir++;
+	}
+
+scan:
+	/* If entering a new directory, verify magic and set nleft */
+	if (newdir) {
+		dev = scan_newdir(fs, depth);
+		if (dev)
+			return dev;
+		/* Otherwise the directory is not there: no intercon */
+		if (!depth)
+			return NULL; /* no entries at all */
+		depth--;
+	}
+
+	while (fs->nleft[depth] == 0) {
+		/* No more at this level, "cd .." if possible */
+		if (!depth)
 			return NULL;
+		fs->depth = --depth;
 	}
-	ret = sdbfs_readentry(fs, fs->f_offset);
-	if (newscan) {
-		i = (typeof(i))ret;
-		fs->nleft = ntohs(i->sdb_records) - 1;
-	} else {
-		fs->nleft--;
-	}
-	return ret;
+
+	/* so, read the next entry */
+	dev = fs->currentp = sdbfs_readentry(fs, fs->this[depth]);
+	fs->this[depth] += sizeof(*dev);
+	fs->nleft[depth]--;
+	return dev;
 }
 
 static void __open(struct sdbfs *fs)
 {
-	fs->f_offset = htonll(fs->currentp->sdb_component.addr_first);
+	fs->f_offset = fs->base[fs->depth]
+		+ htonll(fs->currentp->sdb_component.addr_first);
 	fs->f_len = htonll(fs->currentp->sdb_component.addr_last)
-		+ 1 - fs->f_offset;
+		+ 1 - htonll(fs->currentp->sdb_component.addr_first);
 	fs->read_offset = 0;
 }
 

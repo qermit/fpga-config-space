@@ -38,13 +38,15 @@ static int do_read(struct sdbfs *fs, int offset, void *buf, int count)
 }
 
 /* Boring ascii representation of a device */
-static void list_device(struct sdb_device *d)
+static void list_device(struct sdb_device *d, int depth)
 {
 	struct sdb_product *p;
 	struct sdb_component *c;
+	static int warned;
+	int i;
+
 	c = &d->sdb_component;
 	p = &c->product;
-	static int warned;
 
 	if (!opt_long) {
 		printf("%.19s\n", p->name);
@@ -57,10 +59,13 @@ static void list_device(struct sdb_device *d)
 		warned = 1;
 	}
 
-	printf("%016llx:%08x @ %08llx-%08llx %.19s\n",
+	/* hack: show directory level looking at the internals */
+	printf("%016llx:%08x @ %08llx-%08llx ",
 	       ntohll(p->vendor_id), ntohl(p->device_id),
-	       ntohll(c->addr_first), ntohll(c->addr_last),
-	       p->name);
+	       ntohll(c->addr_first), ntohll(c->addr_last));
+	for (i = 0; i < depth; i++)
+		printf("  ");
+	printf("%.19s\n", p->name);
 }
 
 /* The following three function perform the real work, main() is just glue */
@@ -70,7 +75,7 @@ static void do_list(struct sdbfs *fs)
 	int new = 1;
 
 	while ( (d = sdbfs_scan(fs, new)) != NULL) {
-		list_device(d);
+		list_device(d, fs->depth);
 		new = 0;
 	}
 }

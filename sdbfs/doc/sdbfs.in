@@ -369,24 +369,24 @@ The individual fields of the SDB structure are filled in the following way:
 @item addr_first
 
 	For a file this is the first byte address where data is found.
-        This is currently an absolute address, which makes sense since
-        we have no subdirectories yet. However, some use cases require
-        the directory information not to live at offset 0, while referring
-        to a file that is at the beginning of the storage. SDB mandates
-        relative addresses because it's designed for gateware crossbars,
-        so we'll have to understand how to deal with this when we have
-        subdirectories.   For the directory itself, addr_first is the
-        address of the directory -- again, data-before-dir is not cleanly
-        handled.
+        This is an absolute address for the first level of the tree
+        and a relative address for subdirectories.
+        Unfortunately, some use cases require the top-level
+        directory information not to live at offset 0, while referring
+        to a file that is at the beginning of the storage; thus the
+        use of absolute addresses for the outer directory level.
+        For the toplevel directory, addr_first is set to zero
+        because this is the smallest address used by the tree.
 
 @itemx addr_last
 
 	This is the last allocated byte for files. If the configuration
         file requested extra size for the file, it is accounted here.
         The trailing space is filled with zeroes by @file{gensdbfs} but
-        later the configuration file will be able to specify a filler value.
-        For directories, this is the last byte written by any files
-        within the directory itself.
+        in later releases
+        the configuration file will be able to specify a filler value.
+        For directories, this is the last byte encompassed by any files
+        within the directory itself, including subdirectories.
 
 @item 
 @end table
@@ -435,7 +435,10 @@ The following options are supported
 
 	Specifies the maximum file size. This allows a writeable file to
         be extended in the filesystem image, for later overwriting with
-        different data. The program doesn't
+        different data. For directories, this allows reserving space
+        in your filesystem, that can be filled later -- by another
+        @i{sdbfs}, whose toplevel directory must live at zero.
+        The program doesn't
         check whether @i{maxsize} is smaller than the current size.
 @c FIXME: the maxsize/size issue 
 
@@ -446,9 +449,10 @@ The following options are supported
         you'll find the SDB records, whose first 4 bytes are the magic
         number. For files this is the placement of the associated data.
         For all files where @i{position} is not specified, @file{gensdbfs}
-        will allocate storage sequentially after the directory itself,
+        will allocate storage sequentially after their own directory listing,
         respecting block alignment.  It's not possible, currently, to
-        request all files to be stored sequentially at a specific address
+        request a file to stored sequentially to another file.
+        The progrma doesn't check for allocation conflicts.
 
 @end table
 
@@ -476,6 +480,36 @@ The resulting @i{sdbfs} image will have @code{Makefile} at offset 0,
 the directory itself at offset 0x1000 and an area of 64kB of storage
 reserved for @code{gensdbfs.c}. The leading part of such are is filled
 with the current contents of the file (which is shorter than 64kB).
+
+@c --------------------------------------------------------------------------
+@node Use-case Example
+@subsection Use-case Example
+
+Our first use case for @i{sdbfs} is storing structured data in the 8kB
+@sc{eeprom} fo @sc{fmc} cards.  The standard reuires the leading part
+of the memory to include an @sc{ipmi-fru} data structure, with device
+identification, but the rest of the memory can be used at will (the
+@sc{fru} structures include the concept of @i{user-area} but it's not
+flexible enough.
+
+Memories for our devices, thus, are laid out with @i{sdbfs}: the root
+directory lives at address 0x200 and refers to a file called
+@t{IPMI-FRU} at address 0.  Since most cards reuire calibration
+information, such data items are stored in other @sc{sdb} files
+in the top directory, where they can be accessed by the device driver
+for the specific board -- identified using the @sc{fru} header.
+
+In some cases, the @sc{fpga} driving these cards hosts a @i{White
+Rabbit} @sc{ptp} daemon, that needs to access its own information,
+such as the @sc{mac} address of the Ethernet port and internal
+software-related parameters.  To allow this later addition to
+@sc{eeprom} contents, the top-level directroy includes a subdirectory,
+manually set as @t{position=0x800; size=0x1800}.
+
+When setting up the card for @i{White Rabbit}, the new @i{sdbfs} image
+can be written starting at offset 0x800, (2kB), and extending at most
+for6kB).  The overall filesystem is internally consistent thanks
+to the use of relative addresses.
 
 @c ==========================================================================
 @node sdb-read

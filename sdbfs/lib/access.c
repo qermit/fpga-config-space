@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 CERN (www.cern.ch)
+ * Copyright (C) 2012,2013 CERN (www.cern.ch)
  * Author: Alessandro Rubini <rubini@gnudd.com>
  *
  * Released according to the GNU GPL, version 2 or any later version.
@@ -19,23 +19,42 @@ int sdbfs_fstat(struct sdbfs *fs, struct sdb_device *record_return)
 	return 0;
 }
 
-int sdbfs_fread(struct sdbfs *fs, int offset, char *buf, int count)
+int sdbfs_fread(struct sdbfs *fs, int offset, void *buf, int count)
 {
+	int ret;
+
 	if (!fs->currentp)
 		return -ENOENT;
 	if (offset < 0)
 		offset = fs->read_offset;
 	if (offset + count > fs->f_len)
 		count = fs->f_len - offset;
+	ret = count;
 	if (fs->data)
 		memcpy(buf, fs->data + fs->f_offset + offset, count);
 	else
-		fs->read(fs, fs->f_offset + offset, buf, count);
-	fs->read_offset = offset + count;
-	return count;
+		ret = fs->read(fs, fs->f_offset + offset, buf, count);
+	if (ret > 0)
+		fs->read_offset = offset + ret;
+	return ret;
 }
 
-int sdbfs_fwrite(struct sdbfs *fs, int offset, char *buf, int count)
+int sdbfs_fwrite(struct sdbfs *fs, int offset, void *buf, int count)
 {
-	return -ENOSYS;
+	int ret;
+
+	if (!fs->currentp)
+		return -ENOENT;
+	if (offset < 0)
+		offset = fs->read_offset;
+	if (offset + count > fs->f_len)
+		count = fs->f_len - offset;
+	ret = count;
+	if (fs->data)
+		memcpy(buf, fs->data + fs->f_offset + offset, count);
+	else
+		ret = fs->write(fs, fs->f_offset + offset, buf, count);
+	if (ret > 0)
+		fs->read_offset = offset + ret;
+	return ret;
 }

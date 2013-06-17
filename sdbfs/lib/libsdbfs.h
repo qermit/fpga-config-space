@@ -12,6 +12,7 @@
 
 #include <sdb.h> /* Please point your "-I" to some sensible place */
 
+#define SDBFS_DEPTH 4 /* Max number of subdirectory depth */
 /*
  * Data structures: please not that the library intself doesn't use
  * malloc, so it's the caller who must deal withallocation/removal.
@@ -24,7 +25,7 @@ struct sdbfs {
 	/* Some fields are informative */
 	char *name;			/* may be null */
 	void *drvdata;			/* driver may need some detail.. */
-	int blocksize;
+	unsigned long blocksize;
 	unsigned long entrypoint;
 
 	/* The "driver" must offer some methods */
@@ -34,15 +35,19 @@ struct sdbfs {
 	int (*write)(struct sdbfs *fs, int offset, void *buf, int count);
 	int (*erase)(struct sdbfs *fs, int offset, int count);
 
-	/* The following fields are library-private */
-	struct sdb_device current_record;
+	/* All fields from here onwards are library-private */
 	struct sdb_device *currentp;
-	int nleft;
-	unsigned long f_offset;
+	struct sdb_device current_record;
 	unsigned long f_len;
-	unsigned long read_offset;
+	unsigned long f_offset;		/* start of file */
+	unsigned long read_offset;	/* current location */
 	unsigned long flags;
 	struct sdbfs *next;
+	/* The following ones are directory-aware */
+	unsigned long base[SDBFS_DEPTH];	/* for relative addresses */
+	unsigned long this[SDBFS_DEPTH];	/* current sdb record */
+	int nleft[SDBFS_DEPTH];
+	int depth;
 };
 
 #define SDBFS_F_VERBOSE		0x0001
@@ -59,8 +64,8 @@ struct sdb_device *sdbfs_scan(struct sdbfs *fs, int newscan);
 
 /* Defined in access.c */
 int sdbfs_fstat(struct sdbfs *fs, struct sdb_device *record_return);
-int sdbfs_fread(struct sdbfs *fs, int offset, char *buf, int count);
-int sdbfs_fwrite(struct sdbfs *fs, int offset, char *buf, int count);
+int sdbfs_fread(struct sdbfs *fs, int offset, void *buf, int count);
+int sdbfs_fwrite(struct sdbfs *fs, int offset, void *buf, int count);
 
 /* This is needed to convert endianness. Hoping it is not defined elsewhere */
 static inline uint64_t htonll(uint64_t ll)

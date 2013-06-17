@@ -36,12 +36,33 @@ static unsigned long devsize = 0; /* unspecified */
 static unsigned long lastwritten = 0;
 static char *prgname;
 
+static struct sdbf *prepare_dir(char *name, struct sdbf *parent);
+
 static inline unsigned long SDB_ALIGN(unsigned long x)
 {
 	return (x + (blocksize - 1)) & ~(blocksize - 1);
 }
 
-/* Helpers for scan_input(), which is below */
+static void __fill_product(struct sdb_product *p, char *name, time_t t,
+			   int record_type)
+{
+	int len = strlen(name);
+
+	if (len > sizeof(p->name)) {
+		fprintf(stderr, "%s: truncating filename \"%s\"\n",
+			prgname, name);
+		len = sizeof(p->name);
+	}
+	memset(p->name, ' ', sizeof(p->name));
+	memcpy(p->name, name, len);
+	memcpy(&p->device_id, p->name, sizeof(p->device_id));
+	p->vendor_id = DEFAULT_VENDOR; /* changed by config, possibly */
+	p->version = htonl(1); /* FIXME: version of gensdbfs */
+	/* FIXME: date */
+	p->record_type = record_type;
+}
+
+/* Helpers for scan_inputdir(), which is below */
 static void __fill_dot(struct sdbf *dot, char *dir)
 {
 	struct sdb_interconnect *i = &dot->s_i;
@@ -57,13 +78,22 @@ static void __fill_dot(struct sdbf *dot, char *dir)
 	i->sdb_version = 1;
 	i->sdb_bus_type = sdb_data;
 	/* c->addr_first/last to be filled later */
-	p->vendor_id = htonll(0x46696c6544617461LL); /* "FileData" */
-	p->version = htonl(1); /* FIXME: version of gensdbfs */
-	/* FIXME: date */
-	memset(p->name, ' ', sizeof(p->name));
-	p->name[0] = '.';
-	memcpy(&p->device_id, p->name, 4);
-	p->record_type = sdb_type_interconnect;
+	__fill_product(p, ".", 0 /* date */, sdb_type_interconnect);
+}
+
+/* Helper for __fill_file, below, f->stat and f->fullname already valid */
+static int __fill_dir(struct sdbf *f)
+{
+	struct sdb_bridge *b = &f->s_b;
+	struct sdb_component *c = &b->sdb_component;
+	struct sdb_product *p = &c->product;
+
+	/* addr first and last filled later */
+	__fill_product(p, f->basename, f->stbuf.st_mtime, sdb_type_bridge);
+	f->subdir = prepare_dir(f->fullname, f->dot);
+	if (!f->subdir)
+		return -1;
+	return 1;
 }
 
 static int __fill_file(struct sdbf *f, char *dir, char *fname)
@@ -72,7 +102,7 @@ static int __fill_file(struct sdbf *f, char *dir, char *fname)
 	struct sdb_device *d = &f->s_d;
 	struct sdb_component *c = &d->sdb_component;
 	struct sdb_product *p = &c->product;
-	int flags, len;
+	int flags;
 
 	strcpy(fn, dir);
 	strcat(fn, "/");
@@ -84,8 +114,9 @@ static int __fill_file(struct sdbf *f, char *dir, char *fname)
 			strerror(errno));
 		return -1;
 	}
+	if (S_ISDIR(f->stbuf.st_mode))
+		return __fill_dir(f);
 	if (!S_ISREG(f->stbuf.st_mode)) {
-		/* FIXME: support subdirs */
 		fprintf(stderr, "%s: ignoring non-regular \"%s\"\n",
 			prgname, fn);
 		return 0;
@@ -103,20 +134,7 @@ static int __fill_file(struct sdbf *f, char *dir, char *fname)
 	if (f->stbuf.st_mode & S_IXOTH) flags |= SDB_DATA_EXEC;
 	d->bus_specific = htonl(flags);
 	/* c->addr_first/last to be filled later */
-	p->vendor_id = htonll(0x46696c6544617461LL); /* "FileData" */
-	p->version = htonl(1); /* FIXME: version of gensdbfs */
-	/* FIXME: date */
-	memset(p->name, ' ', sizeof(p->name));
-	len = strlen(fname);
-	if (len > sizeof(p->name)) {
-		fprintf(stderr, "%s: truncating filename \"%s\"\n",
-			prgname, fname);
-		len = sizeof(p->name);
-	}
-	memcpy(p->name, fname, len);
-	memcpy(&p->device_id, p->name, 4);
-	p->record_type = sdb_type_device;
-
+	__fill_product(p, f->basename, f->stbuf.st_mtime, sdb_type_device);
 	return 1;
 }
 
@@ -168,8 +186,13 @@ static int parse_config_line(struct sdbf *tree, struct sdbf *current, int line,
 		return 0;
 	}
 	if (sscanf(t, "position = %li", &int32) == 1) {
+		if (tree->level != 0) {
+			fprintf(stderr, "%s: Can't set position in subdirs"
+			       " (file \"%s\")\n", prgname, current->fullname);
+			return 0;
+		}
 		current->userpos = 1;
-		current->astart = int32;
+		current->ustart = int32;
 		return 0;
 	}
 
@@ -179,7 +202,7 @@ static int parse_config_line(struct sdbf *tree, struct sdbf *current, int line,
 }
 
 /* step 0: read the directory and build the tree. Returns NULL on error */
-static struct sdbf *scan_input(char *name, struct sdbf *parent, FILE **cfgf)
+static struct sdbf *scan_inputdir(char *name, struct sdbf *parent, FILE **cfgf)
 {
 	DIR *d;
 	struct dirent *de;
@@ -202,7 +225,9 @@ static struct sdbf *scan_input(char *name, struct sdbf *parent, FILE **cfgf)
 		fprintf(stderr, "%s: out of memory\n", prgname);
 		return NULL;
 	}
-	tree->nfiles = n;
+	tree->nfiles = n; /* FIXME: increase this nfile according to cfg */
+	if (parent)
+		tree->level = parent->level + 1;
 
 	/* second loop: fill it */
 	d = opendir(name);
@@ -211,8 +236,8 @@ static struct sdbf *scan_input(char *name, struct sdbf *parent, FILE **cfgf)
 			strerror(errno));
 		return NULL;
 	}
-	for (n = 1 /* 0 resvd for interconnect */;  (de = readdir(d)); ) {
-		tree[n].de = *de;
+	for (n = 1;  (de = readdir(d)); ) {
+		/* dot is special: it fills slot 0 */
 		if (!strcmp(de->d_name, ".")) {
 			tree[0].de = *de;
 			__fill_dot(tree, name);
@@ -233,6 +258,9 @@ static struct sdbf *scan_input(char *name, struct sdbf *parent, FILE **cfgf)
 			/* don't exit on this error: proceed without cfg */
 			continue;
 		}
+		tree[n].level = tree[0].level;
+		tree[n].de = *de;
+		tree[n].dot = tree;
 		ret = __fill_file(tree + n, name, de->d_name);
 		if (ret < 0)
 			return NULL;
@@ -266,8 +294,8 @@ static void dump_tree(struct sdbf *tree)
 	for (i = 0; i < n; i++, tree++) {
 		printf("%s: \"%s\" ino %li\n", tree->fullname, tree->de.d_name,
 		       (long)tree->de.d_ino);
-		printf("astart %lx, rstart %lx, size %lx (%lx)\n",
-		       tree->astart, tree->rstart, tree->size,
+		printf("ustart %lx, rstart %lx, base %lx, size %lx (%lx)\n",
+		       tree->ustart, tree->rstart, tree->base, tree->size,
 		       tree->stbuf.st_size);
 		dumpstruct(stdout, "sdb record", &tree->s_d,
 			   sizeof(tree->s_d));
@@ -296,6 +324,7 @@ static struct sdbf *scan_config(struct sdbf *tree, FILE *f)
 			/* line starts in column 0: new file name */
 			current = find_filename(tree, s);
 			if (!current) {
+				/* FIXME: possibly increase nfile here */
 				fprintf(stderr, "%s: Warning: %s:%i: "
 					"\"%s\" not found\n",
 					prgname, CFG_NAME, lineno, s);
@@ -315,31 +344,54 @@ static struct sdbf *scan_config(struct sdbf *tree, FILE *f)
 static struct sdbf *alloc_storage(struct sdbf *tree)
 {
 	int i, n;
+	unsigned long subsize;
 	unsigned long rpos; /* the next expected relative position */
 	unsigned long l, last; /* keep track of last, for directory record */
-	struct sdbf *f;
+	struct sdbf *f, *sub;
 
-	tree->s_i.sdb_component.addr_first = htonll(tree->astart);
+	/* The managed space starts at zero, even if the directory is later */
+	tree->s_i.sdb_component.addr_first = htonll(0);
 	/* The "suggested" output place is after the directory itself */
 	n = ntohs(tree->s_i.sdb_records);
-	rpos = SDB_ALIGN(n * sizeof(struct sdb_device));
-	last = tree->astart + rpos;
+	rpos = tree->ustart + SDB_ALIGN(n * sizeof(struct sdb_device));
+	last = rpos;
 
 	for (i = 1; i < n; i++) {
 		f = tree + i;
-		if (f->userpos) { /* user-specified position */
-			f->s_d.sdb_component.addr_first = htonll(f->astart);
-			l = f->astart + f->size - 1;
+
+		/* If a directory, make it allocate itself */
+		if (f->subdir) {
+			f->subdir->base = tree->base + rpos;
+			sub = alloc_storage(f->subdir);
+			if (!sub) {
+				fprintf(stderr, "%s: Error allocating %s\n",
+					prgname, f->fullname);
+				return NULL;
+			}
+			/* this size may have been set by the user */
+			subsize = ntohll(sub->s_i.sdb_component.addr_last);
+			if (subsize > f->size)
+				f->size = subsize;
+			f->s_b.sdb_child = htonll(rpos);
+		}
+
+		if (f->userpos) { /* user-specified position (level 0) */
+			f->s_d.sdb_component.addr_first = htonll(f->ustart);
+			l = f->ustart + f->size - 1;
 			f->s_d.sdb_component.addr_last = htonll(l);
 			if (l > last) last = l;
 			continue;
 		}
+
 		/* position not mandated: go sequential from previous one */
 		f->rstart = rpos;
-		f->s_d.sdb_component.addr_first = htonll(tree->astart + rpos);
-		l = tree->astart + rpos + f->size - 1;
+		f->s_d.sdb_component.addr_first = htonll(rpos);
+		l = rpos + f->size - 1;
 		f->s_d.sdb_component.addr_last = htonll(l);
 		if (l > last) last = l;
+		if (getenv("VERBOSE"))
+			fprintf(stderr, "allocated relative %s: %lx to %lx\n",
+				f->fullname, rpos, l);
 		rpos = SDB_ALIGN(rpos + f->size);
 	}
 	/* finally, save the last used byte for the whole directory */
@@ -362,10 +414,20 @@ static struct sdbf *write_sdb(struct sdbf *tree, FILE *out)
 		return NULL;
 	}
 	n = ntohs(tree->s_i.sdb_records);
-	/* First, write the directory, from its starting position */
-	fseek(out, tree->astart, SEEK_SET);
-	for (i = 0; i < n; i++)
+
+	/*
+	 * First, write the directory, from its possibly user-set position.
+	 * Meanwhile, update base for each of them (used in subdirs)
+	 */
+	fseek(out, tree->base + tree->ustart, SEEK_SET);
+	for (i = 0; i < n; i++) {
 		fwrite(&tree[i].s_d, sizeof(tree[i].s_d), 1, out);
+		if (i > 1) /* don't change initial base */
+			tree[i].base = tree[0].base + tree[i].rstart;
+	}
+	if (getenv("VERBOSE")) /* show the user */
+		dump_tree(tree);
+
 	/* then each file */
 	for (i = 1; i < n; i++) {
 		sdbf = tree + i;
@@ -376,15 +438,16 @@ static struct sdbf *write_sdb(struct sdbf *tree, FILE *out)
 			continue;
 		}
 
-		/*
-		 * This astart and rstart stuff must be cleaned up, especially
-		 * when we add subdirectories. Currently, user-placed files
-		 * use astart, while auto-allocated use rstart from dir head
-		 */
-		if (sdbf->userpos)
-			fseek(out, sdbf->astart, SEEK_SET);
+		if (sdbf->userpos) /* only at level 0 */
+			fseek(out, sdbf->ustart, SEEK_SET);
 		else
-			fseek(out, tree->astart + sdbf->rstart, SEEK_SET);
+			fseek(out, tree->base + sdbf->rstart, SEEK_SET);
+
+		if (sdbf->subdir) {
+			write_sdb(sdbf->subdir, out);
+			fclose(f);
+			continue;
+		}
 
 		for (copied = 0; copied < sdbf->stbuf.st_size; ) {
 			j = fread(buf, 1, blocksize, f);
@@ -398,18 +461,44 @@ static struct sdbf *write_sdb(struct sdbf *tree, FILE *out)
 		}
 		fclose(f);
 	}
+	free(buf);
 	return tree;
 }
 
+/*
+ * This is the main procedure for each directory, called recursively
+ * from scan_inputdir() above
+ */
+static struct sdbf *prepare_dir(char *name, struct sdbf *parent)
+{
+	FILE *fcfg = NULL;
+	struct sdbf *tree;
 
+	/* scan the whole input tree and save the information */
+	tree = scan_inputdir(name, parent, &fcfg);
+	if (!tree)
+		return NULL;
+
+	/* read configuration file and save its info for each file */
+	if (fcfg) {
+		tree = scan_config(tree, fcfg);
+		fclose(fcfg);
+	}
+	if (!tree)
+		return NULL;
+
+	return tree;
+}
+
+/* From now on, it's trivial main program management */
 static int usage(char *prgname)
 {
 	fprintf(stderr, "%s: Use \"%s [<options>] <inputdir> <output>\"\n",
 		prgname, prgname);
 	fprintf(stderr, "  -b <number> : block size (default 64)\n");
 	fprintf(stderr, "  -s <number> : device size (default: as needed)\n");
-	fprintf(stderr, "  a file called \"" CFG_NAME "\", in the root of\n"
-		"  <inputdir> is used as configuration file\n");
+	fprintf(stderr, "  a file called \"" CFG_NAME "\", in each "
+		"subdir is used as configuration file\n");
 	exit(1);
 }
 
@@ -417,7 +506,7 @@ int main(int argc, char **argv)
 {
 	int c;
 	struct stat stbuf;
-	FILE *fcfg = NULL, *fout;
+	FILE *fout;
 	char *rest;
 	struct sdbf *tree;
 
@@ -452,6 +541,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	if (!S_ISDIR(stbuf.st_mode)) {
+		/* Recursively fill the directory */
 		fprintf(stderr, "%s: %s: not a directory\n", prgname,
 			argv[optind]);
 		exit(1);
@@ -463,14 +553,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* scan the whole input tree and save the information */
-	tree = scan_input(argv[optind], NULL /* parent */, &fcfg);
-	if (!tree)
-		exit(1);
-
-	/* read configuration file and save its info for each file */
-	if (fcfg)
-		tree = scan_config(tree, fcfg);
+	tree = prepare_dir(argv[optind], NULL /* parent */);
 	if (!tree)
 		exit(1);
 
@@ -479,10 +562,7 @@ int main(int argc, char **argv)
 	if (!tree)
 		exit(1);
 
-	if (getenv("VERBOSE"))
-		dump_tree(tree);
-
-	/* write out the whole tree */
+	/* write out the whole tree, recusively */
 	tree = write_sdb(tree, fout);
 	if (!tree)
 		exit(1);
