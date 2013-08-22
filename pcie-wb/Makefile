@@ -27,6 +27,7 @@ all:
 
 install:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
+	depmod -a
 
 endif
 
