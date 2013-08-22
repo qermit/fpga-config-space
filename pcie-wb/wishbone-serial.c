@@ -21,20 +21,21 @@
 
 #define GSI_VENDOR_OPENCLOSE 0xB0
 
-/* v1 2a1e7d5d 2010-03-10 2.6.34-26 oldest kernel supported by this driver
+/* v0                     2.6.26    oldest kernel supported by this driver
+ * v1 2a1e7d5d 2010-03-10 2.6.34-26 new open/close API (versions between 2.6.27-2.6.30 have another, unsupported api)
  * v2 dba607f9 2012-02-28 3.3-rc4   remove .no_dynamic_id, .usb_driver, _init and _exit
  * v3 68e24113 2012-05-09 3.4-rc6   changes module_usb_serial_driver
  * ... anything newer doesn't matter as driver is now in mainline.
  */
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,3,0)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,26)
+#define API 0
+#elif LINUX_VERSION_CODE <= KERNEL_VERSION(3,3,0)
 #define API 1
-#else
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,4,0)
+#elif LINUX_VERSION_CODE <= KERNEL_VERSION(3,4,0)
 #define API 2
 #else
 #define API 3
-#endif
 #endif
 
 static const struct usb_device_id id_table[] = {
@@ -64,6 +65,35 @@ static int usb_gsi_openclose(struct usb_serial_port *port, int value)
 		5000); /* Timeout till operation fails */
 }
 
+#if API <= 0
+
+static int wishbone_serial_open(struct usb_serial_port *port,
+				struct file *filp)
+{
+	int retval;
+
+	retval = usb_gsi_openclose(port, 1);
+	if (retval) {
+		dev_err(&port->serial->dev->dev,
+		       "Could not mark device as open (%d)\n",
+		       retval);
+		return retval;
+	}
+
+	retval = usb_serial_generic_open(port, filp);
+	if (retval)
+		usb_gsi_openclose(port, 0);
+
+	return retval;
+}
+
+static void wishbone_serial_close(struct usb_serial_port *port, struct file *filp)
+{
+	usb_gsi_openclose(port, 0);
+}
+
+#else
+
 static int wishbone_serial_open(struct tty_struct *tty,
 				struct usb_serial_port *port)
 {
@@ -90,13 +120,16 @@ static void wishbone_serial_close(struct usb_serial_port *port)
 	usb_gsi_openclose(port, 0);
 }
 
+#endif
+
+
 #if API < 3
 static struct usb_driver wishbone_serial_driver = {
 	.name =		"wishbone_serial",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
-#if API == 1
+#if API <= 1
 	.no_dynamic_id =	1,
 #endif
 };
@@ -108,7 +141,7 @@ static struct usb_serial_driver wishbone_serial_device = {
 		.name =		"wishbone_serial",
 	},
 	.id_table =		id_table,
-#if API == 1
+#if API <= 1
 	.usb_driver =		&wishbone_serial_driver,
 #endif
 	.num_ports =		1,
@@ -116,7 +149,7 @@ static struct usb_serial_driver wishbone_serial_device = {
 	.close =		&wishbone_serial_close,
 };
 
-#if API == 1
+#if API <= 1
 
 static int __init wishbone_serial_init(void)
 {
@@ -146,7 +179,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&wishbone_serial_device, NULL
 };
 
-#if API == 2
+#if API <= 2
 module_usb_serial_driver(wishbone_serial_driver, serial_drivers);
 #else
 module_usb_serial_driver(serial_drivers, id_table);
