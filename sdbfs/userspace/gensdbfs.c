@@ -166,11 +166,21 @@ static int parse_config_line(struct sdbf *tree, struct sdbf *current, int line,
 		fprintf(stderr, "parse line %i for %s: %s\n", line,
 			current->fullname, t);
 
-	if (sscanf(t, "vendor = %lli", &int64) == 1) {
+	/*
+	 * Unfortunately, scanning as %i refuses "negative" hex values,
+	 * saturating at 0x7fffffff. But %u refuses the leading 0x.
+	 * In order to accept both positive decimal and hex, use %u first,
+	 * and if it returns 0 use %x. I still think hex saturation is a bug.
+	 */
+	if (sscanf(t, "vendor = %llu", &int64) == 1) {
+		if (int64 == 0)
+			sscanf(t, "vendor = %llx", &int64);
 		p->vendor_id = htonll(int64);
 		return 0;
 	}
-	if (sscanf(t, "device = %li", &int32) == 1) {
+	if (sscanf(t, "device = %lu", &int32) == 1) {
+		if (int32 == 0)
+			sscanf(t, "device = %lx", &int32);
 		p->device_id = htonl(int32);
 		return 0;
 	}
