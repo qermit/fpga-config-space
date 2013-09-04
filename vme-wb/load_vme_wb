@@ -1,0 +1,3 @@
+#!/bin/bash
+
+insmod vme_wb.ko slot=1 vmebase=0x0 vector=1 lun=1
