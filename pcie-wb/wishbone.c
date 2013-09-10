@@ -162,10 +162,13 @@ static void etherbone_master_process(struct etherbone_master_context* context)
 
 		/* Process the writes */
 		if (wcount > 0) {
-			wb_addr_t base_address;
+			wb_addr_t base_address, increment;
 			unsigned char j;
 			int wff = flags & ETHERBONE_WFF;
 			int wca = flags & ETHERBONE_WCA;
+			
+			/* increment=0 if wff!=0 */
+			increment = sizeof(wb_data_t) * (1 - (wff / ETHERBONE_WFF));
 			
 			/* Erase the header */
 			eb_from_cpu(buf+i, 0);
@@ -182,8 +185,7 @@ static void etherbone_master_process(struct etherbone_master_context* context)
 					eb_from_cpu(buf+i, 0);
 					i = RING_INDEX(i + sizeof(wb_data_t));
 					wops->write(wb, base_address, eb_to_cpu(buf+i));
-					
-					if (!wff) base_address += sizeof(wb_data_t);
+					base_address += increment;
 				}
 			}
 		}

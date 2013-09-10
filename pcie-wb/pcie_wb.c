@@ -125,7 +125,7 @@ static void wb_write(struct wishbone* wb, wb_addr_t addr, wb_data_t data)
 	window = dev->pci_res[1].addr;
 	
 	window_offset = addr & WINDOW_HIGH;
-	if (window_offset != dev->window_offset) {
+	if (unlikely(window_offset != dev->window_offset)) {
 		iowrite32(window_offset, control + WINDOW_OFFSET_LOW);
 		dev->window_offset = window_offset;
 	}
@@ -159,7 +159,7 @@ static wb_data_t wb_read(struct wishbone* wb, wb_addr_t addr)
 	window = dev->pci_res[1].addr;
 	
 	window_offset = addr & WINDOW_HIGH;
-	if (window_offset != dev->window_offset) {
+	if (unlikely(window_offset != dev->window_offset)) {
 		iowrite32(window_offset, control + WINDOW_OFFSET_LOW);
 		dev->window_offset = window_offset;
 	}
