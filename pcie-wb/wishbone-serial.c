@@ -21,22 +21,27 @@
 
 #define GSI_VENDOR_OPENCLOSE 0xB0
 
-/* v0                     2.6.26    oldest kernel supported by this driver
- * v1 2a1e7d5d 2010-03-10 2.6.34-26 new open/close API (versions between 2.6.27-2.6.30 have another, unsupported api)
- * v2 dba607f9 2012-02-28 3.3-rc4   remove .no_dynamic_id, .usb_driver, _init and _exit
- * v3 68e24113 2012-05-09 3.4-rc6   changes module_usb_serial_driver
- * ... anything newer doesn't matter as driver is now in mainline.
- */
-
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,26)
+#if LINUX_VERSION_CODE == KERNEL_VERSION(2,6,26)
 #define API 0
-#elif LINUX_VERSION_CODE <= KERNEL_VERSION(3,3,0)
+#elif LINUX_VERSION_CODE == KERNEL_VERSION(2,6,32)
 #define API 1
-#elif LINUX_VERSION_CODE <= KERNEL_VERSION(3,4,0)
+#elif LINUX_VERSION_CODE == KERNEL_VERSION(2,6,34)
 #define API 2
-#else
+#elif LINUX_VERSION_CODE == KERNEL_VERSION(3,0,0) && LINUX_VERSION_CODE < KERNEL_VERSION(3,1,0)
 #define API 3
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0) && LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0)
+#define API 4
+#elif LINUX_VERSION_CODE == KERNEL_VERSION(3,4,0) && LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0)
+#define API 5
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
+#define API 6
+#else
+#error Unsupported
 #endif
+
+#if API == 6
+/* Supported in mainline */
+#else
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1D50, 0x6062, 0xFF, 0xFF, 0xFF) },
@@ -65,75 +70,118 @@ static int usb_gsi_openclose(struct usb_serial_port *port, int value)
 		5000); /* Timeout till operation fails */
 }
 
-#if API <= 0
-
-static int wishbone_serial_open(struct usb_serial_port *port,
-				struct file *filp)
-{
-	int retval;
-
-	retval = usb_gsi_openclose(port, 1);
-	if (retval) {
-		dev_err(&port->serial->dev->dev,
-		       "Could not mark device as open (%d)\n",
-		       retval);
-		return retval;
-	}
-
-	retval = usb_serial_generic_open(port, filp);
-	if (retval)
-		usb_gsi_openclose(port, 0);
-
-	return retval;
-}
-
-static void wishbone_serial_close(struct usb_serial_port *port, struct file *filp)
-{
-	usb_gsi_openclose(port, 0);
-}
-
+#if API == 0
+static void wishbone_serial_set_termios(struct usb_serial_port *port, struct ktermios *old_termios)
 #else
-
-static int wishbone_serial_open(struct tty_struct *tty,
-				struct usb_serial_port *port)
+static void wishbone_serial_init_termios(struct tty_struct *tty)
+#endif
 {
-	int retval;
-
-	retval = usb_gsi_openclose(port, 1);
-	if (retval) {
-		dev_err(&port->serial->dev->dev,
-		       "Could not mark device as open (%d)\n",
-		       retval);
-		return retval;
-	}
-
-	retval = usb_serial_generic_open(tty, port);
-	if (retval)
-		usb_gsi_openclose(port, 0);
-
-	return retval;
-}
-
-static void wishbone_serial_close(struct usb_serial_port *port)
-{
-	usb_serial_generic_close(port);
-	usb_gsi_openclose(port, 0);
-}
-
+#if API == 0
+	struct ktermios *termios = port->tty->termios;
+#else
+	struct ktermios *termios = tty->termios;
 #endif
 
+	/*
+	 * The empeg-car player wants these particular tty settings.
+	 * You could, for example, change the baud rate, however the
+	 * player only supports 115200 (currently), so there is really
+	 * no point in support for changes to the tty settings.
+	 * (at least for now)
+	 *
+	 * The default requirements for this device are:
+	 */
+	termios->c_iflag
+		&= ~(IGNBRK	/* disable ignore break */
+		| BRKINT	/* disable break causes interrupt */
+		| PARMRK	/* disable mark parity errors */
+		| ISTRIP	/* disable clear high bit of input characters */
+		| INLCR		/* disable translate NL to CR */
+		| IGNCR		/* disable ignore CR */
+		| ICRNL		/* disable translate CR to NL */
+		| IXON);	/* disable enable XON/XOFF flow control */
 
-#if API < 3
+	termios->c_oflag
+		&= ~OPOST;	/* disable postprocess output characters */
+
+	termios->c_lflag
+		&= ~(ECHO	/* disable echo input characters */
+		| ECHONL	/* disable echo new line */
+		| ICANON	/* disable erase, kill, werase, and rprnt special characters */
+		| ISIG		/* disable interrupt, quit, and suspend special characters */
+		| IEXTEN);	/* disable non-POSIX special characters */
+
+	termios->c_cflag
+		&= ~(CSIZE	/* no size */
+		| PARENB	/* disable parity bit */
+		| CBAUD);	/* clear current baud rate */
+
+	termios->c_cflag
+		|= CS8;		/* character size 8 bits */
+
+#if API == 0
+	port->tty->low_latency = 1;
+	tty_encode_baud_rate(port->tty, 115200, 115200);
+#else
+	tty_encode_baud_rate(tty, 115200, 115200);
+#endif
+}
+
+#if API == 0
+static int wishbone_serial_open(struct usb_serial_port *port, struct file *filp)
+#else
+static int wishbone_serial_open(struct tty_struct *tty, struct usb_serial_port *port)
+#endif
+{
+	int retval;
+
+	retval = usb_gsi_openclose(port, 1);
+	if (retval) {
+		dev_err(&port->serial->dev->dev,
+		       "Could not mark device as open (%d)\n",
+		       retval);
+		return retval;
+	}
+	
+#if API == 0
+	wishbone_serial_set_termios(port, NULL);
+#endif
+
+#if API == 0
+	retval = usb_serial_generic_open(port, filp);
+#else
+	retval = usb_serial_generic_open(tty, port);
+#endif
+	if (retval)
+		usb_gsi_openclose(port, 0);
+
+	return retval;
+}
+
+#if API == 0
+static void wishbone_serial_close(struct usb_serial_port *port, struct file *filp)
+#else
+static void wishbone_serial_close(struct usb_serial_port *port)
+#endif
+{
+#if API <= 2
+	usb_kill_urb(port->write_urb);
+	usb_kill_urb(port->read_urb);
+#else
+	usb_serial_generic_close(port);
+#endif
+	usb_gsi_openclose(port, 0);
+}
+
 static struct usb_driver wishbone_serial_driver = {
 	.name =		"wishbone_serial",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
-#if API <= 1
+#if API <= 4
 	.no_dynamic_id =	1,
 #endif
 };
-#endif
 
 static struct usb_serial_driver wishbone_serial_device = {
 	.driver = {
@@ -141,15 +189,20 @@ static struct usb_serial_driver wishbone_serial_device = {
 		.name =		"wishbone_serial",
 	},
 	.id_table =		id_table,
-#if API <= 1
+#if API <= 4
 	.usb_driver =		&wishbone_serial_driver,
 #endif
 	.num_ports =		1,
-	.open =			&wishbone_serial_open,
-	.close =		&wishbone_serial_close,
+	.open =			wishbone_serial_open,
+	.close =		wishbone_serial_close,
+#if API == 0
+	.set_termios =		wishbone_serial_set_termios,
+#else
+	.init_termios =		wishbone_serial_init_termios,
+#endif
 };
 
-#if API <= 1
+#if API <= 4
 
 static int __init wishbone_serial_init(void)
 {
@@ -179,15 +232,11 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&wishbone_serial_device, NULL
 };
 
-#if API <= 2
 module_usb_serial_driver(wishbone_serial_driver, serial_drivers);
-#else
-module_usb_serial_driver(serial_drivers, id_table);
-#endif
 
 #endif
 
 MODULE_AUTHOR("Wesley W. Terpstra <w.terpstra@gsi.de>");
 MODULE_DESCRIPTION("USB Wishbone-Serial adapter");
 MODULE_LICENSE("GPL");
-
+#endif
