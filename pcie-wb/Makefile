@@ -14,6 +14,7 @@ else
 
 KERNELVER ?= `uname -r`
 KERNELDIR ?= /lib/modules/$(KERNELVER)/build
+PWD       := $(shell pwd)
 
 all:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD)
