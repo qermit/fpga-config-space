@@ -22,11 +22,9 @@
 #define GSI_VENDOR_OPENCLOSE 0xB0
 
 #if   LINUX_VERSION_CODE == KERNEL_VERSION(2,6,26)
-#define API 0
-#elif LINUX_VERSION_CODE == KERNEL_VERSION(2,6,32)
 #define API 1
-#elif LINUX_VERSION_CODE == KERNEL_VERSION(2,6,34)
-#define API 2
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32) && LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,39)
+#define API 2 /* v2.6.32 v2.6.33 v2.6.34 v2.6.35 v2.6.36 v2.6.37 v2.6.38 v2.6.39 */
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0) && LINUX_VERSION_CODE < KERNEL_VERSION(3,2,0)
 #define API 3 /* v3.0 v3.1 */
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0) && LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0)
@@ -73,13 +71,13 @@ static int usb_gsi_openclose(struct usb_serial_port *port, int value)
 		5000); /* Timeout till operation fails */
 }
 
-#if API <= 0
+#if API <= 1
 static void wishbone_serial_set_termios(struct usb_serial_port *port, struct ktermios *old_termios)
-#else /* API >= 1 */
+#else /* API >= 2 */
 static void wishbone_serial_init_termios(struct tty_struct *tty)
 #endif
 {
-#if API <= 0
+#if API <= 1
 	struct ktermios *termios = port->tty->termios;
 #elif API <= 6
 	struct ktermios *termios = tty->termios;
@@ -124,17 +122,17 @@ static void wishbone_serial_init_termios(struct tty_struct *tty)
 	termios->c_cflag
 		|= CS8;		/* character size 8 bits */
 
-#if API <= 0
+#if API <= 1
 	port->tty->low_latency = 1;
 	tty_encode_baud_rate(port->tty, 115200, 115200);
-#else /* API >= 1 */
+#else /* API >= 2 */
 	tty_encode_baud_rate(tty, 115200, 115200);
 #endif
 }
 
-#if API <= 0
+#if API <= 1
 static int wishbone_serial_open(struct usb_serial_port *port, struct file *filp)
-#else /* API >= 1 */
+#else /* API >= 2 */
 static int wishbone_serial_open(struct tty_struct *tty, struct usb_serial_port *port)
 #endif
 {
@@ -148,13 +146,13 @@ static int wishbone_serial_open(struct tty_struct *tty, struct usb_serial_port *
 		return retval;
 	}
 	
-#if API <= 0
+#if API <= 1
 	wishbone_serial_set_termios(port, NULL);
 #endif
 
-#if API <= 0
+#if API <= 1
 	retval = usb_serial_generic_open(port, filp);
-#else /* API >= 1 */
+#else /* API >= 2 */
 	retval = usb_serial_generic_open(tty, port);
 #endif
 	if (retval)
@@ -163,9 +161,9 @@ static int wishbone_serial_open(struct tty_struct *tty, struct usb_serial_port *
 	return retval;
 }
 
-#if API <= 0
+#if API <= 1
 static void wishbone_serial_close(struct usb_serial_port *port, struct file *filp)
-#else /* API >= 1 */
+#else /* API >= 2 */
 static void wishbone_serial_close(struct usb_serial_port *port)
 #endif
 {
@@ -202,9 +200,9 @@ static struct usb_serial_driver wishbone_serial_device = {
 	.num_ports =		1,
 	.open =			wishbone_serial_open,
 	.close =		wishbone_serial_close,
-#if API <= 0
+#if API <= 1
 	.set_termios =		wishbone_serial_set_termios,
-#else /* API >= 1 */
+#else /* API >= 2 */
 	.init_termios =		wishbone_serial_init_termios,
 #endif
 };
