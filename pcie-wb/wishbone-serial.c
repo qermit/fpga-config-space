@@ -36,6 +36,7 @@
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0) && LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
 #define API 7 /* v3.7 v3.8 v3.9 */
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
+#error Enable and use the driver in your native kernel, not this one
 #define API 8 /* v3.10+ */
 #else
 #error Unsupported kernel version
