@@ -21,27 +21,30 @@
 
 #define GSI_VENDOR_OPENCLOSE 0xB0
 
-#if LINUX_VERSION_CODE == KERNEL_VERSION(2,6,26)
+#if   LINUX_VERSION_CODE == KERNEL_VERSION(2,6,26)
 #define API 0
 #elif LINUX_VERSION_CODE == KERNEL_VERSION(2,6,32)
 #define API 1
 #elif LINUX_VERSION_CODE == KERNEL_VERSION(2,6,34)
 #define API 2
-#elif LINUX_VERSION_CODE == KERNEL_VERSION(3,0,0) && LINUX_VERSION_CODE < KERNEL_VERSION(3,1,0)
-#define API 3
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0) && LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0)
-#define API 4
-#elif LINUX_VERSION_CODE == KERNEL_VERSION(3,4,0) && LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0)
-#define API 5
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0) && LINUX_VERSION_CODE < KERNEL_VERSION(3,2,0)
+#define API 3 /* v3.0 v3.1 */
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0) && LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0)
+#define API 4 /* v3.2 v3.3 */
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0) && LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0)
+#define API 5 /* v3.4 */
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) && LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
+#define API 6 /* v3.5 v3.6 */
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0) && LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+#define API 7 /* v3.7 v3.8 v3.9 */
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
-#define API 6
+#define API 8 /* v3.10+ */
 #else
-#error Unsupported
+#error Unsupported kernel version
+#define API 8
 #endif
 
-#if API == 6
-/* Supported in mainline */
-#else
+#if API <= 7
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1D50, 0x6062, 0xFF, 0xFF, 0xFF) },
@@ -70,16 +73,18 @@ static int usb_gsi_openclose(struct usb_serial_port *port, int value)
 		5000); /* Timeout till operation fails */
 }
 
-#if API == 0
+#if API <= 0
 static void wishbone_serial_set_termios(struct usb_serial_port *port, struct ktermios *old_termios)
-#else
+#else /* API >= 1 */
 static void wishbone_serial_init_termios(struct tty_struct *tty)
 #endif
 {
-#if API == 0
+#if API <= 0
 	struct ktermios *termios = port->tty->termios;
-#else
+#elif API <= 6
 	struct ktermios *termios = tty->termios;
+#else /* API >= 7 */
+	struct ktermios *termios = &tty->termios;
 #endif
 
 	/*
@@ -119,17 +124,17 @@ static void wishbone_serial_init_termios(struct tty_struct *tty)
 	termios->c_cflag
 		|= CS8;		/* character size 8 bits */
 
-#if API == 0
+#if API <= 0
 	port->tty->low_latency = 1;
 	tty_encode_baud_rate(port->tty, 115200, 115200);
-#else
+#else /* API >= 1 */
 	tty_encode_baud_rate(tty, 115200, 115200);
 #endif
 }
 
-#if API == 0
+#if API <= 0
 static int wishbone_serial_open(struct usb_serial_port *port, struct file *filp)
-#else
+#else /* API >= 1 */
 static int wishbone_serial_open(struct tty_struct *tty, struct usb_serial_port *port)
 #endif
 {
@@ -143,13 +148,13 @@ static int wishbone_serial_open(struct tty_struct *tty, struct usb_serial_port *
 		return retval;
 	}
 	
-#if API == 0
+#if API <= 0
 	wishbone_serial_set_termios(port, NULL);
 #endif
 
-#if API == 0
+#if API <= 0
 	retval = usb_serial_generic_open(port, filp);
-#else
+#else /* API >= 1 */
 	retval = usb_serial_generic_open(tty, port);
 #endif
 	if (retval)
@@ -158,21 +163,22 @@ static int wishbone_serial_open(struct tty_struct *tty, struct usb_serial_port *
 	return retval;
 }
 
-#if API == 0
+#if API <= 0
 static void wishbone_serial_close(struct usb_serial_port *port, struct file *filp)
-#else
+#else /* API >= 1 */
 static void wishbone_serial_close(struct usb_serial_port *port)
 #endif
 {
 #if API <= 2
 	usb_kill_urb(port->write_urb);
 	usb_kill_urb(port->read_urb);
-#else
+#else /* API >= 3 */
 	usb_serial_generic_close(port);
 #endif
 	usb_gsi_openclose(port, 0);
 }
 
+#if API <= 5
 static struct usb_driver wishbone_serial_driver = {
 	.name =		"wishbone_serial",
 	.probe =	usb_serial_probe,
@@ -182,6 +188,7 @@ static struct usb_driver wishbone_serial_driver = {
 	.no_dynamic_id =	1,
 #endif
 };
+#endif
 
 static struct usb_serial_driver wishbone_serial_device = {
 	.driver = {
@@ -189,15 +196,15 @@ static struct usb_serial_driver wishbone_serial_device = {
 		.name =		"wishbone_serial",
 	},
 	.id_table =		id_table,
-#if API <= 4
+#if API <= 5
 	.usb_driver =		&wishbone_serial_driver,
 #endif
 	.num_ports =		1,
 	.open =			wishbone_serial_open,
 	.close =		wishbone_serial_close,
-#if API == 0
+#if API <= 0
 	.set_termios =		wishbone_serial_set_termios,
-#else
+#else /* API >= 1 */
 	.init_termios =		wishbone_serial_init_termios,
 #endif
 };
@@ -226,17 +233,24 @@ static void __exit wishbone_serial_exit(void)
 module_init(wishbone_serial_init);
 module_exit(wishbone_serial_exit);
 
-#else
+#else /* API >= 5 */
 
 static struct usb_serial_driver * const serial_drivers[] = {
 	&wishbone_serial_device, NULL
 };
 
+#if API <= 5
 module_usb_serial_driver(wishbone_serial_driver, serial_drivers);
+#else /* API >= 6 */
+module_usb_serial_driver(serial_drivers, id_table);
+#endif
 
 #endif
 
 MODULE_AUTHOR("Wesley W. Terpstra <w.terpstra@gsi.de>");
 MODULE_DESCRIPTION("USB Wishbone-Serial adapter");
 MODULE_LICENSE("GPL");
+
+#else /* API >= 8 */
+/* Supported in mainline */
 #endif

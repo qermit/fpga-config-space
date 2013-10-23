@@ -14,6 +14,7 @@
 #include <linux/device.h>
 #include <linux/sched.h>
 #include <linux/version.h>
+#include <linux/slab.h>
 
 #include "wishbone.h"
 
