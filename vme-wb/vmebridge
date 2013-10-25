@@ -6,6 +6,7 @@ echo "checking if the project vetar-drv is in the root path of fpga-config-space
 
 if [ ! -d "$DIRECTORY" ]; then
 	echo "I didn't the project and it is needed for compiling this one, I'm cloning from the repo"
+	cd ../../
 	git clone https://github.com/vetarWare/vetar_drv.git
 fi
 
