@@ -21,23 +21,27 @@
 
 #define VME_VENDOR_ID_OFFSET	0x24
 
+#define CONTROL_REGISTER 0
+#define ERROR_FLAG    0
+#define SDWB_ADDRESS  8
+
 enum vme_map_win {
 	MAP_CR_CSR = 0,	/* CR/CSR */
-	MAP_REG		/* A32 space */
+	MAP_REG,		/* A32 wb space */
+	MAP_CTRL		/* A24 wb ctrl space*/
 };
 
 /* Our device structure */
 struct vme_dev {
 	int			lun;
 	int			slot;
-	uint32_t		vmebase;
+	uint32_t	vmebase;
 	int			vector;
 	int			level;
 
-	//struct device		*dev;
 	char			driver[16];
 	char			description[80];
-	struct vme_mapping	*map[2];
+	struct vme_mapping	*map[3];
 
 	/* struct work_struct	work; */
 	unsigned long		irqcount;
@@ -50,17 +54,20 @@ struct vme_wb_dev {
 	struct wishbone wb;
 	struct vme_dev 	vme_res;
 	struct mutex 	mutex;
+  	unsigned int window_offset;
+   	unsigned int low_addr, width, shift;
+
 };
 
 /* Functions and data in vme_wb.c */
-extern void vme_setup_csr_fa0(void *base, u32 vme, unsigned vector,
-			       unsigned level);
+extern void vme_setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level);
 extern int vme_unmap_window(struct vme_wb_dev *vetar, enum vme_map_win map_type);
 extern int vme_map_window( struct vme_wb_dev *vetar, enum vme_map_win map_type);
 
 
 /* VME CSR offsets */
 #define FUN0ADER	0x7FF63
+#define FUN1ADER	0x7FF73
 #define INT_LEVEL	0x7ff5b
 #define INTVECTOR	0x7ff5f
 #define WB_32_64	0x7ff33
