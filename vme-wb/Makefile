@@ -15,8 +15,8 @@ KERNELDIR ?= /lib/modules/$(KERNELVER)/build
 
 ifneq ($(KERNELRELEASE),)
 	obj-m	:= vme_wb.o
-	ccflags-y := -I/root/vetar_drv/vmebridge/driver
-	ccflags-y += -I/root/fpga-config-space/pcie-wb
+	ccflags-y := -I/../../vetar_drv/vmebridge/driver
+	ccflags-y += -I../pcie-wb
 	vetar-objs := vme-wb.o
 else
 	KERNELDIR ?= /lib/modules/$(shell uname -r)/build
@@ -27,7 +27,10 @@ KBUILD_EXTRA_SYMBOLS += $(M)/Module.symvers.vme
 
 all: modules
 
-modules:
+check_mod:
+	./vmebridge
+
+modules: check_mod
 	$(MAKE) -C $(KERNELDIR) M=$(PWD)
 
 install:
