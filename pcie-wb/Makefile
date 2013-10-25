@@ -20,8 +20,10 @@ all:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD)
 
 install:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
-	depmod -a
+	$(MAKE) -C $(KERNELDIR) M=$(PWD) INSTALL_MOD_PATH=$(ROOT) modules_install
+	mkdir -p $(ROOT)/etc/udev/rules.d
+	cp 95-pcie-wb.rules $(ROOT)/etc/udev/rules.d
+	[ $$(id -u) -ne 0 ] || depmod -a
 
 clean:
 	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions
