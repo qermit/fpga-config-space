@@ -20,9 +20,9 @@ all:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD)
 
 install:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) INSTALL_MOD_PATH=$(ROOT) modules_install
-	mkdir -p $(ROOT)/etc/udev/rules.d
-	cp 95-pcie-wb.rules $(ROOT)/etc/udev/rules.d
+	$(MAKE) -C $(KERNELDIR) M=$(PWD) INSTALL_MOD_PATH=$(STAGING) modules_install
+	mkdir -p $(STAGING)/etc/udev/rules.d
+	cp 95-pcie-wb.rules $(STAGING)/etc/udev/rules.d
 	[ $$(id -u) -ne 0 ] || depmod -a
 
 clean:
