@@ -24,6 +24,7 @@ install:
 	mkdir -p $(STAGING)/etc/udev/rules.d
 	cp 95-pcie-wb.rules $(STAGING)/etc/udev/rules.d
 	[ $$(id -u) -ne 0 ] || depmod -a
+	[ $$(id -u) -ne 0 ] || groupadd wishbone || true
 
 clean:
 	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions
