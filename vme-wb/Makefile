@@ -9,28 +9,34 @@
 #OBJCOPY =$(CROSS_COMPILE)objcopy
 #OBJDUMP =$(CROSS_COMPILE)objdump
 
-
 KERNELVER ?= `uname -r`
 KERNELDIR ?= /lib/modules/$(KERNELVER)/build
+REPO_VME  = git://ohwr.org/hdl-core-lib/vme64x-core/legacy-vme64x-core.git
+DRV_DIR = $(shell pwd)/../../legacy-vme64x-core
+
 
 ifneq ($(KERNELRELEASE),)
 	obj-m	:= vme_wb.o
-	ccflags-y := -I/../../vetar_drv/vmebridge/driver
-	ccflags-y += -I../pcie-wb
-	vetar-objs := vme-wb.o
+	ccflags-y := -I$(M)/../../legacy-vme64x-core/drv/driver
+	ccflags-y += -I$(M)/../pcie-wb
 else
 	KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 	PWD       := $(shell pwd)
 
-KBUILD_EXTRA_SYMBOLS :=  $(M)/Module.symvers.wb
-KBUILD_EXTRA_SYMBOLS += $(M)/Module.symvers.vme
+#KBUILD_EXTMOD :=  $(PWD)/../pcie-wb/Module.symvers
+#KBUILD_EXTRA_SYMBOLS += $(M)/Module.symvers.vme
 
-all: modules
+all: gitmodules wishbone modules
 
-check_mod:
-	./vmebridge
+gitmodules:
+	@test -d $(DRV_DIR) &&  \
+	echo "Driver source code found" || \
+	git clone $(REPO_VME) $(DRV_DIR)
 
-modules: check_mod
+wishbone:
+	$(MAKE) -C ../pcie-wb
+
+modules:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD)
 
 install:
