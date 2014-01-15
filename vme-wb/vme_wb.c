@@ -32,7 +32,9 @@ static unsigned int slot_num;
 static unsigned int vmebase[VME_MAX_DEVICES];
 static unsigned int vmebase_num;
 static int vector[VME_MAX_DEVICES];
+static int level[VME_MAX_DEVICES];
 static unsigned int vector_num;
+static unsigned int vector_lev;
 static int lun[VME_MAX_DEVICES] = VME_DEFAULT_IDX;
 static unsigned int lun_num;
 static unsigned int debug = 0;
@@ -286,7 +288,7 @@ int vme_map_window(struct vme_wb_dev *vme_dev, enum vme_map_win map_type)
 		am = VME_A32_USER_MBLT;	/* or VME_A32_USER_DATA_SCT */
 		dw = VME_D32;
 		//base = vme_dev->vme_res.vmebase;
-		base = vme_dev->vme_res.slot * 0x1000000;
+      base = vme_dev->vme_res.slot * 0x10000000;
 		size = 0x1000000;
 		map_type_c = "WB MAP REG";
 	} else if (map_type == MAP_CTRL) {
@@ -382,11 +384,6 @@ void vme_setup_csr_fa0(void *base, u32 wb_vme, unsigned vector, unsigned level)
 	vme_csr_write(level, base, IRQ_LEVEL);
 
 	/*do address relocation for FUN0, WB data mapping */
-//  fa[0] = (wb_vme >> 24) & 0xFF;
-//  fa[1] = (wb_vme >> 16) & 0xFF;
-//  fa[2] = (wb_vme >> 8 ) & 0xFF;
-//  fa[3] = (VME_A32_USER_MBLT & 0x3F) << 2; /* or VME_A32_USER_DATA_SCT */
-
 	fa[0] = (wb_add >> 24) & 0xFF;
 	fa[1] = (wb_add >> 16) & 0xFF;
 	fa[2] = (wb_add >> 8) & 0xFF;
@@ -398,11 +395,6 @@ void vme_setup_csr_fa0(void *base, u32 wb_vme, unsigned vector, unsigned level)
 	vme_csr_write(fa[3], base, FUN0ADER + 12);
 
 	/*do address relocation for FUN1, WB control mapping */
-//  fa[0] = 0x00;
-//  fa[1] = 0x00;
-//  fa[2] = (wb_vme >> 24 ) & 0xFF;
-//  fa[3] = (VME_A24_USER_MBLT & 0x3F) << 2;
-
 	fa[0] = (wb_ctrl_add >> 24) & 0xFF;
 	fa[1] = (wb_ctrl_add >> 16) & 0xFF;
 	fa[2] = (wb_ctrl_add >> 8) & 0xFF;
@@ -482,7 +474,7 @@ static int vme_probe(struct device *pdev, unsigned int ndev)
 	dev->vme_res.slot = slot[ndev];
 	dev->vme_res.vmebase = vmebase[ndev];
 	dev->vme_res.vector = vector[ndev];
-	dev->vme_res.level = VME_IRQ_LEVEL;	/* Default value */
+	dev->vme_res.level = level[ndev];	/* Default value */
 	dev->vme_dev = pdev;
 	mutex_init(&dev->mutex);
 	dev->wb.wops = &wb_ops;
@@ -515,9 +507,6 @@ static int vme_probe(struct device *pdev, unsigned int ndev)
 	dev_set_drvdata(dev->vme_dev, dev);
 
 	/* configure and activate function 0 */
-	//vme_setup_csr_fa0(dev->vme_res.map[MAP_CR_CSR]->kernel_va, vmebase[ndev],
-	//                             vector[ndev], dev->vme_res.level);
-
 	vme_setup_csr_fa0(dev->vme_res.map[MAP_CR_CSR]->kernel_va,
 			  dev->vme_res.slot, vector[ndev], dev->vme_res.level);
 
@@ -602,6 +591,8 @@ module_param_array(vmebase, uint, &vmebase_num, S_IRUGO);
 MODULE_PARM_DESC(vmebase, "VME Base address of the VME card registers");
 module_param_array(vector, int, &vector_num, S_IRUGO);
 MODULE_PARM_DESC(vector, "IRQ vector");
+module_param_array(level, int, &vector_lev, S_IRUGO);
+MODULE_PARM_DESC(level, "IRQ level");
 module_param_array(lun, int, &lun_num, S_IRUGO);
 MODULE_PARM_DESC(lun, "Index value for VME card");
 module_param(debug, int, 0644);
