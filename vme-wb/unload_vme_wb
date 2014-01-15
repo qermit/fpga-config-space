@@ -1,0 +1,3 @@
+#!/bin/bash
+
+rmmod vme_wb.ko
