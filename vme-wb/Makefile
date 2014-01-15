@@ -1,32 +1,19 @@
-# This is useful if cross-compiling. Taken from kernel Makefile (CC changed)
-#AS      =$(CROSS_COMPILE)as
-#LD      =$(CROSS_COMPILE)ld
-#CC      =$(CROSS_COMPILE)gcc
-#CPP     =$(CC) -E
-#AR      =$(CROSS_COMPILE)ar
-#NM      =$(CROSS_COMPILE)nm
-#STRIP   =$(CROSS_COMPILE)strip
-#OBJCOPY =$(CROSS_COMPILE)objcopy
-#OBJDUMP =$(CROSS_COMPILE)objdump
-
-KERNELVER ?= `uname -r`
-KERNELDIR ?= /lib/modules/$(KERNELVER)/build
 REPO_VME  = git://ohwr.org/hdl-core-lib/vme64x-core/legacy-vme64x-core.git
 DRV_DIR = $(shell pwd)/../../legacy-vme64x-core
 
 
 ifneq ($(KERNELRELEASE),)
+KBUILD_EXTRA_SYMBOLS += $(M)/../pcie-wb/Module.symvers $(M)/../../legacy-vme64x-core/drv/driver/Module.symvers	
 	obj-m	:= vme_wb.o
 	ccflags-y := -I$(M)/../../legacy-vme64x-core/drv/driver
 	ccflags-y += -I$(M)/../pcie-wb
 else
-	KERNELDIR ?= /lib/modules/$(shell uname -r)/build
-	PWD       := $(shell pwd)
 
-#KBUILD_EXTMOD :=  $(PWD)/../pcie-wb/Module.symvers
-#KBUILD_EXTRA_SYMBOLS += $(M)/Module.symvers.vme
+KERNELVER ?= `uname -r`
+KERNELDIR ?= /lib/modules/$(KERNELVER)/build
+PWD       := $(shell pwd)
 
-all: gitmodules wishbone modules
+all: gitmodules wishbone vme modules
 
 gitmodules:
 	@test -d $(DRV_DIR) &&  \
@@ -34,7 +21,10 @@ gitmodules:
 	git clone $(REPO_VME) $(DRV_DIR)
 
 wishbone:
-	$(MAKE) -C ../pcie-wb
+	$(MAKE) -C ../pcie-wb KERNELVER="$(KERNELVER)" KERNELDIR="$(KERNELDIR)"
+
+vme:
+	$(MAKE) -C ../../legacy-vme64x-core/drv/driver KERNELVER="$(KERNELVER)" KERNELDIR="$(KERNELDIR)"
 
 modules:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD)
@@ -42,8 +32,7 @@ modules:
 install:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
 
-endif
-
 clean:
 	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions
 
+endif
