@@ -106,9 +106,12 @@ static void wb_write(struct wishbone *wb, wb_addr_t addr, wb_data_t data)
 {
 	struct vme_wb_dev *dev;
 	unsigned char *reg_win;
+	unsigned char *ctrl_win;
 
 	dev = container_of(wb, struct vme_wb_dev, wb);
 	reg_win = dev->vme_res.map[MAP_REG]->kernel_va;
+	ctrl_win = dev->vme_res.map[MAP_CTRL]->kernel_va;
+
 	addr = addr << 2;
 
 	switch (dev->width) {
@@ -116,19 +119,22 @@ static void wb_write(struct wishbone *wb, wb_addr_t addr, wb_data_t data)
 		if (unlikely(debug))
 			printk(KERN_ALERT VME_WB ": iowrite32(0x%x, 0x%x)\n",
 			       data, addr);
+	    iowrite32(swapbe32(EMUL_32_BIT), ctrl_win + EMUL_DAT_WD);
 		iowrite32(data, reg_win + addr);
 		break;
 	case 2:
 		if (unlikely(debug))
 			printk(KERN_ALERT VME_WB ": iowrite16(0x%x, 0x%x)\n",
 			       data >> dev->shift, addr);
+	    iowrite32(swapbe32(EMUL_16_BIT), ctrl_win + EMUL_DAT_WD);
 		iowrite16(data >> dev->shift, reg_win + addr);
 		break;
 	case 1:
 		if (unlikely(debug))
 			printk(KERN_ALERT VME_WB ": iowrite8(0x%x, 0x%x)\n",
 			       data >> dev->shift, addr);
-		iowrite8(data >> dev->shift, reg_win + addr);
+	    iowrite32(swapbe32(EMUL_8_BIT), ctrl_win + EMUL_DAT_WD);
+		iowrite32(data >> dev->shift, reg_win + addr);
 		break;
 	}
 

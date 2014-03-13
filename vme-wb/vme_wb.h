@@ -18,30 +18,36 @@
 #define VME_DEFAULT_IDX { [0 ... (VME_MAX_DEVICES-1)] = -1 }
 
 /* VME CSR offsets */
-#define FUN0ADER 0x7FF63
-#define FUN1ADER 0x7FF73
-#define WB_32_64 0x7ff33
+#define FUN0ADER    0x7FF63
+#define FUN1ADER    0x7FF73
+#define WB_32_64    0x7ff33
 #define BIT_SET_REG 0x7FFFB
 #define BIT_CLR_REG 0x7FFF7
-#define IRQ_VECTOR 0x7FF5F
-#define IRQ_LEVEL 0x7FF5B
+#define IRQ_VECTOR  0x7FF5F
+#define IRQ_LEVEL   0x7FF5B
 #define VME_VENDOR_ID_OFFSET 0x24
 
 /* VME CSR VALUES */
 #define WB32 1
 #define WB64 0
-#define RESET_CORE 0x80
+#define RESET_CORE  0x80
 #define ENABLE_CORE 0x10
 #define VME_IRQ_LEVEL 0x6
 #define VME_VENDOR_ID 0x80031
 
-/* VME WB Interdace*/
-#define ERROR_FLAG 0
-#define SDWB_ADDRESS 8
-#define CTRL 16
-#define MASTER_CTRL 24
-#define MASTER_ADD 32
-#define MASTER_DATA 40
+/* VME WB Interdace */
+#define ERROR_FLAG      0
+#define SDWB_ADDRESS    8
+#define CTRL            16
+#define MASTER_CTRL     24
+#define MASTER_ADD      32
+#define MASTER_DATA     40
+#define EMUL_DAT_WD     48
+
+/* Data width emulation */
+#define EMUL_8_BIT  1 
+#define EMUL_16_BIT 2
+#define EMUL_32_BIT 3
 
 enum vme_map_win {
 	MAP_CR_CSR = 0,		/* CR/CSR */
