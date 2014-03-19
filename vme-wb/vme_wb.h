@@ -42,6 +42,9 @@
 #define MASTER_CTRL 24
 #define MASTER_ADD 32
 #define MASTER_DATA 40
+#define EMUL_DAT_WD 48
+
+#define WBM_ADD_MASK 0xFFFFFFFC
 
 enum vme_map_win {
 	MAP_CR_CSR = 0,		/* CR/CSR */

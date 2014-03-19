@@ -32,16 +32,12 @@ static unsigned int slot_num;
 static unsigned int vmebase[VME_MAX_DEVICES];
 static unsigned int vmebase_num;
 static int vector[VME_MAX_DEVICES];
+static int level[VME_MAX_DEVICES];
 static unsigned int vector_num;
+static unsigned int vector_lev;
 static int lun[VME_MAX_DEVICES] = VME_DEFAULT_IDX;
 static unsigned int lun_num;
 static unsigned int debug = 0;
-
-static unsigned int swapbe32(unsigned int val)
-{
-	return (((val & 0xff000000) >> 24) | ((val & 0xff0000) >> 8) |
-		((val & 0xff00) << 8) | ((val & 0xff) << 24));
-}
 
 static void wb_cycle(struct wishbone *wb, int on)
 {
@@ -58,7 +54,7 @@ static void wb_cycle(struct wishbone *wb, int on)
 	if (unlikely(debug))
 		printk(KERN_ALERT ": Cycle(%d)\n", on);
 
-	iowrite32(swapbe32((on ? 0x80000000UL : 0) + 0x40000000UL),
+	iowrite32(cpu_to_be32((on ? 0x80000000UL : 0) + 0x40000000UL),
 		  ctrl_win + CTRL);
 
 	if (!on)
@@ -95,7 +91,7 @@ static wb_data_t wb_read_cfg(struct wishbone *wb, wb_addr_t addr)
 		break;
 	}
 
-	mb();			/* ensure serial ordering of non-posted operations for wishbone */
+	mb(); /* ensure serial ordering of non-posted operations for wishbone */
 
 	return out;
 }
@@ -107,30 +103,14 @@ static void wb_write(struct wishbone *wb, wb_addr_t addr, wb_data_t data)
 
 	dev = container_of(wb, struct vme_wb_dev, wb);
 	reg_win = dev->vme_res.map[MAP_REG]->kernel_va;
-	addr = addr << 2;
+   addr = addr & WBM_ADD_MASK;
 
-	switch (dev->width) {
-	case 4:
-		if (unlikely(debug))
-			printk(KERN_ALERT VME_WB ": iowrite32(0x%x, 0x%x)\n",
-			       data, addr);
-		iowrite32(data, reg_win + addr);
-		break;
-	case 2:
-		if (unlikely(debug))
-			printk(KERN_ALERT VME_WB ": iowrite16(0x%x, 0x%x)\n",
-			       data >> dev->shift, addr);
-		iowrite16(data >> dev->shift, reg_win + addr);
-		break;
-	case 1:
-		if (unlikely(debug))
-			printk(KERN_ALERT VME_WB ": iowrite8(0x%x, 0x%x)\n",
-			       data >> dev->shift, addr);
-		iowrite8(data >> dev->shift, reg_win + addr);
-		break;
-	}
+   if (unlikely(debug))
+      printk(KERN_ALERT VME_WB ": iowrite32(0x%x, 0x%x)\n",
+             data, addr);
+   iowrite32(cpu_to_be32(data), reg_win + addr);
 
-	if (unlikely(debug))
+   if (unlikely(debug))
 		printk(KERN_ALERT VME_WB ": WRITE \n");
 }
 
@@ -142,8 +122,7 @@ static wb_data_t wb_read(struct wishbone *wb, wb_addr_t addr)
 
 	dev = container_of(wb, struct vme_wb_dev, wb);
 	reg_win = dev->vme_res.map[MAP_REG]->kernel_va;
-
-	addr = addr << 2;	/* convertion of the map from VME to WB32 */
+   addr = addr & WBM_ADD_MASK;
 
 	out = be32_to_cpu(ioread32(reg_win + (addr)));
 
@@ -169,7 +148,7 @@ static int wb_request(struct wishbone *wb, struct wishbone_request *req)
 	req->mask = ctrl & 0xf;
 	req->write = (ctrl & 0x40000000) != 0;
 
-	iowrite32(swapbe32(1), ctrl_win + MASTER_CTRL);	/* dequeue operation */
+	iowrite32(cpu_to_be32(1), ctrl_win + MASTER_CTRL);	/* dequeue operation */
 
 	if (unlikely(debug))
 		printk(KERN_ALERT
@@ -188,8 +167,8 @@ static void wb_reply(struct wishbone *wb, int err, wb_data_t data)
 	dev = container_of(wb, struct vme_wb_dev, wb);
 	ctrl_win = dev->vme_res.map[MAP_CTRL]->kernel_va;
 
-	iowrite32(swapbe32(data), ctrl_win + MASTER_DATA);
-	iowrite32(swapbe32(err + 2), ctrl_win + MASTER_CTRL);
+	iowrite32(cpu_to_be32(data), ctrl_win + MASTER_DATA);
+	iowrite32(cpu_to_be32(err + 2), ctrl_win + MASTER_CTRL);
 
 	if (unlikely(debug))
 		printk(KERN_ALERT "WB REPLY: pushing data %x reply %x\n", data,
@@ -200,50 +179,11 @@ static void wb_byteenable(struct wishbone *wb, unsigned char be)
 {
 
 	struct vme_wb_dev *dev;
+	unsigned char *ctrl_win;
 
 	dev = container_of(wb, struct vme_wb_dev, wb);
-
-	switch (be) {
-	case 0x1:
-		dev->width = 1;
-		dev->shift = 0;
-		dev->low_addr = endian_addr(1, 0);
-		break;
-	case 0x2:
-		dev->width = 1;
-		dev->shift = 8;
-		dev->low_addr = endian_addr(1, 1);
-		break;
-	case 0x4:
-		dev->width = 1;
-		dev->shift = 16;
-		dev->low_addr = endian_addr(1, 2);
-		break;
-	case 0x8:
-		dev->width = 1;
-		dev->shift = 24;
-		dev->low_addr = endian_addr(1, 3);
-		break;
-	case 0x3:
-		dev->width = 2;
-		dev->shift = 0;
-		dev->low_addr = endian_addr(2, 0);
-		break;
-	case 0xC:
-		dev->width = 2;
-		dev->shift = 16;
-		dev->low_addr = endian_addr(2, 2);
-		break;
-	case 0xF:
-		dev->width = 4;
-		dev->shift = 0;
-		dev->low_addr = endian_addr(4, 0);
-		break;
-	default:
-		/* noop -- ignore the strange bitmask */
-		break;
-	}
-
+	ctrl_win = dev->vme_res.map[MAP_CTRL]->kernel_va;
+	iowrite32(cpu_to_be32(be), ctrl_win + EMUL_DAT_WD);
 }
 
 static const struct wishbone_operations wb_ops = {
@@ -283,16 +223,14 @@ int vme_map_window(struct vme_wb_dev *vme_dev, enum vme_map_win map_type)
 	}
 
 	if (map_type == MAP_REG) {
-		am = VME_A32_USER_MBLT;	/* or VME_A32_USER_DATA_SCT */
+		am = VME_A32_USER_DATA_SCT;
 		dw = VME_D32;
-		//base = vme_dev->vme_res.vmebase;
-		base = vme_dev->vme_res.slot * 0x1000000;
+      base = vme_dev->vme_res.slot * 0x10000000;
 		size = 0x1000000;
 		map_type_c = "WB MAP REG";
 	} else if (map_type == MAP_CTRL) {
-		am = VME_A24_USER_MBLT;
+		am = VME_A24_USER_DATA_SCT;
 		dw = VME_D32;
-		//base = vme_dev->vme_res.vmebase;
 		base = vme_dev->vme_res.slot * 0x400;
 		size = 0xA0;
 		map_type_c = "WB MAP CTRL";
@@ -382,11 +320,6 @@ void vme_setup_csr_fa0(void *base, u32 wb_vme, unsigned vector, unsigned level)
 	vme_csr_write(level, base, IRQ_LEVEL);
 
 	/*do address relocation for FUN0, WB data mapping */
-//  fa[0] = (wb_vme >> 24) & 0xFF;
-//  fa[1] = (wb_vme >> 16) & 0xFF;
-//  fa[2] = (wb_vme >> 8 ) & 0xFF;
-//  fa[3] = (VME_A32_USER_MBLT & 0x3F) << 2; /* or VME_A32_USER_DATA_SCT */
-
 	fa[0] = (wb_add >> 24) & 0xFF;
 	fa[1] = (wb_add >> 16) & 0xFF;
 	fa[2] = (wb_add >> 8) & 0xFF;
@@ -398,11 +331,6 @@ void vme_setup_csr_fa0(void *base, u32 wb_vme, unsigned vector, unsigned level)
 	vme_csr_write(fa[3], base, FUN0ADER + 12);
 
 	/*do address relocation for FUN1, WB control mapping */
-//  fa[0] = 0x00;
-//  fa[1] = 0x00;
-//  fa[2] = (wb_vme >> 24 ) & 0xFF;
-//  fa[3] = (VME_A24_USER_MBLT & 0x3F) << 2;
-
 	fa[0] = (wb_ctrl_add >> 24) & 0xFF;
 	fa[1] = (wb_ctrl_add >> 16) & 0xFF;
 	fa[2] = (wb_ctrl_add >> 8) & 0xFF;
@@ -482,7 +410,7 @@ static int vme_probe(struct device *pdev, unsigned int ndev)
 	dev->vme_res.slot = slot[ndev];
 	dev->vme_res.vmebase = vmebase[ndev];
 	dev->vme_res.vector = vector[ndev];
-	dev->vme_res.level = VME_IRQ_LEVEL;	/* Default value */
+	dev->vme_res.level = level[ndev];	/* Default value */
 	dev->vme_dev = pdev;
 	mutex_init(&dev->mutex);
 	dev->wb.wops = &wb_ops;
@@ -515,9 +443,6 @@ static int vme_probe(struct device *pdev, unsigned int ndev)
 	dev_set_drvdata(dev->vme_dev, dev);
 
 	/* configure and activate function 0 */
-	//vme_setup_csr_fa0(dev->vme_res.map[MAP_CR_CSR]->kernel_va, vmebase[ndev],
-	//                             vector[ndev], dev->vme_res.level);
-
 	vme_setup_csr_fa0(dev->vme_res.map[MAP_CR_CSR]->kernel_va,
 			  dev->vme_res.slot, vector[ndev], dev->vme_res.level);
 
@@ -533,7 +458,7 @@ static int vme_probe(struct device *pdev, unsigned int ndev)
 	if (error)
 		goto failed_unmap_wb;
 
-	/* wishbone resitation */
+	/* wishbone registration  */
 	if (wishbone_register(&dev->wb) < 0) {
 		dev_err(pdev, "Could not register wishbone bus\n");
 		goto failed_unmap_wb;
@@ -600,8 +525,12 @@ module_param_array(slot, int, &slot_num, S_IRUGO);
 MODULE_PARM_DESC(slot, "Slot where VME card is installed");
 module_param_array(vmebase, uint, &vmebase_num, S_IRUGO);
 MODULE_PARM_DESC(vmebase, "VME Base address of the VME card registers");
+
 module_param_array(vector, int, &vector_num, S_IRUGO);
 MODULE_PARM_DESC(vector, "IRQ vector");
+
+module_param_array(level, int, &vector_lev, S_IRUGO);
+MODULE_PARM_DESC(level, "IRQ level");
 module_param_array(lun, int, &lun_num, S_IRUGO);
 MODULE_PARM_DESC(lun, "Index value for VME card");
 module_param(debug, int, 0644);
