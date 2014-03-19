@@ -100,18 +100,25 @@ static void wb_write(struct wishbone *wb, wb_addr_t addr, wb_data_t data)
 {
 	struct vme_wb_dev *dev;
 	unsigned char *reg_win;
+	unsigned char *ctrl_win;
+	wb_addr_t window_offset;
 
 	dev = container_of(wb, struct vme_wb_dev, wb);
 	reg_win = dev->vme_res.map[MAP_REG]->kernel_va;
+	ctrl_win = dev->vme_res.map[MAP_CTRL]->kernel_va;
+
    addr = addr & WBM_ADD_MASK;
 
-   if (unlikely(debug))
-      printk(KERN_ALERT VME_WB ": iowrite32(0x%x, 0x%x)\n",
-             data, addr);
-   iowrite32(cpu_to_be32(data), reg_win + addr);
+	window_offset = addr & WINDOW_HIGH;
+	if (window_offset != dev->window_offset) {
+		iowrite32(cpu_to_be32(window_offset), ctrl_win + WINDOW_OFFSET_LOW);
+		dev->window_offset = window_offset;
+	}
 
    if (unlikely(debug))
-		printk(KERN_ALERT VME_WB ": WRITE \n");
+      printk(KERN_ALERT VME_WB ": WRITE (0x%x) = 0x%x)\n",
+             data, addr);
+   iowrite32(cpu_to_be32(data), reg_win + (addr & WINDOW_LOW));
 }
 
 static wb_data_t wb_read(struct wishbone *wb, wb_addr_t addr)
@@ -119,15 +126,25 @@ static wb_data_t wb_read(struct wishbone *wb, wb_addr_t addr)
 	wb_data_t out;
 	struct vme_wb_dev *dev;
 	unsigned char *reg_win;
+	unsigned char *ctrl_win;
+	wb_addr_t window_offset;
 
 	dev = container_of(wb, struct vme_wb_dev, wb);
 	reg_win = dev->vme_res.map[MAP_REG]->kernel_va;
+	ctrl_win = dev->vme_res.map[MAP_CTRL]->kernel_va;
+
    addr = addr & WBM_ADD_MASK;
 
-	out = be32_to_cpu(ioread32(reg_win + (addr)));
+   window_offset = addr & WINDOW_HIGH;
+	if (window_offset != dev->window_offset) {
+		iowrite32(cpu_to_be32(window_offset), ctrl_win + WINDOW_OFFSET_LOW);
+		dev->window_offset = window_offset;
+	}
+
+	out = be32_to_cpu(ioread32(reg_win + (addr & WINDOW_LOW)));
 
 	if (unlikely(debug))
-		printk(KERN_ALERT VME_WB ": READ (%x) = %x \n", (addr), out);
+		printk(KERN_ALERT VME_WB ": READ (0x%x) = 0x%x \n", (addr), out);
 
 	mb();
 	return out;
@@ -415,6 +432,7 @@ static int vme_probe(struct device *pdev, unsigned int ndev)
 	mutex_init(&dev->mutex);
 	dev->wb.wops = &wb_ops;
 	dev->wb.parent = pdev;
+   dev->window_offset  = 0;
 
 	/* Map CR/CSR space */
 	error = vme_map_window(dev, MAP_CR_CSR);
