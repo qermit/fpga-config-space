@@ -202,7 +202,6 @@ static void wb_byteenable(struct wishbone *wb, unsigned char be)
 	ctrl_win = dev->vme_res.map[MAP_CTRL]->kernel_va;
 	iowrite32(cpu_to_be32(be), ctrl_win + EMUL_DAT_WD);
 
-   printk(KERN_ALERT "WB BYTEE: Select line %x \n", be);
 }
 
 static const struct wishbone_operations wb_ops = {
