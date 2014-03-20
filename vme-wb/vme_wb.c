@@ -201,6 +201,8 @@ static void wb_byteenable(struct wishbone *wb, unsigned char be)
 	dev = container_of(wb, struct vme_wb_dev, wb);
 	ctrl_win = dev->vme_res.map[MAP_CTRL]->kernel_va;
 	iowrite32(cpu_to_be32(be), ctrl_win + EMUL_DAT_WD);
+
+   printk(KERN_ALERT "WB BYTEE: Select line %x \n", be);
 }
 
 static const struct wishbone_operations wb_ops = {
@@ -212,6 +214,20 @@ static const struct wishbone_operations wb_ops = {
 	.request = wb_request,
 	.reply = wb_reply,
 };
+
+static void init_ctrl_reg(struct vme_wb_dev *dev)
+{
+	unsigned char *ctrl_win;
+
+	ctrl_win = dev->vme_res.map[MAP_CTRL]->kernel_va;
+
+	iowrite32(0, ctrl_win + EMUL_DAT_WD);
+	iowrite32(0, ctrl_win + WINDOW_OFFSET_LOW);
+	iowrite32(0, ctrl_win + MASTER_CTRL);
+
+	if (unlikely(debug))
+		printk(KERN_ALERT "Initialize Ctrl Register\n");
+}
 
 int irq_handler(void *dev_id)
 {
@@ -243,7 +259,7 @@ int vme_map_window(struct vme_wb_dev *vme_dev, enum vme_map_win map_type)
 		am = VME_A32_USER_DATA_SCT;
 		dw = VME_D32;
       base = vme_dev->vme_res.slot * 0x10000000;
-		size = 0x1000000;
+		size = 0x10000;
 		map_type_c = "WB MAP REG";
 	} else if (map_type == MAP_CTRL) {
 		am = VME_A24_USER_DATA_SCT;
@@ -488,6 +504,8 @@ static int vme_probe(struct device *pdev, unsigned int ndev)
 		       ": could not register interrupt handler\n");
 		goto fail_irq;
 	}
+
+   init_ctrl_reg(dev);
 
 	return 0;
 
