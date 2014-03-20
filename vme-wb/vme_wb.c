@@ -563,7 +563,8 @@ MODULE_PARM_DESC(vmebase, "VME Base address of the VME card registers");
 
 module_param_array(vector, int, &vector_num, S_IRUGO);
 MODULE_PARM_DESC(vector, "IRQ vector");
-odule_param_array(level, int, &vector_lev, S_IRUGO);
+
+module_param_array(level, int, &vector_lev, S_IRUGO);
 MODULE_PARM_DESC(level, "IRQ level");
 module_param_array(lun, int, &lun_num, S_IRUGO);
 MODULE_PARM_DESC(lun, "Index value for VME card");
