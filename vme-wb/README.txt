@@ -2,7 +2,7 @@
 *
 * Released according to the GNU GPL, version 2 or any later version
 *
-* VME-WB bridge for VME
+* VME-WB bridge for VME for Kernel < 3.10
 
 This kernle module provides methods for using Etherbone over VME. It depens on 
 the wishbone and vmebridge modules. The first steers the Ethernet communication and
@@ -46,3 +46,7 @@ vme, the position of the base address switch.
 <vector> of the IRQ
 
 <lun> index value for VME card
+
+
+* VME-WB bridge for VME for Kernel => 3.10
+this driver is under development
