@@ -15,6 +15,7 @@
 #include <linux/firmware.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <vmebus.h>
 #include "vme_wb.h"
 #include "wishbone.h"
 

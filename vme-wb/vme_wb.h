@@ -10,7 +10,6 @@
 #define __VME_H__
 
 #include <linux/firmware.h>
-#include <vmebus.h>
 #include <wishbone.h>
 
 #define VME_WB "vme_wb"

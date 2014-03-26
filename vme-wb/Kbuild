@@ -1,0 +1,47 @@
+KERNEL_LIMIT := 3.10.0
+TEMP 	 := $(shell /bin/echo "$(KERNELVERSION)'\'n$(KERNEL_LIMIT)")
+KERNEL := $(shell /bin/echo -e $(TEMP) | sed '/^$$/d' | sort -t. -k1,1nr -k2,2nr | head -1)
+
+# If the user did not specify otherwise, use the in-kernel VME driver iff it was enabled
+ifeq ($(VME_SOURCE),)
+VME_SOURCE=external
+ifeq ($(CONFIG_VME_BUS),y)
+VME_SOURCE=inkernel
+endif
+ifeq ($(CONFIG_VME_BUS),m)
+VME_SOURCE=inkernel
+endif
+endif
+
+ifneq ($(VME_SOURCE),external)
+ifneq ($(VME_SOURCE),inkernel)
+$(error VME_SOURCE must be inkernel or external)
+endif
+endif
+
+ifeq ($(VME_SOURCE),external)
+ifneq ($(KERNEL),$(KERNEL_LIMIT))
+$(error Cannot build external VME driver with 3.10 - enable in-tree VME $(KERNEL) $(KERNEL_LIMIT))
+endif
+endif
+
+ifeq ($(VME_SOURCE),internal)
+ifneq ($(CONFIG_VME_BUS),y)
+ifneq ($(CONFIG_VME_BUS),m)
+$(warn Kernel must have in-tree VME feature enabled)
+endif
+endif
+endif
+
+KBUILD_EXTRA_SYMBOLS += $(M)/../pcie-wb/Module.symvers
+ccflags-y += -I$(M)/../pcie-wb
+
+obj-m += vme_wb.o
+
+ifeq ($(VME_SOURCE),external)
+ccflags-y += -I$(M)/../legacy-vme64x-core/drv/driver
+obj-m += ../legacy-vme64x-core/drv/driver/
+vme_wb-objs := vme_wb_external.o
+else
+vme_wb-objs := vme_wb_inkernel.o
+endif
