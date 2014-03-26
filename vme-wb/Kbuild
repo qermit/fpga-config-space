@@ -33,15 +33,16 @@ endif
 endif
 endif
 
+# Depend on wishbone.ko from pci-wb directory
 KBUILD_EXTRA_SYMBOLS += $(M)/../pcie-wb/Module.symvers
 ccflags-y += -I$(M)/../pcie-wb
 
-obj-m += vme_wb.o
-
+# If using out-of-kernel VME, declare dependency
 ifeq ($(VME_SOURCE),external)
 ccflags-y += -I$(M)/../legacy-vme64x-core/drv/driver
 obj-m += ../legacy-vme64x-core/drv/driver/
-vme_wb-objs := vme_wb_external.o
-else
-vme_wb-objs := vme_wb_inkernel.o
 endif
+
+# The actual driver!
+obj-m += vme_wb.o
+vme_wb-objs := vme_wb_$(VME_SOURCE).o
