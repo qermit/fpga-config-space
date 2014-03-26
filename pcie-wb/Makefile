@@ -1,7 +1,7 @@
 ifneq ($(KERNELRELEASE),)
 # When Makefile is invoked from kernel build system, define objects
 
-obj-m := pcie_wb.o wishbone.o spec_wb.o
+obj-m += pcie_wb.o wishbone.o spec_wb.o
 # Only build wishbone-serial if it was missing
 ifneq ($(CONFIG_USB_SERIAL_WISHBONE),m)
 ifneq ($(CONFIG_USB_SERIAL_WISHBONE),y)
@@ -27,6 +27,6 @@ install:
 	[ $$(id -u) -ne 0 ] || groupadd wishbone || true
 
 clean:
-	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions
+	$(MAKE) -C $(KERNELDIR) M=$(PWD) clean
 
 endif
