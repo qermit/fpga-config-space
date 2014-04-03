@@ -233,7 +233,8 @@ int irq_handler(void *dev_id)
 {
 	struct vme_wb_dev *dev = dev_id;
 
-	printk(KERN_ALERT "posting MSI!!\n");
+   if (unlikely(debug))
+		printk(KERN_ALERT VME_WB ": IRQ!!\n");
 
 	wishbone_slave_ready(&dev->wb);
 
