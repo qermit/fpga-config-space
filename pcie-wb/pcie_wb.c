@@ -224,10 +224,12 @@ static int wb_request(struct wishbone *wb, struct wishbone_request *req)
 	req->mask  = ctl & 0xf;
 	req->write = (ctl & 0x40000000) != 0;
 	
-	iowrite32(1, control + MASTER_CTL_HIGH); /* dequeue operation */
-	
 	if (unlikely(debug)) printk(KERN_ALERT "request %x\n", ctl);
-	return (ctl & 0x80000000) != 0;
+	int out = (ctl & 0x80000000) != 0;
+	
+	if (out) iowrite32(1, control + MASTER_CTL_HIGH); /* dequeue operation */
+	
+	return out;
 }
 
 static void wb_reply(struct wishbone *wb, int err, wb_data_t data)

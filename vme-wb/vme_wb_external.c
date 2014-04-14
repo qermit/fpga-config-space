@@ -166,7 +166,8 @@ static int wb_request(struct wishbone *wb, struct wishbone_request *req)
 	req->mask = ctrl & 0xf;
 	req->write = (ctrl & 0x40000000) != 0;
 
-	iowrite32(cpu_to_be32(1), ctrl_win + MASTER_CTRL);	/* dequeue operation */
+	int out = (ctrl & 0x80000000) != 0;
+	if (out) iowrite32(cpu_to_be32(1), ctrl_win + MASTER_CTRL);	/* dequeue operation */
 
 	if (unlikely(debug))
 		printk(KERN_ALERT
@@ -174,7 +175,7 @@ static int wb_request(struct wishbone *wb, struct wishbone_request *req)
 		       ctrl, req->addr, req->data, req->mask,
 		       (ctrl & 0x80000000) != 0);
 
-	return (ctrl & 0x80000000) != 0;
+	return out;
 }
 
 static void wb_reply(struct wishbone *wb, int err, wb_data_t data)
