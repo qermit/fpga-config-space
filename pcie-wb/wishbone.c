@@ -380,7 +380,8 @@ static ssize_t char_master_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	iov_len = iov_length(iov, nr_segs);
 	if (unlikely(iov_len == 0)) return 0;
 	
-	mutex_lock(&context->mutex);
+	if (mutex_lock_interruptible(&context->mutex))
+		return -EINTR;
 	
 	ring_len = RING_READ_LEN(context);
 	len = min_t(unsigned int, ring_len, iov_len);
@@ -417,7 +418,8 @@ static ssize_t char_master_aio_write(struct kiocb *iocb, const struct iovec *iov
 	iov_len = iov_length(iov, nr_segs);
 	if (unlikely(iov_len == 0)) return 0;
 	
-	mutex_lock(&context->mutex);
+	if (mutex_lock_interruptible(&context->mutex))
+		return -EINTR;
 	
 	ring_len = RING_WRITE_LEN(context);
 	len = min_t(unsigned int, ring_len, iov_len);
@@ -594,7 +596,8 @@ static ssize_t char_slave_aio_read(struct kiocb *iocb, const struct iovec *iov, 
 	iov_len = iov_length(iov, nr_segs);
 	if (unlikely(iov_len == 0)) return 0;
 	
-	mutex_lock(&context->mutex);
+	if (mutex_lock_interruptible(&context->mutex))
+		return -EINTR;
 	
 	buf_len = context->rbuf_end - context->rbuf_done;
 	if (buf_len > iov_len) {
@@ -623,7 +626,8 @@ static ssize_t char_slave_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	
 	outlen = iov_length(iov, nr_segs);
 	
-	mutex_lock(&context->mutex);
+	if (mutex_lock_interruptible(&context->mutex))
+		return -EINTR;
 	
 	for (iov_off = 0, iov_len = outlen; iov_len > 0; iov_off += len, iov_len -= len) {
 		/* Optimization to avoid quadratic complexity */
