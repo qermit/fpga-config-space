@@ -214,6 +214,7 @@ static int wb_request(struct wishbone *wb, struct wishbone_request *req)
 	struct pcie_wb_dev* dev;
 	unsigned char* control;
 	uint32_t ctl;
+	int out;
 	
 	dev = container_of(wb, struct pcie_wb_dev, wb);
 	control = dev->pci_res[0].addr;
@@ -225,7 +226,7 @@ static int wb_request(struct wishbone *wb, struct wishbone_request *req)
 	req->write = (ctl & 0x40000000) != 0;
 	
 	if (unlikely(debug)) printk(KERN_ALERT "request %x\n", ctl);
-	int out = (ctl & 0x80000000) != 0;
+	out = (ctl & 0x80000000) != 0;
 	
 	if (out) iowrite32(1, control + MASTER_CTL_HIGH); /* dequeue operation */
 	

@@ -156,6 +156,7 @@ static int wb_request(struct wishbone *wb, struct wishbone_request *req)
 	struct vme_wb_dev *dev;
 	unsigned char *ctrl_win;
 	uint32_t ctrl;
+	int out;
 
 	dev = container_of(wb, struct vme_wb_dev, wb);
 	ctrl_win = dev->vme_res.map[MAP_CTRL]->kernel_va;
@@ -166,7 +167,7 @@ static int wb_request(struct wishbone *wb, struct wishbone_request *req)
 	req->mask = ctrl & 0xf;
 	req->write = (ctrl & 0x40000000) != 0;
 
-	int out = (ctrl & 0x80000000) != 0;
+	out = (ctrl & 0x80000000) != 0;
 	if (out) iowrite32(cpu_to_be32(1), ctrl_win + MASTER_CTRL);	/* dequeue operation */
 
 	if (unlikely(debug))
