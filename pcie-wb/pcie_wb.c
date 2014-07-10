@@ -46,6 +46,11 @@ static void compat_pci_clear_master(struct pci_dev *dev)
 #define pci_clear_master compat_pci_clear_master
 #endif
 
+static void pcie_int_enable(struct pcie_wb_dev *dev, int on)
+{
+	int enable = on && !dev->msi;
+	iowrite32((enable?0x20000000UL:0) + 0x10000000UL, dev->pci_res[0].addr + CONTROL_REGISTER_HIGH);
+}
 
 static void wb_cycle(struct wishbone* wb, int on)
 {
@@ -230,6 +235,8 @@ static int wb_request(struct wishbone *wb, struct wishbone_request *req)
 	
 	if (out) iowrite32(1, control + MASTER_CTL_HIGH); /* dequeue operation */
 	
+	pcie_int_enable(dev, 1);
+	
 	return out;
 }
 
@@ -261,7 +268,8 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 	struct pcie_wb_dev *dev = dev_id;
 	
 	if (unlikely(debug)) printk(KERN_ALERT "posting MSI\n");
-	  
+	
+	pcie_int_enable(dev, 0);
 	wishbone_slave_ready(&dev->wb);
 	
 	return IRQ_HANDLED;
@@ -364,12 +372,15 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		/* disable legacy interrupts when using MSI */
 		pci_intx(pdev, 0); 
 	}
-
+	
 	if (request_irq(pdev->irq, irq_handler, 0, "pcie_wb", dev) < 0) {
 		printk(KERN_ALERT PCIE_WB ": could not register interrupt handler\n");
 		goto fail_msi;
 	}
 	
+	/* Enable classic interrupts */
+	pcie_int_enable(dev, 1);
+
 	if (wishbone_register(&dev->wb) < 0) {
 		printk(KERN_ALERT PCIE_WB ": could not register wishbone bus\n");
 		goto fail_irq;
