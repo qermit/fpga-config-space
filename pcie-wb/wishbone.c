@@ -235,6 +235,7 @@ static void etherbone_slave_out_process(struct etherbone_slave_context *context)
 	uint8_t *wptr;
 	
 	if (context->rbuf_done != context->rbuf_end ||   /* unread data? */
+	    !context->negotiated ||                      /* negotiation incomplete? */
 	    !context->wishbone->wops->request(context->wishbone, &request)) {
 		return;
 	}
@@ -629,6 +630,8 @@ static ssize_t char_slave_aio_write(struct kiocb *iocb, const struct iovec *iov,
 				} else {
 					context->wbuf_fill = 0;
 					context->negotiated = 1;
+					wake_up_interruptible(&context->wishbone->waitq);
+				        kill_fasync(&context->wishbone->fasync, SIGIO, POLL_IN);
 				}
 				len = 0;
 			} else {
