@@ -231,30 +231,30 @@ static void etherbone_master_process(struct etherbone_master_context* context)
 
 static void etherbone_slave_out_process(struct etherbone_slave_context *context)
 {
+	struct wishbone_request request;
 	uint8_t *wptr;
 	
-	if (context->rbuf_done != context->rbuf_end) return;
-	
-	if (!context->ready) {
-		if (!context->wishbone->wops->request(context->wishbone, &context->request)) return;
-		++context->pending_err;
+	if (context->rbuf_done != context->rbuf_end ||   /* unread data? */
+	    !context->wishbone->wops->request(context->wishbone, &request)) {
+		return;
 	}
 	
-	context->ready = 0;
+	++context->pending_err;
+	
 	context->rbuf_done = 0;
 	
 	wptr = &context->rbuf[0];
 	
 	wptr[0] = ETHERBONE_BCA;
-	wptr[1] = context->request.mask;
+	wptr[1] = request.mask;
 	
-	if (context->request.write) {
+	if (request.write) {
 		wptr[2] = 1;
 		wptr[3] = 0;
 		wptr += sizeof(wb_data_t);
-		eb_from_cpu(wptr, context->request.addr);
+		eb_from_cpu(wptr, request.addr);
 		wptr += sizeof(wb_data_t);
-		eb_from_cpu(wptr, context->request.data);
+		eb_from_cpu(wptr, request.data);
 		wptr += sizeof(wb_data_t); 
 	} else {
 		wptr[2] = 0;
@@ -262,7 +262,7 @@ static void etherbone_slave_out_process(struct etherbone_slave_context *context)
 		wptr += sizeof(wb_data_t); 
 		eb_from_cpu(wptr, WBA_DATA);
 		wptr += sizeof(wb_data_t); 
-		eb_from_cpu(wptr, context->request.addr);
+		eb_from_cpu(wptr, request.addr);
 		wptr += sizeof(wb_data_t); 
 	}
 	
@@ -490,30 +490,8 @@ static const struct file_operations etherbone_master_fops = {
 
 void wishbone_slave_ready(struct wishbone* wb)
 {
-	mutex_lock(&wb->mutex);
-	if (wb->slave) {
-		struct etherbone_slave_context *context = wb->slave;
-		int ready;
-		
-		/* If the slave is not already ready, make it ready! */
-		mutex_lock(&context->mutex);
-		if (!context->ready) {
-			/* Retrieve request */
-			ready = wb->wops->request(wb, &context->request);
-			context->ready = ready;
-			context->pending_err += ready;
-			
-			etherbone_slave_out_process(context);
-			
-			/* Wake-up polling descriptors */
-			mutex_unlock(&context->mutex);
-			wake_up_interruptible(&context->waitq);
-			kill_fasync(&context->fasync, SIGIO, POLL_IN);
-		} else {
-			mutex_unlock(&context->mutex);
-		}
-	}
-	mutex_unlock(&wb->mutex);
+	wake_up_interruptible(&wb->waitq);
+	kill_fasync(&wb->fasync, SIGIO, POLL_IN);
 }
 
 static int char_slave_open(struct inode *inode, struct file *filep)
@@ -524,9 +502,7 @@ static int char_slave_open(struct inode *inode, struct file *filep)
 	if (!context) return -ENOMEM;
 	
 	context->wishbone = container_of(inode->i_cdev, struct wishbone, slave_cdev);
-	context->fasync = 0;
 	mutex_init(&context->mutex);
-	init_waitqueue_head(&context->waitq);
 	
 	filep->private_data = context;
 	
@@ -540,7 +516,6 @@ static int char_slave_open(struct inode *inode, struct file *filep)
 	context->wishbone->slave = context;
 	
 	/* Setup Etherbone state machine */
-	context->ready = 0;
 	context->pending_err = 0;
 	context->negotiated = 0;
 	context->rbuf_done = 0;
@@ -554,9 +529,6 @@ static int char_slave_open(struct inode *inode, struct file *filep)
 	memset(&context->rbuf[4], 0, 4);
 	context->rbuf_end = 8;
 	
-	/* Must hold this lock until slave is fully setup,
-	 * else wishbone_slave_ready could stomp on us.
-	 */
 	mutex_unlock(&context->wishbone->mutex);
 	
 	return 0;
@@ -566,24 +538,24 @@ static int char_slave_release(struct inode *inode, struct file *filep)
 {
 	struct etherbone_slave_context *context = filep->private_data;
 	const struct wishbone_operations *wops = context->wishbone->wops;
-	int pending;
+	int pending, errors;
 	
-	/* Lock order must match wishbone_slave_ready to prevent deadlock */
-	mutex_lock(&context->wishbone->mutex);
 	mutex_lock(&context->mutex);
 	
 	/* We need to answer any requests pending, even if the bad user did not */
-	for (pending = context->pending_err; pending > 0; --pending)
+	errors = context->pending_err;
+	for (pending = errors; pending > 0; --pending)
 		wops->reply(context->wishbone, 1, 0);
 	
+	mutex_lock(&context->wishbone->mutex);
 	context->wishbone->slave = 0;
+	mutex_unlock(&context->wishbone->mutex);
 	
 	mutex_unlock(&context->mutex);
-	mutex_unlock(&context->wishbone->mutex);
 	
 	kfree(context);
 	
-	if (pending) return -EIO;
+	if (errors) return -EIO;
 	return 0;
 }
 
@@ -599,6 +571,8 @@ static ssize_t char_slave_aio_read(struct kiocb *iocb, const struct iovec *iov, 
 	if (mutex_lock_interruptible(&context->mutex))
 		return -EINTR;
 	
+	etherbone_slave_out_process(context);
+	
 	buf_len = context->rbuf_end - context->rbuf_done;
 	if (buf_len > iov_len) {
 		len = iov_len;
@@ -609,7 +583,6 @@ static ssize_t char_slave_aio_read(struct kiocb *iocb, const struct iovec *iov, 
 	memcpy_toiovecend(iov, context->rbuf + context->rbuf_done, 0, len);
 	context->rbuf_done += len;
 	
-	etherbone_slave_out_process(context);
 	mutex_unlock(&context->mutex);
 	
 	if (len == 0 && (filep->f_flags & O_NONBLOCK) != 0)
@@ -692,9 +665,10 @@ static unsigned int char_slave_poll(struct file *filep, poll_table *wait)
 	struct etherbone_slave_context *context = filep->private_data;
 	unsigned int mask;
 	
-	poll_wait(filep, &context->waitq, wait);
+	poll_wait(filep, &context->wishbone->waitq, wait);
 	
 	mutex_lock(&context->mutex);
+	etherbone_slave_out_process(context);
 	
 	if (context->rbuf_done != context->rbuf_end) {
 		mask = POLLIN  | POLLRDNORM | POLLOUT | POLLWRNORM;
@@ -712,7 +686,7 @@ static int char_slave_fasync(int fd, struct file *file, int on)
 	struct etherbone_slave_context* context = file->private_data;
 
         /* No locking - fasync_helper does its own locking */
-        return fasync_helper(fd, file, on, &context->fasync);
+        return fasync_helper(fd, file, on, &context->wishbone->fasync);
 }
 
 static const struct file_operations etherbone_slave_fops = {
@@ -762,6 +736,8 @@ int wishbone_register(struct wishbone* wb)
 		}
 	}
 	
+	init_waitqueue_head(&wb->waitq);
+	wb->fasync = 0;
 	mutex_init(&wb->mutex);
 	wb->slave = 0;
 	

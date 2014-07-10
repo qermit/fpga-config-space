@@ -44,7 +44,7 @@ struct wishbone_operations
 	wb_data_t (*read_cfg)(struct wishbone *wb, wb_addr_t addr);
 	
 	/* slave operations */
-	int (*request)(struct wishbone *wb, struct wishbone_request*); /* 1=record filled, 0=none pending */
+	int (*request)(struct wishbone *wb, struct wishbone_request*); /* 1=record filled, 0=none pending. re-enable non-MSI interrupts. */
 	void (*reply)(struct wishbone *wb, int err, wb_data_t dat);
 };
 
@@ -59,6 +59,10 @@ struct wishbone
 	dev_t master_dev, slave_dev;
 	struct cdev master_cdev, slave_cdev;
 	struct device *master_device, *slave_device;
+	
+	/* wake-q for blocking slave io */
+	wait_queue_head_t waitq;
+	struct fasync_struct *fasync;
 	struct mutex mutex; /* guards slave below */
 	struct etherbone_slave_context *slave;
 };
@@ -84,12 +88,8 @@ struct etherbone_master_context
 struct etherbone_slave_context
 {
 	struct wishbone* wishbone;
-	struct fasync_struct *fasync;
 	struct mutex mutex;
-	wait_queue_head_t waitq;
 	
-	struct wishbone_request request;
-	int ready; /* if request is full */
 	unsigned int pending_err; /* unanswered operations */
 	
 	int negotiated;
@@ -111,6 +111,7 @@ struct etherbone_slave_context
 int wishbone_register(struct wishbone* wb);
 int wishbone_unregister(struct wishbone* wb);
 
-void wishbone_slave_ready(struct wishbone* wb); /* called when device has data pending */
+/* call when device has data pending. disable non-MSI interrupt generation before calling. */
+void wishbone_slave_ready(struct wishbone* wb);
 
 #endif
