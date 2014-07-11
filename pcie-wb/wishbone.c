@@ -807,6 +807,8 @@ static int __init wishbone_init(void)
 {
 	int err;
 	dev_t overflow;
+
+	printk(KERN_NOTICE "wishbone: version " __stringify(GIT_REVISION) " loaded\n");
 	
 	overflow = MKDEV(0, max_devices-1);
 	if (MINOR(overflow) != max_devices-1) {
