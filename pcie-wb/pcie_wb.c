@@ -373,7 +373,7 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pci_intx(pdev, 0); 
 	}
 	
-	if (request_irq(pdev->irq, irq_handler, 0, "pcie_wb", dev) < 0) {
+	if (request_irq(pdev->irq, irq_handler, IRQF_SHARED, "pcie_wb", dev) < 0) {
 		printk(KERN_ALERT PCIE_WB ": could not register interrupt handler\n");
 		goto fail_msi;
 	}
