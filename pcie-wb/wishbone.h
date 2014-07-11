@@ -36,6 +36,9 @@ struct wishbone_request
 
 struct wishbone_operations 
 {
+	/* owning module */
+	struct module *owner;
+	
 	/* master operations */
 	void (*cycle)(struct wishbone *wb, int on);
 	void (*byteenable)(struct wishbone *wb, unsigned char mask);

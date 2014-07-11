@@ -746,10 +746,10 @@ int wishbone_register(struct wishbone* wb)
 	
 	/* Connect the file operations with the cdevs */
 	cdev_init(&wb->master_cdev, &etherbone_master_fops);
-	wb->master_cdev.owner = THIS_MODULE;
+	wb->master_cdev.owner = wb->wops->owner;
 	
 	cdev_init(&wb->slave_cdev,  &etherbone_slave_fops);
-	wb->slave_cdev.owner = THIS_MODULE;
+	wb->slave_cdev.owner = wb->wops->owner;
 	
 	wb->master_dev =
 	  MKDEV(

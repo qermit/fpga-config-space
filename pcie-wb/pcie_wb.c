@@ -254,6 +254,7 @@ static void wb_reply(struct wishbone *wb, int err, wb_data_t data)
 }
 
 static const struct wishbone_operations wb_ops = {
+	.owner      = THIS_MODULE,
 	.cycle      = wb_cycle,
 	.byteenable = wb_byteenable,
 	.write      = wb_write,

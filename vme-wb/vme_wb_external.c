@@ -208,6 +208,7 @@ static void wb_byteenable(struct wishbone *wb, unsigned char be)
 }
 
 static const struct wishbone_operations wb_ops = {
+	.owner = THIS_MODULE,
 	.cycle = wb_cycle,
 	.byteenable = wb_byteenable,
 	.write = wb_write,
