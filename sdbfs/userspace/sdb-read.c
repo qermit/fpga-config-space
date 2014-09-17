@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 CERN (www.cern.ch)
+ * Copyright (C) 2012,2014 CERN (www.cern.ch)
  * Author: Alessandro Rubini <rubini@gnudd.com>
  *
  * Released according to the GNU GPL, version 2 or any later version.
@@ -24,17 +24,31 @@ char *prgname;
 
 int opt_long, opt_verbose, opt_read, opt_entry;
 
+struct sdbr_drvdata {
+	void *mapaddr;
+	FILE *f;
+};
+
 /*
- * This read method is not really needed, but it's there
- * to exercise the library procedures
+ * This read method is needed for non-mmappable files, or stuff that
+ * you can't know the size of (e.g., char devices). You can force use of
+ * read, to exercise the library procedures, using "-r"
  */
 static int do_read(struct sdbfs *fs, int offset, void *buf, int count)
 {
+	struct sdbr_drvdata *drvdata = fs->drvdata;
 	if (opt_verbose)
 		fprintf(stderr, "%s @ 0x%08x - size 0x%x (%i)\n", __func__,
 			offset, count, count);
-	memcpy(buf, fs->drvdata + offset, count);
-	return count;
+	if (drvdata->mapaddr) {
+		memcpy(buf, drvdata->mapaddr + offset, count);
+		return count;
+	}
+
+	/* not mmapped: seek and read */
+	if (fseek(drvdata->f, offset, SEEK_SET) < 0)
+		return -1;
+	return fread(buf, 1, count, drvdata->f);
 }
 
 /* Boring ascii representation of a device */
@@ -119,6 +133,7 @@ int main(int argc, char **argv)
 	struct sdbfs _fs;
 	struct sdbfs *fs = &_fs; /* I like to type "fs->" */
 	struct stat stbuf;
+	struct sdbr_drvdata *drvdata;
 	void *mapaddr;
 	char *fsname;
 	char *filearg = NULL;
@@ -162,27 +177,28 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	/* Save the file pointer in drvdata for fseek/fread use */
+	drvdata = calloc(1, sizeof(*drvdata));
+	drvdata->f = f;
+
 	stbuf.st_size += pagesize - 1;
 	stbuf.st_size &= ~(pagesize - 1);
 	mapaddr = mmap(0, stbuf.st_size, PROT_READ, MAP_PRIVATE, fileno(f), 0);
-	if (mapaddr == MAP_FAILED) {
-		fprintf(stderr, "%s: mmap(%s): %s\n", prgname, fsname,
-			strerror(errno));
-		exit(1);
-	}
+	if (mapaddr == MAP_FAILED)
+		drvdata->mapaddr = NULL;
+	else
+		drvdata->mapaddr = mapaddr;
 
 	/* So, describe the filesystem instance and give it to the library */
 	memset(fs, 0, sizeof(*fs));
-
+	fs->drvdata = drvdata;
 	fs->name = fsname; /* not mandatory */
 	fs->blocksize = 256; /* only used for writing, actually */
 	fs->entrypoint = opt_entry;
-	if (opt_read) {
-		fs->drvdata = mapaddr;
+	if (opt_read || !drvdata->mapaddr)
 		fs->read = do_read;
-	} else {
+	else
 		fs->data = mapaddr;
-	}
 
 	err = sdbfs_dev_create(fs, opt_verbose);
 	if (err) {
