@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 CERN (www.cern.ch)
+ * Copyright (C) 2012,2014 CERN (www.cern.ch)
  * Author: Alessandro Rubini <rubini@gnudd.com>
  *
  * Released according to the GNU GPL, version 2 or any later version.
@@ -23,13 +23,18 @@ int sdbfs_dev_create(struct sdbfs *fs, int verbose)
 		magic = *(unsigned int *)(fs->data + fs->entrypoint);
 	else
 		fs->read(fs, fs->entrypoint, &magic, sizeof(magic));
-	if (htonl(magic) != SDB_MAGIC)
+	if (magic == SDB_MAGIC) {
+		/* Uh! If we are little-endian, we must convert */
+		if (ntohl(1) != 1)
+			fs->flags |= SDBFS_F_CONVERT32;
+	} else if (htonl(magic) == SDB_MAGIC) {
+		/* ok, don't convert */
+	} else {
 		return -ENOTDIR;
-
+	}
 
 	if (verbose)
 		fs->flags |= SDBFS_F_VERBOSE;
-
 	fs->next = sdbfs_list;
 	sdbfs_list = fs;
 
@@ -70,13 +75,29 @@ static struct sdb_device *sdbfs_readentry(struct sdbfs *fs,
 	/*
 	 * This function reads an entry from a known good offset. It
 	 * returns the pointer to the entry, which may be stored in
-	 * the fs structure itself. Only touches fs->current_record
+	 * the fs structure itself. Only touches fs->current_record.
 	 */
-	if (fs->data)
-		return (struct sdb_device *)(fs->data + offset);
-	if (!fs->read)
-		return NULL;
-	fs->read(fs, offset, &fs->current_record, sizeof(fs->current_record));
+	if (fs->data) {
+		if (!(fs->flags & SDBFS_F_CONVERT32))
+			return (struct sdb_device *)(fs->data + offset);
+		/* copy to local storage for conversion */
+		memcpy(&fs->current_record, fs->data + offset,
+		       sizeof(fs->current_record));
+	} else {
+		if (!fs->read)
+			return NULL;
+		fs->read(fs, offset, &fs->current_record,
+			 sizeof(fs->current_record));
+	}
+
+	if (fs->flags & SDBFS_F_CONVERT32) {
+		uint32_t *p = (void *)&fs->current_record;
+		int i;
+
+		for (i = 0; i < sizeof(fs->current_record) / sizeof(*p); i++)
+			p[i] = ntohl(p[i]);
+	}
+
 	return &fs->current_record;
 }
 

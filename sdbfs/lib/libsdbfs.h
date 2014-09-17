@@ -51,6 +51,7 @@ struct sdbfs {
 };
 
 #define SDBFS_F_VERBOSE		0x0001
+#define SDBFS_F_CONVERT32	0x0002 /* swap SDB words as they are read */
 
 
 /* Defined in glue.c */
