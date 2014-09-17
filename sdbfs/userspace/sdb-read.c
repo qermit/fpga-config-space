@@ -22,11 +22,27 @@
 
 char *prgname;
 
-int opt_long, opt_verbose, opt_read, opt_entry;
+int opt_long, opt_verbose, opt_read, opt_entry, opt_mem;
+unsigned long opt_memaddr, opt_memsize;
+
+static void help(void)
+{
+	fprintf(stderr, "%s: Use: \"%s [options] <image-file> [<file>]\n",
+		prgname, prgname);
+	fprintf(stderr, "   -l          long listing (like ls -l)\n");
+	fprintf(stderr, "   -v          verbose\n");
+	fprintf(stderr, "   -r          force use of read(2), not mmap(2)\n");
+	fprintf(stderr, "   -e <num>    entry point offset\n");
+	fprintf(stderr, "   -m <size>@<addr>     memory subset to use\n");
+	fprintf(stderr, "   -m <addr>+<size>     memory subset to use\n");
+	exit(1);
+}
 
 struct sdbr_drvdata {
 	void *mapaddr;
 	FILE *f;
+	unsigned long memaddr;
+	unsigned long memsize;
 };
 
 /*
@@ -46,7 +62,7 @@ static int do_read(struct sdbfs *fs, int offset, void *buf, int count)
 	}
 
 	/* not mmapped: seek and read */
-	if (fseek(drvdata->f, offset, SEEK_SET) < 0)
+	if (fseek(drvdata->f, drvdata->memaddr + offset, SEEK_SET) < 0)
 		return -1;
 	return fread(buf, 1, count, drvdata->f);
 }
@@ -143,7 +159,7 @@ int main(int argc, char **argv)
 
 	prgname = argv[0];
 
-	while ( (c = getopt(argc, argv, "lvre:")) != -1) {
+	while ( (c = getopt(argc, argv, "lvre:m:")) != -1) {
 		switch (c) {
 		case 'l':
 			opt_long = 1;
@@ -161,13 +177,24 @@ int main(int argc, char **argv)
 				exit(1);
 			}
 			break;
+		case 'm':
+			/* memory:  "size@addr",  "addr+size" (blanks ok) */
+			if (sscanf(optarg, "%li @ %li", &opt_memsize,
+				   &opt_memaddr) == 2)
+				break;
+			if (sscanf(optarg, "%li + %li", &opt_memaddr,
+				   &opt_memsize) == 2)
+				break;
+
+			fprintf(stderr, "%s: \"%s\" must be <size>@<addr> "
+				"or <addr>+<size>\n", prgname, optarg);
+				exit(1);
+			break;
 		}
 	}
-	if (optind < argc - 2 || optind > argc - 1) {
-		fprintf(stderr, "%s: Use: \"%s [-l|-v] <image-file> [<file>]\n",
-			prgname, prgname);
-		exit(1);
-	}
+	if (optind < argc - 2 || optind > argc - 1)
+		help();
+
 	fsname = argv[optind];
 	if (optind + 1 < argc)
 		filearg = argv[optind + 1];
@@ -177,20 +204,25 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* Save the file pointer in drvdata for fseek/fread use */
-	drvdata = calloc(1, sizeof(*drvdata));
-	drvdata->f = f;
-
 	stbuf.st_size += pagesize - 1;
 	stbuf.st_size &= ~(pagesize - 1);
-	mapaddr = mmap(0, stbuf.st_size, PROT_READ, MAP_PRIVATE, fileno(f), 0);
+	mapaddr = mmap(0,
+		       opt_memsize ? opt_memsize : stbuf.st_size,
+		       PROT_READ, MAP_PRIVATE, fileno(f),
+		       opt_memaddr /* 0 by default */);
 	if (mapaddr == MAP_FAILED)
-		drvdata->mapaddr = NULL;
-	else
-		drvdata->mapaddr = mapaddr;
+		mapaddr = NULL; /* We'll seek/read */
 
 	/* So, describe the filesystem instance and give it to the library */
 	memset(fs, 0, sizeof(*fs));
+
+	drvdata = calloc(1, sizeof(*drvdata));
+	if (!drvdata) {perror("malloc"); exit(1);}
+	drvdata->f = f;
+	drvdata->memaddr = opt_memaddr;
+	drvdata->memsize = opt_memsize;
+	drvdata->mapaddr = mapaddr;
+
 	fs->drvdata = drvdata;
 	fs->name = fsname; /* not mandatory */
 	fs->blocksize = 256; /* only used for writing, actually */
