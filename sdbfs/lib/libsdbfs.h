@@ -1,7 +1,7 @@
 #ifndef __LIBSDBFS_H__
 #define __LIBSDBFS_H__
 
-/* The library can work in three different environments */
+/* The library can work in different environments, take care of them */
 #ifdef __KERNEL__
 #  include "libsdbfs-kernel.h"
 #elif defined(__unix__)
