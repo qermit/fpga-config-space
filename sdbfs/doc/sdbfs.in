@@ -516,7 +516,8 @@ to the use of relative addresses.
 @section sdb-read
 
 The @i{sdb-read} program can be used to access an @i{sdbfs} image
-stored in a disk file.  It works both as @i{ls} (to list the files
+stored in a disk file or an FPGA area in physical memory.
+It works both as @i{ls} (to list the files
 included in the image) and as @i{cat} (to print to its own @i{stdout}
 one of the files that live in the binary image).
 
@@ -559,11 +560,24 @@ The following option flags are supported:
 
 	Specify the offset of the magic number in the image file.
 
+@item -m <size>@@<addr>
+@itemx -m <addr>+<size>
+
+	Either form is used to specify a memory range. This is the
+        preferred way to read from a memory-mapped area, like an FPGA
+        memory space.  Please note that in general you should not
+        read a ``file'' in FPGA space, because this would mean read
+        all device registers. The form ``@t{<image-file> <filename>}''
+        is thus discouraged for in-memory SDB trees (i.e. where
+        @t{<image-file>} is @t{/dev/mem}).
+
 @item -r
 
 	Register the device with a @i{read} method instead of the @i{data}
         pointer (@ref{The Filesystem Structure}). In this way the
         tool can be used to test the library with either access method.
+        If @i{mmap} fails on the file (e.g., it is a non-mappable device),
+        @i{read} is used automatically, irrespective of @t{-r}.
 
 @end table
 
