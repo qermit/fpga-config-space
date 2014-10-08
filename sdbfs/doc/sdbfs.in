@@ -161,10 +161,15 @@ the public fields:
 
 	If the filesystem is directly mapped, the user may fill this
         pointer and avoid declaring the @i{read} method described next.
+        We removed ``datalen'' as not really needed or used so far.
 
-@item unsigned long datalen;
+@item unsigned long flags;
 
-	The length of the mapped area.
+	Flags: @t{SDBFS_F_VERBOSE} and @t{SDBFS_F_ZEROBASED}. The former
+        is not currently used, but is provided for forward compatibility
+        and easing library debugging. The latter means that the @t{data}
+        pointer is valid even if 0. This is useful in microcontroller
+        systems where the @sc{sdb} addresses refer to zero-based areas.
 
 @item int (*read)(struct sdbfs *fs, int offset, void *buf, int count);
 
@@ -201,7 +206,8 @@ number in case of error, within the @i{errno} range (e.g. @code{-ENOENT}).
 
 @item struct sdbfs *sdbfs_dev_find(const char *name);
 
-	If the user registered more than one device, this function
+	If the user registered more than one device (i.e. @sc{sdb} tree),
+        this function
         can be used to scan the list of devices and return one according
         to its own @code{name} field.
 
@@ -217,6 +223,13 @@ number in case of error, within the @i{errno} range (e.g. @code{-ENOENT}).
         within the data structure is clearly limiting over more modern
         approaches, but it allows keeping down the footprint of both the
         library and user code.
+
+@item unsigned long sdbfs_find_name(struct sdbfs *fs, const char *name);
+@itemx unsigned long sdbfs_find_id(struct sdbfs *fs, uint64_t vid, uint32_t did);
+
+	The functions are the counterpart of the @i{open} above for
+        @sc{fpga} cores. They return the base address of the core with
+        a specific name or id-pair.
 
 @item struct sdb_device *sdbfs_scan(struct sdbfs *fs, int newscan);
 
