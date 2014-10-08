@@ -232,3 +232,31 @@ int sdbfs_close(struct sdbfs *fs)
 	return 0;
 }
 
+/* to "find" a device, open it, get the current offset, then close */
+unsigned long sdbfs_find_name(struct sdbfs *fs, const char *name)
+{
+	unsigned long offset;
+	int ret;
+
+	ret = sdbfs_open_name(fs, name);
+	if (ret < 0)
+		return (unsigned long)ret;
+
+	offset = fs->f_offset;
+	sdbfs_close(fs);
+	return offset;
+}
+
+unsigned long sdbfs_find_id(struct sdbfs *fs, uint64_t vid, uint32_t did)
+{
+	unsigned long offset;
+	int ret;
+
+	ret = sdbfs_open_id(fs, vid, did);
+	if (ret < 0)
+		return (unsigned long)ret;
+
+	offset = fs->f_offset;
+	sdbfs_close(fs);
+	return offset;
+}

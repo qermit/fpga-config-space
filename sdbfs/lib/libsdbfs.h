@@ -58,6 +58,8 @@ struct sdbfs {
 int sdbfs_dev_create(struct sdbfs *fs, int verbose);
 int sdbfs_dev_destroy(struct sdbfs *fs);
 struct sdbfs *sdbfs_dev_find(const char *name);
+unsigned long sdbfs_find_name(struct sdbfs *fs, const char *name);
+unsigned long sdbfs_find_id(struct sdbfs *fs, uint64_t vid, uint32_t did);
 int sdbfs_open_name(struct sdbfs *fs, const char *name);
 int sdbfs_open_id(struct sdbfs *fs, uint64_t vid, uint32_t did);
 int sdbfs_close(struct sdbfs *fs);
