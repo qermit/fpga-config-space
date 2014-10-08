@@ -91,8 +91,9 @@ static void list_device(struct sdb_device *d, int depth, int base)
 
 	/* hack: show directory level looking at the internals */
 	printf("%016llx:%08x @ %08llx-%08llx ",
-	       ntohll(p->vendor_id), ntohl(p->device_id),
-	       base + ntohll(c->addr_first), base + ntohll(c->addr_last));
+	       (long long)ntohll(p->vendor_id), ntohl(p->device_id),
+	       (long long)base + ntohll(c->addr_first),
+	       (long long)base + ntohll(c->addr_last));
 	for (i = 0; i < depth; i++)
 		printf("  ");
 	printf("%.19s\n", p->name);
@@ -132,8 +133,8 @@ static void do_cat_id(struct sdbfs *fs, uint64_t vendor, uint32_t dev)
 
 	i = sdbfs_open_id(fs, htonll(vendor), htonl(dev));
 	if (i < 0) {
-		fprintf(stderr, "%s: %016llx-%08x: %s\n", prgname, vendor,
-			dev, strerror(-i));
+		fprintf(stderr, "%s: %016llx-%08x: %s\n", prgname,
+			(long long)vendor, dev, strerror(-i));
 		exit(1);
 	}
 	while ( (i = sdbfs_fread(fs, -1, buf, sizeof(buf))) > 0)
