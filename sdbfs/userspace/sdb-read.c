@@ -232,8 +232,9 @@ int main(int argc, char **argv)
 		fs->read = do_read;
 	else
 		fs->data = mapaddr;
-
-	err = sdbfs_dev_create(fs, opt_verbose);
+	if (opt_verbose)
+		fs->flags |= SDBFS_F_VERBOSE;
+	err = sdbfs_dev_create(fs);
 	if (err) {
 		fprintf(stderr, "%s: sdbfs_dev_create(): %s\n", prgname,
 			strerror(-err));

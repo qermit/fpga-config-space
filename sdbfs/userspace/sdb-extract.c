@@ -152,7 +152,7 @@ int main(int argc, char **argv)
 	fs->entrypoint = opt_entry;
 	fs->data = mapaddr;
 
-	err = sdbfs_dev_create(fs, 0);
+	err = sdbfs_dev_create(fs);
 	if (err) {
 		fprintf(stderr, "%s: sdbfs_dev_create(): %s\n", prgname,
 			strerror(-err));

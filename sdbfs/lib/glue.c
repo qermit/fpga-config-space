@@ -14,12 +14,12 @@
 static struct sdbfs *sdbfs_list;
 
 /* All fields unused by the caller are expected to be zeroed */
-int sdbfs_dev_create(struct sdbfs *fs, int verbose)
+int sdbfs_dev_create(struct sdbfs *fs)
 {
 	unsigned int magic;
 
 	/* First, check we have the magic */
-	if (fs->data)
+	if (fs->data || (fs->flags & SDBFS_F_ZEROBASED))
 		magic = *(unsigned int *)(fs->data + fs->entrypoint);
 	else
 		fs->read(fs, fs->entrypoint, &magic, sizeof(magic));
@@ -33,8 +33,6 @@ int sdbfs_dev_create(struct sdbfs *fs, int verbose)
 		return -ENOTDIR;
 	}
 
-	if (verbose)
-		fs->flags |= SDBFS_F_VERBOSE;
 	fs->next = sdbfs_list;
 	sdbfs_list = fs;
 
@@ -77,7 +75,7 @@ static struct sdb_device *sdbfs_readentry(struct sdbfs *fs,
 	 * returns the pointer to the entry, which may be stored in
 	 * the fs structure itself. Only touches fs->current_record.
 	 */
-	if (fs->data) {
+	if (fs->data || (fs->flags & SDBFS_F_ZEROBASED)) {
 		if (!(fs->flags & SDBFS_F_CONVERT32))
 			return (struct sdb_device *)(fs->data + offset);
 		/* copy to local storage for conversion */
