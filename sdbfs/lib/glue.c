@@ -157,7 +157,7 @@ scan:
 	if (newdir) {
 		dev = scan_newdir(fs, depth);
 		if (dev)
-			return dev;
+			goto out;
 		/* Otherwise the directory is not there: no intercon */
 		if (!depth)
 			return NULL; /* no entries at all */
@@ -175,6 +175,9 @@ scan:
 	dev = fs->currentp = sdbfs_readentry(fs, fs->this[depth]);
 	fs->this[depth] += sizeof(*dev);
 	fs->nleft[depth]--;
+out:
+	fs->f_offset = fs->base[fs->depth]
+		+ htonll(fs->currentp->sdb_component.addr_first);
 	return dev;
 }
 
