@@ -68,50 +68,142 @@ static int do_read(struct sdbfs *fs, int offset, void *buf, int count)
 }
 
 /* Boring ascii representation of a device */
-static void list_device(struct sdb_device *d, int depth, int base)
+static int list_device(struct sdb_device *d, int depth, int base)
 {
 	struct sdb_product *p;
 	struct sdb_component *c;
+	struct sdb_synthesis *s;
+
+	unsigned char *data;
 	static int warned;
-	int i;
+	char *warn;
+	int i, ret;
 
 	c = &d->sdb_component;
 	p = &c->product;
+	s = (void *)d;
 
-	if (!opt_long) {
-		printf("%.19s\n", p->name);
-		return;
-	}
-
-	if (!warned) {
+	if (!warned && opt_long) {
 		fprintf(stderr, "%s: listing format is to be defined\n",
 			prgname);
 		warned = 1;
 	}
 
-	/* hack: show directory level looking at the internals */
-	printf("%016llx:%08x @ %08llx-%08llx ",
-	       (long long)ntohll(p->vendor_id), ntohl(p->device_id),
-	       (long long)base + ntohll(c->addr_first),
-	       (long long)base + ntohll(c->addr_last));
-	for (i = 0; i < depth; i++)
-		printf("  ");
-	printf("%.19s\n", p->name);
+	/* Different sdb items are listed in different ways */
+	switch(p->record_type) {
+
+	/* The following items are components, and are listed as such */
+	case sdb_type_interconnect:
+	case sdb_type_device:
+	case sdb_type_bridge:
+		if (!opt_long) {
+			printf("%.19s\n", p->name);
+			return 0;
+		}
+
+
+		/* hack: show directory level looking at the internals */
+		printf("%016llx:%08x @ %08llx-%08llx ",
+		       (long long)ntohll(p->vendor_id), ntohl(p->device_id),
+		       (long long)base + ntohll(c->addr_first),
+		       (long long)base + ntohll(c->addr_last));
+		for (i = 0; i < depth; i++)
+			printf("  ");
+		printf("%.19s\n", p->name);
+
+		return 0;
+
+	/* A product, but not a component (no address range) */
+	case sdb_type_integration:
+		if (!opt_long) {
+			printf("%.19s\n", p->name);
+			return 0;
+		}
+		printf("%016llx:%08x                     ",
+		       (long long)ntohll(p->vendor_id), ntohl(p->device_id));
+		/* like above, show directory level */
+		for (i = 0; i < depth; i++)
+			printf("  ");
+		printf("%.19s\n", p->name);
+		return 0;
+
+	/* Just a string */
+	case sdb_type_repo_url:
+		if (opt_long)
+			printf("repo-url: %.63s\n",
+			       ((struct sdb_repo_url *)d)->repo_url);
+		return 0;
+
+	/* Some metadata */
+	case sdb_type_synthesis:
+		if (!opt_long)
+			return 0;
+		printf("synthesis-name: %.16s\n", s->syn_name);
+		printf("  commit-id: ");
+		for (i = 0; i < sizeof(s->commit_id); i++)
+			printf("%02x", s->commit_id[i]);
+		printf("\n");
+
+		/* Some of the following fields are sometimes empty */
+		if (s->tool_name[0] && s->tool_name[0] != ' ')
+			printf("  tool-name: %.8s\n", s->tool_name);
+		if (s->tool_version)
+			printf("  tool-version: 0x%08x\n",
+			       ntohl(s->tool_version));
+		if (s->date)
+			printf("  build-date: %08x\n", ntohl(s->date));
+		if (s->user_name[0] && s->tool_name[0] != ' ')
+			printf("  build-user: %.15s\n", s->user_name);
+		return 0;
+
+	case sdb_type_empty:
+		return 0;
+
+	default:
+		break;
+	}
+
+	/* Unknown record type */
+	if (p->record_type & 0x80) {
+		warn = "Warning";
+		ret = 0;
+	} else {
+		warn = "Error";
+		ret = -1;
+	}
+
+	fprintf(stderr, "%s: unknown record type 0x%02x\n", warn,
+		p->record_type);
+	if (!opt_long) {
+		printf("Unknown-record\n");
+		return ret;
+	}
+	/* long listing of unknown record */
+	printf("Unknown-record:\n");
+	data = (void *)d;
+	for (i = 0; i < sizeof(struct sdb_empty); i++)
+		printf("%s%02x%c",
+		       (i & 0xf) == 0 ? "   " : "",
+		       data[i],
+		       (i & 0xf) == 0xf ? '\n' : ' ');
+	return ret;
 }
 
 /* The following three function perform the real work, main() is just glue */
-static void do_list(struct sdbfs *fs)
+static int do_list(struct sdbfs *fs)
 {
 	struct sdb_device *d;
 	int new = 1;
+	int err = 0;
 
 	while ( (d = sdbfs_scan(fs, new)) != NULL) {
-		list_device(d, fs->depth, fs->base[fs->depth]);
+		err += list_device(d, fs->depth, fs->base[fs->depth]);
 		new = 0;
 	}
+	return err;
 }
 
-static void do_cat_name(struct sdbfs *fs, char *name)
+static int do_cat_name(struct sdbfs *fs, char *name)
 {
 	char buf[4096];
 	int i;
@@ -124,9 +216,10 @@ static void do_cat_name(struct sdbfs *fs, char *name)
 	while ( (i = sdbfs_fread(fs, -1, buf, sizeof(buf))) > 0)
 		fwrite(buf, 1, i, stdout);
 	sdbfs_close(fs);
+	return 0;
 }
 
-static void do_cat_id(struct sdbfs *fs, uint64_t vendor, uint32_t dev)
+static int do_cat_id(struct sdbfs *fs, uint64_t vendor, uint32_t dev)
 {
 	char buf[4096];
 	int i;
@@ -140,6 +233,7 @@ static void do_cat_id(struct sdbfs *fs, uint64_t vendor, uint32_t dev)
 	while ( (i = sdbfs_fread(fs, -1, buf, sizeof(buf))) > 0)
 		fwrite(buf, 1, i, stdout);
 	sdbfs_close(fs);
+	return 0;
 }
 
 /* As promised, here's the user-interface glue (and initialization, I admit) */
@@ -244,12 +338,12 @@ int main(int argc, char **argv)
 	}
 	/* Now use the thing: either scan, or look for name, or look for id */
 	if (!filearg)
-		do_list(fs);
+		err = do_list(fs);
 	else if (sscanf(filearg, "%llx:%lx", &int64, &int32) != 2)
-		do_cat_name(fs, filearg);
+		err = do_cat_name(fs, filearg);
 	else
-		do_cat_id(fs, int64, int32);
+		err = do_cat_id(fs, int64, int32);
 
 	sdbfs_dev_destroy(fs);
-	return 0;
+	return err;
 }
