@@ -34,7 +34,7 @@
 
 @setchapternewpage off
 
-@set update-month April 2013
+@set update-month January 2015
 
 @finalout
 
@@ -55,27 +55,29 @@
 @node Top
 @top Introduction
 
-SDBFS was born in 2012 as a stand-alone project, but it is now part of
+SDBFS was born in 2012 as a stand-alone project, and was then merged
+to
 @i{fpga-config-space}, hosted at @t{ohwr.org}.  The
 @i{fpga-config-space} project is the home project of SDB, so the
-associated filesystem is naturally hosted in that project.  Still,
+associated filesystem was naturally hosted in that project.  Still,
 sometimes this manual uses the clause ``this package'' to refer
 to the SDBFS subset of the overall package.
 
-SDBFS is a filesystem based on the SDB
-data structures defined by the Open Hardware Repository project called
-@i{FPGA Configuration Space}. The official SDB specification at the time
-of this writing is @url{http://www.ohwr.org/attachments/1487/sdb-1.0.pdf}.
+Despite the name of this subdirectory, we are not working on
+a filesystem implementation any more. The core of SDB in the kernel
+is designed as a bus, and everything appears as attributes
+withing @i{sysfs}.
 
 The SDB data structures are designed to describe the address space
 covered by a bus, which is split in memory regions belonging to
-different devices. This project reuses the same structures to describe
+different devices; but the same structures are used to
+represent
 a storage address space, exploiting the simple design. While the structures
 are not simple to generate, they are very simple to parse, which allows
 an embedded processor (like a soft-core running on an FPGA) to access
 this filesystem with a minimal amount of code.
 
-@i{sdbfs} is read-only as far as the structure is concerned, but
+@sc{sdbfs} by design is read-only as far as the structure is concerned, but
 individual files may be modified if so configured to.  The filesystem
 is aware of the concept of block size, so it can be placed on flash
 memory, but doesn't do wear-leveling or any other fancy thing to
@@ -689,162 +691,7 @@ size, and no @t{maxsize =} is generated in the output @t{--SDB-CONFIG--}.
 @node Kernel Support
 @chapter Kernel Support
 
-Kernel support is in the form of a module, which allows drivers to
-register (and unregister) storage devices. Each storage device
-declares a set of operations to it, so the filesystem can read, erase,
-write data independently of the actual storage.  See @i{sdbfs.h} about
-data structures and methods. 
-
-To test without real hardware at hand, the module called
-@i{sdb-fakedev.ko} can load to kernel space one or more image files,
-and offer their data for mounting.
-
-If your host can access an SDB-described FPGA device in I/O memory,
-the module called @i{sdb-iomem.ko} can register those areas to the
-@i{sdbfs} module, so you can mount the FPGA and perform register
-access from user space using named files.
-
-@c ==========================================================================
-@node Supported kernel versions
-@section Supported kernel versions
-
-The current version is a development version only, and as such it has
-only been built and run under Linux-3.4. In the future I'll check
-backward portability -- but I'm sure something changed at 3.2 times,
-so backward portability will need some work.
-
-@c ==========================================================================
-@node sdbfs.ko
-@section sdbfs.ko
-
-The filesystem currently only works in read-only mode, and there is no
-support for subdirectories.  The @i{name} argument you pass to the
-@code{mount} command must match one of the device names that have already
-been registered to the filesystem using @code{sdbfs_register_device}.
-The available names should appear in @i{sysfs} but this is not yet implemented.
-
-@c ==========================================================================
-@node sdb-fakedev.ko
-@section sdb-fakedev.ko
-
-The module receives an array of strings as a parameter called @code{fsimg}.
-It supports up to 8 strings: for each of them it calls @code{request_firmware}
-and in case of success it registers an @i{sdb} device with the name of
-the firmware file.
-
-Such images are expected to be the output of @i{gensdbfs}, but currently
-the entry point must be at offset zero (we'd need another module argument
-to specify where the entry point is).
-
-After mount, you'll see the files hosted in the image. See
-@ref{Example use of sdbfs and sdb-fakedev}
-
-@c ==========================================================================
-@node Example use of sdbfs and sdb-fakedev
-@section Example use of sdbfs and sdb-fakedev
-
-This is an example session that creates, mounts and reads
-an @i{sdbfs} image:
-
-@smallexample
-    # ls -l userspace
-    total 44
-    -rw-rw-r-- 1 rubini staff   458 Aug 17 11:33 Makefile
-    -rwxrwxr-x 1 rubini staff 20630 Aug 30 13:55 gensdbfs
-    -rw-rw-r-- 1 rubini staff  9259 Aug 30 13:55 gensdbfs.c
-    -rw-rw-r-- 1 rubini staff   776 Aug 18 06:54 gensdbfs.h
-    # userspace/gensdbfs -b 1024 userspace /lib/firmware/stuff.sdb
-    # insmod kernel/sdbfs.ko
-    # insmod kernel/sdb-fakedev.ko fsimg=stuff.sdb
-    # mount -t sdbfs stuff.sdb /mnt
-    # ls -l /mnt
-    total 0
-    -r--r--r-- 1 root root   458 Jan  1  1970 Makefile
-    -r--r--r-- 1 root root 20630 Jan  1  1970 gensdbfs
-    -r--r--r-- 1 root root  9259 Jan  1  1970 gensdbfs.c
-    -r--r--r-- 1 root root   776 Jan  1  1970 gensdbfs.h
-    # md5sum /mnt/Makefile userspace/Makefile
-    e87991b1c4ac1664327ef388aac4bd71  /mnt/Makefile
-    e87991b1c4ac1664327ef388aac4bd71  userspace/Makefile
-@end smallexample
-
-@c ==========================================================================
-@node sdb-iomem.ko
-@section sdb-iomem.ko
-
-This module can access a region of I/O registers and show it as an
-@i{sdbfs} object. The user can specify the memory regions to be
-accessed with a module argument.
-
-The expected use of this type of filesystem is for driver developers:
-if you are working on an SDB-aware FPGA project, you can mount the
-internal bus of the FPGA and see the internal registers. Once you know
-register offsets, you can ignore the base address of each device
-by accessing it by pathname.
-
-This module is currently only a trivial example, and a number of
-features are missing. For example, the file-operations for register
-access are not yet defined, and the lack of support for subdirectories
-is a serious problem to be solved soon.  Nonetheless, this approach
-may prove very useful over time.
-
-I envision the following steps for development of I/O acess in @i{sdbfs}:
-
-@itemize @bullet
-@item FPGA projects should be able to register their internal bus.
-@item The names of available @i{sdbfs} devices should appear in @i{sysfs}.
-@item A user-space program should know register names for all devices.
-@item A web service should publish such register layout files.
-@end itemize
-
-Each of these steps is pretty simple in itself, it just takes time to
-implement. As for the last step, the central @i{sdb} registry may
-offer a DNS service, in order for each vendor to be autonomous in
-publishing its own register maps from a vendor-specific host name.
-
-The current implementation does very little, but it is able to
-scan a read SDB device and see the internal devices. The specification
-of each memory area (at most 8 of them are supported) is:
-
-@example
-   <name>@@<hex-address>{-<hex-end>|+<hex-size>}[=<hex-entry>]
-@end example
-
-All numbers are hexadecimal: the area is specified either as
-a range (@code{<addr>-<end>}) or as start-plus-size (@code{<addr>+<size>}).
-If the entry point for SDB information is not zero, it must be passed
-after an equal (@code{=}) sign.
-
-The following example shows what the current @code{sdb-iomem.ko} can
-do, accessing an FPGA driven but the @i{wr-nic} driver (package @i{spec-sw},
-version 2.0):
-
-@smallexample
-   spusa.root# insmod sdb-iomem.ko area=spec0@@0xfd300000+100000=63000
-   spusa.root# mount -t sdbfs spec0 /mnt
-   spusa.root# ls -l /mnt
-   total 0
-   -r--r--r-- 1 root root    256 Jan  1  1970 WB-VIC-Int.Control
-   ?--------- 1 root root 262144 Jan  1  1970 WR-CORE
-   ?--------- 1 root root   4096 Jan  1  1970 WR-DIO-Core
-   -r--r--r-- 1 root root 131072 Jan  1  1970 WR-NIC
-   -r--r--r-- 1 root root    256 Jan  1  1970 WR-TXTSU
-   spusa.root# rmmod sdb-iomem
-   spusa.root# insmod sdb-iomem.ko area=spec0@@0xfd300000+100000=62400
-   spusa.root# mount -t sdbfs spec0 /mnt
-   spusa.root# ls -l /mnt
-   total 0
-   -r--r--r-- 1 root root 256 Jan  1  1970 WB-GPIO-Port
-   -r--r--r-- 1 root root 256 Jan  1  1970 WB-I2C-Master
-   -r--r--r-- 1 root root 256 Jan  1  1970 WR-1Wire-master
-   -r--r--r-- 1 root root 256 Jan  1  1970 WR-DIO-Registers
-@end smallexample
-
-The first listing above shows the overall @i{WishBone} bus of
-the FPGA. The bridge @code{WR-DIO-Core} should be shown as a
-subdirectory. The second listing shows the content of such
-subdirectory, by telling @i{sdb-iomem} to access the SDB records
-for the @i{dio-core} rather than the top-level one.
+Being worked on.
 
 @c ##########################################################################
 @node Bugs and Missing Features
@@ -857,33 +704,18 @@ priority or complexity:
 
 @itemize
 
+@item kernel support: to be redone as a bus
+
 @item gensdbfs: more config file options: class and so on.
 
-@item kernel and gensdbfs: support subdirectories. This is not
-trivial in gensdbfs because of the relative placement of files
-within the subdir.
-
-@item kernel: add . and .. entries to readdir
-
-@item kernel: support writing to files
-
-@item kernel: complete support for device access
-
-@item kernel: read and write bits are not propagated
-
-@item core sdbfs: show available images in /sys
+@item gensdbfs and sdb-read: check subdir support (it sometimes segfaults
+in sdb-read).
 
 @item lib: kernel space and freestanding is not tested
 
 @item lib: write support is missing
 
 @item read-sdb: implement verbose mode and @code{rwxrwxrwx} in long mode
-
-@item general: factorize some common procedures
-
-@item general: the various FIXME for details in the code itself
-
-@item general: too many printk still in the code
 
 @end itemize
 
