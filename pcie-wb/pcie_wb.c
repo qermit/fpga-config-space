@@ -374,23 +374,23 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pci_intx(pdev, 0); 
 	}
 	
+	if (wishbone_register(&dev->wb) < 0) {
+		printk(KERN_ALERT PCIE_WB ": could not register wishbone bus\n");
+		goto fail_msi;
+	}
+	
 	if (request_irq(pdev->irq, irq_handler, IRQF_SHARED, "pcie_wb", dev) < 0) {
 		printk(KERN_ALERT PCIE_WB ": could not register interrupt handler\n");
-		goto fail_msi;
+		goto fail_reg;
 	}
 	
 	/* Enable classic interrupts */
 	pcie_int_enable(dev, 1);
 
-	if (wishbone_register(&dev->wb) < 0) {
-		printk(KERN_ALERT PCIE_WB ": could not register wishbone bus\n");
-		goto fail_irq;
-	}
-	
 	return 0;
 
-fail_irq:
-	free_irq(dev->pci_dev->irq, dev);
+fail_reg:
+	wishbone_unregister(&dev->wb);
 fail_msi:	
 	if (dev->msi) {
 		pci_intx(pdev, 1);
@@ -416,8 +416,9 @@ static void remove(struct pci_dev *pdev)
 	
 	dev = pci_get_drvdata(pdev);
 	
-	wishbone_unregister(&dev->wb);
+	pcie_int_enable(dev, 0);
 	free_irq(dev->pci_dev->irq, dev);
+	wishbone_unregister(&dev->wb);
 	if (dev->msi) {
 		pci_intx(pdev, 1);
 		pci_disable_msi(pdev);
