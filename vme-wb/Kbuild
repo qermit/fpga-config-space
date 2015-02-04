@@ -21,7 +21,8 @@ endif
 
 ifeq ($(VME_SOURCE),external)
 ifneq ($(KERNEL),$(KERNEL_LIMIT))
-$(error Cannot build external VME driver with 3.10 - enable in-tree VME $(KERNEL) $(KERNEL_LIMIT))
+$(warning Cannot build external VME driver with 3.10 - enable in-tree VME $(KERNEL) $(KERNEL_LIMIT))
+VME_SOURCE=none
 endif
 endif
 
@@ -44,5 +45,7 @@ obj-m += ../legacy-vme64x-core/drv/driver/
 endif
 
 # The actual driver!
+ifneq ($(VME_SOURCE),none)
 obj-m += vme_wb.o
 vme_wb-objs := vme_wb_$(VME_SOURCE).o
+endif
