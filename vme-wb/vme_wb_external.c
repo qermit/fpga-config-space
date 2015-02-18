@@ -515,8 +515,11 @@ static int vme_probe(struct device *pdev, unsigned int ndev)
 
 fail_irq:
 	vme_free_irq(vector_num);
+	vme_unmap_window(dev, MAP_REG);
+	vme_unmap_window(dev, MAP_CR_CSR);
 failed_unmap_wb:
 	vme_unmap_window(dev, MAP_REG);
+	vme_unmap_window(dev, MAP_CR_CSR);
 failed_unmap_crcsr:
 	vme_unmap_window(dev, MAP_CR_CSR);
 failed:
