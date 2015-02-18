@@ -108,7 +108,7 @@ static void wb_write(struct wishbone *wb, wb_addr_t addr, wb_data_t data)
 	reg_win = dev->vme_res.map[MAP_REG]->kernel_va;
 	ctrl_win = dev->vme_res.map[MAP_CTRL]->kernel_va;
 
-   addr = addr & WBM_ADD_MASK;
+        addr = addr & WBM_ADD_MASK;
 
 	window_offset = addr & WINDOW_HIGH;
 	if (window_offset != dev->window_offset) {
@@ -116,10 +116,10 @@ static void wb_write(struct wishbone *wb, wb_addr_t addr, wb_data_t data)
 		dev->window_offset = window_offset;
 	}
 
-   if (unlikely(debug))
-      printk(KERN_ALERT VME_WB ": WRITE (0x%x) = 0x%x)\n",
-             data, addr);
-   iowrite32(cpu_to_be32(data), reg_win + (addr & WINDOW_LOW));
+        if (unlikely(debug))
+                printk(KERN_ALERT VME_WB ": WRITE (0x%x) = 0x%x)\n",
+                        data, addr);
+        iowrite32(cpu_to_be32(data), reg_win + (addr & WINDOW_LOW));
 }
 
 static wb_data_t wb_read(struct wishbone *wb, wb_addr_t addr)
@@ -134,9 +134,10 @@ static wb_data_t wb_read(struct wishbone *wb, wb_addr_t addr)
 	reg_win = dev->vme_res.map[MAP_REG]->kernel_va;
 	ctrl_win = dev->vme_res.map[MAP_CTRL]->kernel_va;
 
-   addr = addr & WBM_ADD_MASK;
+        addr = addr & WBM_ADD_MASK;
 
-   window_offset = addr & WINDOW_HIGH;
+        window_offset = addr & WINDOW_HIGH;
+
 	if (window_offset != dev->window_offset) {
 		iowrite32(cpu_to_be32(window_offset), ctrl_win + WINDOW_OFFSET_LOW);
 		dev->window_offset = window_offset;
@@ -236,7 +237,7 @@ int irq_handler(void *dev_id)
 {
 	struct vme_wb_dev *dev = dev_id;
 
-   if (unlikely(debug))
+        if (unlikely(debug))
 		printk(KERN_ALERT VME_WB ": IRQ!!\n");
 
 	wishbone_slave_ready(&dev->wb);
@@ -262,7 +263,7 @@ int vme_map_window(struct vme_wb_dev *vme_dev, enum vme_map_win map_type)
 	if (map_type == MAP_REG) {
 		am = VME_A32_USER_DATA_SCT;
 		dw = VME_D32;
-      base = vme_dev->vme_res.slot * 0x10000000;
+                base = vme_dev->vme_res.slot * 0x10000000;
 		size = 0x10000;
 		map_type_c = "WB MAP REG";
 	} else if (map_type == MAP_CTRL) {
@@ -280,7 +281,7 @@ int vme_map_window(struct vme_wb_dev *vme_dev, enum vme_map_win map_type)
 	}
 
 	vme_dev->vme_res.map[map_type] =
-	    kzalloc(sizeof(struct vme_mapping), GFP_KERNEL);
+                kzalloc(sizeof(struct vme_mapping), GFP_KERNEL);
 	if (!vme_dev->vme_res.map[map_type]) {
 		dev_err(dev, "Cannot allocate memory for vme_mapping struct\n");
 		return -ENOMEM;
@@ -452,7 +453,7 @@ static int vme_probe(struct device *pdev, unsigned int ndev)
 	mutex_init(&dev->mutex);
 	dev->wb.wops = &wb_ops;
 	dev->wb.parent = pdev;
-   dev->window_offset  = 0;
+        dev->window_offset  = 0;
 
 	/* Map CR/CSR space */
 	error = vme_map_window(dev, MAP_CR_CSR);
@@ -509,17 +510,19 @@ static int vme_probe(struct device *pdev, unsigned int ndev)
 		goto fail_irq;
 	}
 
-   init_ctrl_reg(dev);
+        init_ctrl_reg(dev);
 
 	return 0;
 
-fail_irq:
+fail_irq: {
 	vme_free_irq(vector_num);
 	vme_unmap_window(dev, MAP_REG);
 	vme_unmap_window(dev, MAP_CR_CSR);
-failed_unmap_wb:
+          }
+failed_unmap_wb: {
 	vme_unmap_window(dev, MAP_REG);
 	vme_unmap_window(dev, MAP_CR_CSR);
+                 }
 failed_unmap_crcsr:
 	vme_unmap_window(dev, MAP_CR_CSR);
 failed:
