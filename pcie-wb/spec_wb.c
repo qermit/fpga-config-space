@@ -11,6 +11,7 @@
 #include <linux/aer.h>
 #include <linux/sched.h> 
 #include <linux/miscdevice.h>
+#include <linux/version.h>
 
 #include <asm/io.h>
 #include <asm/spinlock.h>
@@ -232,6 +233,7 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	u8 revision;
 	u16 vendor;
 	struct spec_wb_dev *dev;
+	int ret;
 
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &revision);
 	pci_read_config_word(pdev, PCI_VENDOR_ID, &vendor);
@@ -240,13 +242,13 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	case SPEC1_WB_VENDOR_ID:
 		if (revision != SPEC1_WB_REVISION_ID) {
 			printk(KERN_ALERT SPEC_WB ": SPECv1 revision ID wrong!\n");
-			goto fail_out;
+			return -EIO;
 		}
 		break;
 	case SPEC4_WB_VENDOR_ID:
 		if (revision != SPEC4_WB_REVISION_ID) {
 			printk(KERN_ALERT SPEC_WB ": SPECv4 revision ID wrong!\n");
-			goto fail_out;
+			return -EIO;
 		}
 		break;
 	}
@@ -254,8 +256,13 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev = kmalloc(sizeof(struct spec_wb_dev), GFP_KERNEL);
 	if (!dev) {
 		printk(KERN_ALERT SPEC_WB ": could not allocate memory for spec_wb_dev structure!\n");
-		goto fail_out;
+		return -ENOMEM;
 	}
+
+	ret = pci_enable_device(pdev);
+	if (ret < 0)
+		goto fail_out;
+	pci_set_master(pdev);
 	
 	/* Initialize structure */
 	dev->pci_dev = pdev;
@@ -270,9 +277,15 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, dev);
 	
 	/* enable message signaled interrupts */
-	if (pci_enable_msi(pdev) != 0) {
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0)
+        ret = pci_enable_msi_block(pdev, 1);
+        #else
+        ret = pci_enable_msi_exact(pdev, 1);
+        #endif
+
+	if (ret < 0) {
 		/* resort to legacy interrupts */
-		printk(KERN_ALERT SPEC_WB ": could not enable MSI interrupting\n");
+		dev_err(&pdev->dev, "%s: could not enable MSI interrupting: error %i\n", __func__, ret);
 		dev->msi = 0;
 	}
 
@@ -281,6 +294,7 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pci_intx(pdev, 0); 
 	}
 
+	ret = -ENOMEM;
 	if (setup_bar(pdev, &dev->pci_res[0], 0) < 0) goto fail_msi;
 	if (setup_bar(pdev, &dev->pci_res[1], 2) < 0) goto fail_bar0;
 	if (setup_bar(pdev, &dev->pci_res[2], 4) < 0) goto fail_bar1;
@@ -290,7 +304,7 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto fail_bar2;
 	}
 	
-	return pci_enable_device(pdev);
+	return 0;
 
 	/* cleaning up */
 fail_bar2:
@@ -304,9 +318,9 @@ fail_msi:
 		pci_intx(pdev, 1);
 		pci_disable_msi(pdev);
 	}
-	kfree(dev);
 fail_out:
-	return -EIO;
+	kfree(dev);
+	return ret;
 }
 
 static void remove(struct pci_dev *pdev)
