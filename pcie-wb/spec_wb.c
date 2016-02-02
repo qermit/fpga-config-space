@@ -28,6 +28,7 @@
 #endif
 
 static unsigned int debug = 0;
+static unsigned int sdb_addr = 0x100;
 
 static void wb_cycle(struct wishbone* wb, int on)
 {
@@ -157,7 +158,7 @@ static wb_data_t wb_read_cfg(struct wishbone *wb, wb_addr_t addr)
 	case 0:  out = 0; break;
 	case 4:  out = 0; break;
 	case 8:  out = 0; break;
-	case 12: out = 0x30000;  break;
+	case 12: out = sdb_addr;  break;
 	default: out = 0; break;
 	}
 	
@@ -260,6 +261,7 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->pci_dev = pdev;
 	dev->wb.wops = &wb_ops;
 	dev->wb.parent = &pdev->dev;
+	dev->msi = 1;
 	mutex_init(&dev->mutex);
 	dev->window_offset = 0;
 	dev->low_addr = 0;
@@ -271,7 +273,12 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pci_enable_msi(pdev) != 0) {
 		/* resort to legacy interrupts */
 		printk(KERN_ALERT SPEC_WB ": could not enable MSI interrupting\n");
-		goto fail_free;
+		dev->msi = 0;
+	}
+
+	if (dev->msi) {
+		/* disable legacy interrupts when using MSI */
+		pci_intx(pdev, 0); 
 	}
 
 	if (setup_bar(pdev, &dev->pci_res[0], 0) < 0) goto fail_msi;
@@ -292,9 +299,11 @@ fail_bar1:
 	destroy_bar(&dev->pci_res[1]);
 fail_bar0:
 	destroy_bar(&dev->pci_res[0]);
-fail_msi:	
-	pci_disable_msi(pdev);
-fail_free:
+fail_msi:
+	if (dev->msi) {
+		pci_intx(pdev, 1);
+		pci_disable_msi(pdev);
+	}
 	kfree(dev);
 fail_out:
 	return -EIO;
@@ -314,8 +323,10 @@ static void remove(struct pci_dev *pdev)
 	destroy_bar(&dev->pci_res[2]);
 	destroy_bar(&dev->pci_res[1]);
 	destroy_bar(&dev->pci_res[0]);
-	
-	pci_disable_msi(pdev);
+	if (dev->msi) {	
+		pci_intx(pdev, 1);
+		pci_disable_msi(pdev);
+	}
 
 	kfree(dev);
 }
@@ -348,6 +359,8 @@ MODULE_AUTHOR("Wesley W. Terpstra <w.tersptra@gsi.de>");
 MODULE_DESCRIPTION("CERN SPEC card bridge");
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Enable debugging information");
+module_param(sdb_addr, int, 0644);
+MODULE_PARM_DESC(sdb_addr, "SDB address");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(SPEC_WB_VERSION);
 
